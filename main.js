@@ -1,6 +1,4 @@
-// === Tower Defense — Fixed Graphics + Tower Attack Animation ===
-// Для Влада — восстановлены оригинальные asset keys, пути, волны, и анимация атаки башни.
-// Сцена 720x1280, Phaser 3
+// === Tower Defense — Improved Mechanics (Death, Idle, Scaling Upgrades) ===
 
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
 const PATHS = [
@@ -10,53 +8,47 @@ const PATHS = [
   [[52,667],[168,691],[289,700],[347,736],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
   [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
 ];
-
 const BASE_POS = { x:160, y:1005 };
 const BASE_RECT = { w:153, h:93 };
 
 const START_GOLD = 500, KILL_REWARD = 10, WAVE_BONUS = 50, TOWER_COST = 100;
-const UPGRADE_COST = 150;
+let UPGRADE_COST = 150;
 const ENEMY_AGGRO = 150, TOWER_RANGE = 200;
 
 let enemies, towers, bullets, buildSprites, ui;
 let gold = START_GOLD;
 let wave = 0;
-let canWatchAd = true;
 let isPaused = false;
 
 // ---------------- PRELOAD ----------------
 function create_preload() {
   this.load.image('map', 'assets/map.png');
-  this.load.image('mappath', 'assets/mappath.png');
   this.load.image('molot', 'assets/elements/moloticon.png');
   this.load.image('up_icon', 'assets/elements/up.png');
   this.load.image('noup_icon', 'assets/elements/noup.png');
 
-  // tower statics + attack frames (1..12)
+  // tower idle + attack
   for (let i = 1; i <= 12; i++) {
-    this.load.image('tower' + i, 'assets/attacktower/statik/tower' + i + '/stower1.png');
     for (let j = 0; j < 5; j++) {
+      this.load.image('tower' + i + '_idle_' + j, 'assets/attacktower/idle/tower' + i + '/idletower' + (j+1) + '.png');
       this.load.image('tower' + i + '_atk_' + j, 'assets/attacktower/attack/tower' + i + '/aatcktower' + (j+1) + '.png');
     }
   }
 
-  // enemy frames (walk / attack / die)
+  // enemy frames
   for (let i = 0; i < 7; i++) {
     this.load.image('e_walk_' + i, 'assets/enemy/walk/walk' + (i+1) + '.png');
     this.load.image('e_atk_' + i, 'assets/enemy/atack_enemy/atackenemy' + (i+1) + '.png');
     this.load.image('e_die_' + i, 'assets/enemy/die_enemy/dead' + (i+1) + '.png');
   }
 
-  try { this.load.audio('s_shoot', 'assets/sounds/shoot.mp3'); } catch(e) {}
-  try { this.load.audio('s_death', 'assets/sounds/death.mp3'); } catch(e) {}
-
-  this.load.on('filecomplete', key => console.log('✅ Loaded:', key));
-  this.load.on('loaderror', file => console.error('❌ Error loading:', file && file.src ? file.src : file));
+  try { this.load.audio('s_shoot', 'assets/sounds/shoot.mp3'); } catch(e){}
+  try { this.load.audio('s_death', 'assets/sounds/death.mp3'); } catch(e){}
 }
 
 // ---------------- CREATE ----------------
 function create() {
-  const mapImg = this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
+  this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
 
   enemies = this.add.group();
   bullets = this.add.group();
@@ -64,7 +56,6 @@ function create() {
   buildSprites = [];
   ui = {};
 
-  // build spots
   for (let i = 0; i < BUILD_SPOTS.length; i++) {
     const p = BUILD_SPOTS[i];
     const s = this.add.image(p[0], p[1], 'molot').setInteractive().setScale(0.6);
@@ -73,40 +64,22 @@ function create() {
     buildSprites.push(s);
   }
 
-  // UI
-  ui.goldText = this.add.text(12, 12, 'Gold:' + gold, { font: '22px Arial', fill: '#fff' }).setDepth(50);
-  ui.waveText = this.add.text(12, 44, 'Wave:' + wave, { font: '18px Arial', fill: '#fff' }).setDepth(50);
+  ui.goldText = this.add.text(12, 12, 'Gold:' + gold, { font: '22px Arial', fill: '#fff' });
+  ui.waveText = this.add.text(12, 44, 'Wave:' + wave, { font: '18px Arial', fill: '#fff' });
+  ui.pauseBtn = this.add.text(200, 1220, '⏸️ Пауза', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive();
+  ui.restartBtn = this.add.text(400, 1220, '🔁 Рестарт', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive();
 
-  // pause / restart
-  ui.pauseBtn = this.add.text(200, 1220, '⏸️ Пауза', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive().setDepth(50);
-  ui.restartBtn = this.add.text(400, 1220, '🔁 Рестарт', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive().setDepth(50);
   ui.pauseBtn.on('pointerdown', () => togglePause(this));
   ui.restartBtn.on('pointerdown', () => restartGame(this));
 
-  // start waves
   this.time.addEvent({ delay: 1000, callback: () => startNextWave(this) });
 }
 
 // ---------------- UPDATE ----------------
 function update() {
   if (isPaused) return;
-  try {
-    enemies.getChildren().forEach(e => updateEnemy(e));
-    bullets.getChildren().forEach(b => updateBullet(b));
-
-    // update up/noup indicators and keep them positioned
-    for (let t of towers) {
-      if (t.sprite && t.sprite.upIcon) {
-        const imgKey = gold >= UPGRADE_COST ? 'up_icon' : 'noup_icon';
-        if (t.sprite.upIcon.texture.key !== imgKey) t.sprite.upIcon.setTexture(imgKey);
-        t.sprite.upIcon.x = t.sprite.x - 28;
-        t.sprite.upIcon.y = t.sprite.y + 40;
-        t.sprite.upIcon.setVisible(t.sprite.active);
-      }
-    }
-  } catch (err) {
-    console.error('Update error:', err);
-  }
+  enemies.getChildren().forEach(e => updateEnemy(e));
+  bullets.getChildren().forEach(b => updateBullet(b));
 }
 
 // ---------------- WAVES ----------------
@@ -115,48 +88,46 @@ function startNextWave(scene) {
   gold += WAVE_BONUS;
   ui.waveText.setText('Wave:' + wave);
   ui.goldText.setText('Gold:' + gold);
-  canWatchAd = true;
 
   let count = 8 + Math.floor(wave * 1.5);
-
   for (let i = 0; i < count; i++) {
     scene.time.addEvent({ delay: i * 1000, callback: () => spawnEnemy(scene) });
   }
-
   scene.time.addEvent({ delay: (count + 5) * 1000, callback: () => startNextWave(scene) });
 }
 
 // ---------------- SPAWN ----------------
 function spawnEnemy(scene) {
   const path = PATHS[Math.floor(Math.random() * PATHS.length)];
-  if (!path || path.length === 0) return;
-
   const spawn = path[0];
   let e = scene.physics.add.sprite(spawn[0], spawn[1], 'e_walk_0');
-  e.setScale(0.5);
-  e.maxHp = 10 + Math.floor(wave * 1.2);
-  e.hp = e.maxHp;
-  e.speed = 0.4 + wave * 0.03;
+  e.setScale(0.35);
+  e.maxHp = 100;
+  e.hp = 100;
+  e.speed = 0.25; // медленнее
   e.path = path;
   e.pathIndex = 1;
-  e.targetTower = null;
-  e._lastAttack = 0;
   e.state = 'walk';
   enemies.add(e);
 
   e._walkFrame = 0;
   e._atkFrame = 0;
+  e._dieFrame = 0;
   e._animTimer = scene.time.addEvent({
-    delay: 140,
+    delay: 150,
     loop: true,
     callback: () => {
       if (!e.active) return;
       if (e.state === 'walk') {
         e._walkFrame = (e._walkFrame + 1) % 7;
-        if (scene.textures.exists('e_walk_' + e._walkFrame)) e.setTexture('e_walk_' + e._walkFrame);
+        e.setTexture('e_walk_' + e._walkFrame);
       } else if (e.state === 'attack') {
         e._atkFrame = (e._atkFrame + 1) % 7;
-        if (scene.textures.exists('e_atk_' + e._atkFrame)) e.setTexture('e_atk_' + e._atkFrame);
+        e.setTexture('e_atk_' + e._atkFrame);
+      } else if (e.state === 'dead') {
+        e._dieFrame++;
+        if (e._dieFrame < 7) e.setTexture('e_die_' + e._dieFrame);
+        else e.destroy();
       }
     }
   });
@@ -167,76 +138,18 @@ function updateEnemy(e) {
   if (!e || !e.active) return;
   if (e.state === 'dead') return;
 
-  if (e.targetTower && e.targetTower.active) {
-    e.state = 'attack';
-    moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
-    e.setFlipX(e.targetTower.x < e.x);
-    let d = Phaser.Math.Distance.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
-    if (d < 24) {
-      if (!e._lastAttack || Date.now() - e._lastAttack > 600) {
-        e._lastAttack = Date.now();
-        if (e.targetTower.hp != null) {
-          e.targetTower.hp -= 10;
-          if (e.targetTower.hp <= 0) {
-            e.targetTower.destroy();
-            towers = towers.filter(t => t.sprite && t.sprite.active);
-            e.targetTower = null;
-            e.state = 'returning';
-          }
-        } else {
-          e.targetTower = null;
-          e.state = 'returning';
-        }
-      }
-    }
-    return;
-  }
-
-  let nearest = null, nd = 1e9;
-  for (let t of towers) {
-    if (!t.sprite || !t.sprite.active) continue;
-    let d = Phaser.Math.Distance.Between(e.x, e.y, t.sprite.x, t.sprite.y);
-    if (d < ENEMY_AGGRO && d < nd) { nd = d; nearest = t.sprite; }
-  }
-  if (nearest) {
-    e.targetTower = nearest;
-    e._savedPathIndex = e.pathIndex;
-    return;
-  }
-
-  if (e.state === 'returning') {
-    const target = e.path[e.pathIndex] || e.path[e.path.length - 1];
-    moveTowards(e, target[0], target[1], e.speed);
-    if (Phaser.Math.Distance.Between(e.x, e.y, target[0], target[1]) < 8) {
-      e.state = 'walk';
-    }
-    return;
-  }
-
   if (e.pathIndex >= e.path.length) {
     moveTowards(e, BASE_POS.x, BASE_POS.y, e.speed);
-    e.setFlipX(BASE_POS.x < e.x);
-    let dbx = Math.abs(e.x - BASE_POS.x), dby = Math.abs(e.y - BASE_POS.y);
-    if (dbx < BASE_RECT.w/2 && dby < BASE_RECT.h/2) {
-      if (!e._lastAttack || Date.now() - e._lastAttack > 600) {
-        e._lastAttack = Date.now();
-        gold = Math.max(0, gold - 10);
-        ui.goldText.setText('Gold:' + gold);
-      }
-    }
     return;
   }
 
   const waypoint = e.path[e.pathIndex];
-  if (waypoint) {
-    moveTowards(e, waypoint[0], waypoint[1], e.speed);
-    if (Phaser.Math.Distance.Between(e.x, e.y, waypoint[0], waypoint[1]) < 6) {
-      e.pathIndex++;
-    }
-  }
+  moveTowards(e, waypoint[0], waypoint[1], e.speed);
+  if (Phaser.Math.Distance.Between(e.x, e.y, waypoint[0], waypoint[1]) < 6)
+    e.pathIndex++;
 }
 
-// ---------------- MOVE HELPER ----------------
+// ---------------- MOVE ----------------
 function moveTowards(obj, tx, ty, speed) {
   let dx = tx - obj.x, dy = ty - obj.y;
   let dist = Math.sqrt(dx * dx + dy * dy);
@@ -247,16 +160,12 @@ function moveTowards(obj, tx, ty, speed) {
 
 // ---------------- BUILD TOWER ----------------
 function buildTower(scene, index) {
-  if (index < 0 || index >= BUILD_SPOTS.length) return;
-  if (!buildSprites[index]) return;
-  if (gold < TOWER_COST) { alert('Not enough gold'); return; }
+  if (gold < TOWER_COST) return alert('Not enough gold');
   let pos = BUILD_SPOTS[index];
-  buildSprites[index].destroy(); buildSprites[index] = null;
+  buildSprites[index].destroy();
   gold -= TOWER_COST; ui.goldText.setText('Gold:' + gold);
 
-  let ts = scene.add.sprite(pos[0], pos[1], 'tower1');
-
-  // tower meta
+  let ts = scene.add.sprite(pos[0], pos[1], 'tower1_idle_0');
   ts.hp = 200;
   ts.level = 1;
   ts._shootRate = 900;
@@ -264,127 +173,91 @@ function buildTower(scene, index) {
   ts._lastShot = 0;
   ts._typeKey = 'tower1';
   ts._isAttacking = false;
-  ts._atkFrame = 0;
+  ts._animFrame = 0;
 
   ts.setInteractive();
-  ts.on('pointerdown', () => upgradeTower(scene, ts)); // улучшение по клику на башню
+  ts.on('pointerdown', () => upgradeTower(scene, ts));
 
-  // визуальный индикатор up/noup (не кликабельный)
-  if (scene.textures.exists('up_icon') && scene.textures.exists('noup_icon')) {
-    ts.upIcon = scene.add.image(pos[0] - 28, pos[1] + 40, gold >= UPGRADE_COST ? 'up_icon' : 'noup_icon').setScale(0.6);
-  }
-
-  // АНИМАЦИОННЫЙ ТАЙМЕР башни: переключает frames атаки, если _isAttacking true,
-  // иначе ставит статичный стейт (ts._typeKey).
   ts._animTimer = scene.time.addEvent({
     delay: 90,
     loop: true,
     callback: () => {
       if (!ts.active) return;
-      if (ts._isAttacking) {
-        ts._atkFrame = (ts._atkFrame + 1) % 5;
-        const atkKey = (ts._typeKey || 'tower1') + '_atk_' + ts._atkFrame;
-        if (scene.textures.exists(atkKey)) ts.setTexture(atkKey);
-      } else {
-        // вернуть статичное изображение (если текстура существует)
-        if (scene.textures.exists(ts._typeKey)) ts.setTexture(ts._typeKey);
-      }
+      ts._animFrame = (ts._animFrame + 1) % 5;
+      const key = ts._isAttacking
+        ? ts._typeKey + '_atk_' + ts._animFrame
+        : ts._typeKey + '_idle_' + ts._animFrame;
+      if (scene.textures.exists(key)) ts.setTexture(key);
     }
   });
 
-  // ориентация по центру экрана
   ts.setFlipX(ts.x > 360);
-
   towers.push({ sprite: ts });
 }
 
 // ---------------- UPGRADE ----------------
 function upgradeTower(scene, ts) {
-  if (!ts._typeKey) return;
   let cur = ts._typeKey;
   let num = parseInt(cur.replace(/[^0-9]/g, '')) || 1;
+  if (num >= 12) return alert('Максимальный уровень');
   let next = 'tower' + (num + 1);
-  if (!scene.textures.exists(next)) { alert('Max upgrade'); return; }
-  if (gold < UPGRADE_COST) { alert('Need ' + UPGRADE_COST + ' gold to upgrade'); return; }
+  if (gold < UPGRADE_COST) return alert('Need ' + UPGRADE_COST + ' gold');
   gold -= UPGRADE_COST; ui.goldText.setText('Gold:' + gold);
-  ts.setTexture(next);
   ts._typeKey = next;
-  ts.level += 1;
+  ts.level++;
   ts.hp += 100;
   ts._shootRate = Math.max(400, ts._shootRate - 100);
   ts._range = Math.min(300, ts._range + 30);
+  UPGRADE_COST += 100; // увеличиваем цену апгрейда
 }
 
 // ---------------- BULLETS ----------------
 function updateBullet(b) {
-  if (!b.active || !b.target || !b.target.active) { if (b.active) b.destroy(); return; }
+  if (!b.active || !b.target || !b.target.active) return b.destroy();
   let dx = b.target.x - b.x, dy = b.target.y - b.y;
   let dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < 8) {
-    b.target.hp -= 20;
-    if (b.target.hp <= 0) {
-      try { b.target._animTimer.remove(); } catch(e){}
-      b.target.destroy();
+    b.target.hp -= 3;
+    if (b.target.hp <= 0 && b.target.state !== 'dead') {
+      b.target.state = 'dead';
       gold += KILL_REWARD;
       ui.goldText.setText('Gold:' + gold);
+      try { b.target._animTimer.delay = 120; } catch(e){}
+      try { b.target._animTimer.callback(); } catch(e){}
     }
-    b.destroy(); return;
+    b.destroy();
+    return;
   }
   b.x += (dx / dist) * b.speed;
   b.y += (dy / dist) * b.speed;
-  b.rotation = Math.atan2(dy, dx);
 }
 
-// ---------------- TOWER SHOOT LOOP ----------------
+// ---------------- SHOOT LOOP ----------------
 setInterval(() => {
   if (isPaused) return;
-  try {
-    let sc = game.scene.scenes[0];
-    if (!sc) return;
-    for (let t of towers) {
-      let ts = t.sprite;
-      if (!ts || !ts.active) continue;
-      ts._lastShot += 200;
-
-      // обновляем индикатор up/noup (визуально)
-      if (ts.upIcon && ts.upIcon.active) {
-        const key = gold >= UPGRADE_COST ? 'up_icon' : 'noup_icon';
-        if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
-      }
-
-      if (ts._lastShot < ts._shootRate) {
-        // пока не стреляет — флаг атаки false
-        ts._isAttacking = false;
-        continue;
-      }
-      ts._lastShot = 0;
-
-      // найти цель
-      let target = null, dmin = 1e9;
-      enemies.getChildren().forEach(e => {
-        if (!e.active) return;
-        let d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
-        if (d < ts._range && d < dmin) { dmin = d; target = e; }
-      });
-
-      if (target) {
-        // создать пулю
-        let b = sc.add.circle(ts.x, ts.y, 6, 0xffdd00);
-        sc.physics.add.existing(b);
-        b.target = target;
-        b.speed = 10;
-        bullets.add(b);
-
-        // пометить башню как атакующую — анимационный таймер покажет атаку
-        ts._isAttacking = true;
-
-        try { sc.sound.play('s_shoot'); } catch(e){}
-        ts.setFlipX(ts.x > 360);
-      } else {
-        ts._isAttacking = false;
-      }
-    }
-  } catch (e) { console.warn(e); }
+  let sc = game.scene.scenes[0];
+  if (!sc) return;
+  for (let t of towers) {
+    let ts = t.sprite;
+    if (!ts || !ts.active) continue;
+    ts._lastShot += 200;
+    if (ts._lastShot < ts._shootRate) { ts._isAttacking = false; continue; }
+    ts._lastShot = 0;
+    let target = null, dmin = 1e9;
+    enemies.getChildren().forEach(e => {
+      if (!e.active || e.state === 'dead') return;
+      let d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
+      if (d < ts._range && d < dmin) { dmin = d; target = e; }
+    });
+    if (target) {
+      let b = sc.add.circle(ts.x, ts.y, 6, 0xffdd00);
+      sc.physics.add.existing(b);
+      b.target = target;
+      b.speed = 8;
+      bullets.add(b);
+      ts._isAttacking = true;
+    } else ts._isAttacking = false;
+  }
 }, 200);
 
 // ---------------- PAUSE / RESTART ----------------
@@ -392,13 +265,7 @@ function togglePause(scene) {
   isPaused = !isPaused;
   ui.pauseBtn.setText(isPaused ? '▶️ Продолжить' : '⏸️ Пауза');
 }
-
-function restartGame(scene) {
-  scene.scene.restart();
-  gold = START_GOLD;
-  wave = 0;
-  isPaused = false;
-}
+function restartGame(scene) { scene.scene.restart(); gold = START_GOLD; wave = 0; isPaused = false; }
 
 // ---------------- PHASER CONFIG ----------------
 const config2 = {
@@ -410,11 +277,3 @@ const config2 = {
   physics: { default: 'arcade' }
 };
 const game = new Phaser.Game(config2);
-
-/*
-Объяснение изменений:
-- У каждой башни есть _isAttacking и _animTimer. Когда _isAttacking === true, таймер
-  переключает кадры attack (towerX_atk_Y). Когда false — таймер ставит статичный кадр ts._typeKey.
-- В shoot-loop теперь выставляем ts._isAttacking = true при стрельбе, и false, когда целей нет.
-- При апгрейде меняется ts._typeKey — таймер автоматически начнёт использовать новые кадры атаки.
-*/
