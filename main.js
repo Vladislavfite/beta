@@ -17,15 +17,20 @@ const ENEMY_AGGRO=150, TOWER_RANGE=200;
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
+  width: 720,
+  height: 1280,
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: window.innerWidth,
-    height: window.innerHeight
+    minWidth: 360,
+    minHeight: 640,
+    maxWidth: 720,
+    maxHeight: 1280
   },
   scene: { preload: create_preload, create: create, update: update },
   physics: { default: 'arcade' }
 };
+
 
 const game = new Phaser.Game(config);
 
