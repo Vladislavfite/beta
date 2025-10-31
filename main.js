@@ -246,18 +246,17 @@ function buildTower(scene, index) {
 
     const ts = scene.add.sprite(pos[0], pos[1], `tower1_idle_1`).setInteractive();
     ts.setDepth(5);
-    ts.hp = 50;                 // здоровье башни
-    ts.level = 1;               // уровень башни
+    ts.hp = 50;
+    ts.level = 1;
     ts._typeKey = 'tower1';
     ts._isAttacking = false;
     ts._lastShot = 0;
     ts._shootRate = 450;
     ts._range = TOWER_RANGE;
-    ts._damage = 10 * ts.level; // урон = 10 × уровень
+    ts._damage = 10 * ts.level;
 
-    if (scene.textures.exists('up_icon') && scene.textures.exists('noup_icon')) {
-        ts.upIcon = scene.add.image(pos[0]-28, pos[1]+40, 'noup_icon').setScale(0.6).setDepth(6);
-    }
+    // иконка улучшения (одна, с двумя состояниями)
+    ts.upIcon = scene.add.image(pos[0] - 28, pos[1] + 40, 'noup_icon').setScale(0.6).setDepth(6).setVisible(true);
 
     const idleAnimKey = `${ts._typeKey}_idle_anim`;
     if (scene.anims.exists(idleAnimKey)) ts.play(idleAnimKey);
@@ -285,15 +284,15 @@ function upgradeTower(scene, ts) {
     ts.level = nextLevel;
     ts._range = Math.min(300, ts._range + 30);
     ts._shootRate = Math.max(200, ts._shootRate - 100);
-    ts._damage = 10 * ts.level; // урон = 10 × уровень
+    ts._damage = 10 * ts.level;
     ts.hp += 50;
 
     const idleAnim = `${ts._typeKey}_idle_anim`;
-    const atkAnim = `${ts._typeKey}_atk_anim`;
     if (scene.anims.exists(idleAnim)) ts.play(idleAnim);
 
-    if (nextLevel >= 12) {
-        if (ts.upIcon) ts.upIcon.setVisible(false);
+    // если достигнут максимум — скрыть иконку и отключить апгрейд
+    if (nextLevel >= 12 && ts.upIcon) {
+        ts.upIcon.setVisible(false);
         ts.removeAllListeners('pointerdown');
     }
 }
@@ -318,54 +317,74 @@ function updateBullet(b){
 // =====================
 // 12. Логика стрельбы башен (интервал)
 // =====================
-setInterval(()=>{
-  if(isPaused) return;
-  try{
-    let sc=game.scene.scenes[0]; if(!sc) return;
-    for(let t of towers){
-      let ts=t.sprite; if(!ts||!ts.active) continue;
-      ts._lastShot+=200;
+setInterval(() => {
+    if (isPaused) return;
+    try {
+        let sc = game.scene.scenes[0];
+        if (!sc) return;
 
-      // обновление иконки улучшения
-      if(ts.upIcon&&ts.upIcon.active){
-        if(ts.level>=12) ts.upIcon.setVisible(false);
-        else{
-          const key=gold>=UPGRADE_COST_BASE*(parseInt(ts._typeKey.replace(/[^0-9]/g,''))+1)?'up_icon':'noup_icon';
-          if(ts.upIcon.texture.key!==key) ts.upIcon.setTexture(key); ts.upIcon.setVisible(true);
+        for (let t of towers) {
+            let ts = t.sprite;
+            if (!ts || !ts.active) continue;
+
+            ts._lastShot += 200;
+
+            // --- Обновление иконки улучшения ---
+            if (ts.upIcon && ts.upIcon.active) {
+                if (!ts.active || ts.hp <= 0) {
+                    ts.upIcon.setVisible(false);
+                } else if (ts.level >= 12) {
+                    ts.upIcon.setVisible(false);
+                } else {
+                    const nextCost = UPGRADE_COST_BASE * (ts.level + 1);
+                    const iconKey = gold >= nextCost ? 'up_icon' : 'noup_icon';
+                    if (ts.upIcon.texture.key !== iconKey) ts.upIcon.setTexture(iconKey);
+                    ts.upIcon.setVisible(true);
+                    ts.upIcon.x = ts.x - 28;
+                    ts.upIcon.y = ts.y + 40;
+                }
+            }
+
+            if (ts._lastShot < ts._shootRate) {
+                const idleKey = `${ts._typeKey}_idle_anim`;
+                if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey))
+                    ts.play(idleKey, true);
+                ts._isAttacking = false;
+                continue;
+            }
+
+            ts._lastShot = 0;
+            let target = null, dmin = 1e9;
+            enemies.getChildren().forEach(e => {
+                if (!e.active || e.state === 'die') return;
+                const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
+                if (d < ts._range && d < dmin) { dmin = d; target = e; }
+            });
+
+            if (target) {
+                let b = sc.add.circle(ts.x, ts.y, 6, 0xffdd00);
+                sc.physics.add.existing(b);
+                b.target = target;
+                b.speed = 10;
+                b.damage = ts._damage;
+                bullets.add(b);
+                ts._isAttacking = true;
+
+                const atkKey = `${ts._typeKey}_atk_anim`;
+                if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey))
+                    ts.play(atkKey, true);
+
+                try { sc.sound.play('s_shoot'); } catch (e) {}
+                ts.setFlipX(ts.x > 360);
+            } else {
+                ts._isAttacking = false;
+                const idleKey = `${ts._typeKey}_idle_anim`;
+                if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey))
+                    ts.play(idleKey, true);
+            }
         }
-      }
-
-      if(ts._lastShot<ts._shootRate){ 
-        if(ts.anims&&(!ts.anims.currentAnim||ts.anims.currentAnim.key.indexOf('_idle_anim')===-1)){
-          const idleKey=`${ts._typeKey}_idle_anim`; if(sc.anims.exists(idleKey)) ts.play(idleKey,true);
-        }
-        ts._isAttacking=false; continue;
-      }
-
-      ts._lastShot=0;
-      let target=null,dmin=1e9;
-      enemies.getChildren().forEach(e=>{
-        if(!e.active||e.state==='die') return;
-        const d=Phaser.Math.Distance.Between(ts.x,ts.y,e.x,e.y);
-        if(d<ts._range&&d<dmin){dmin=d;target=e;}
-      });
-
-      if(target){
-        let b=sc.add.circle(ts.x,ts.y,6,0xffdd00); sc.physics.add.existing(b);
-        b.target=target; b.speed=10; b.damage=ts._damage||3*ts.level; bullets.add(b);
-        ts._isAttacking=true;
-        const atkKey=`${ts._typeKey}_atk_anim`;
-        if(sc.anims.exists(atkKey)&&(!ts.anims.currentAnim||ts.anims.currentAnim.key!==atkKey)) ts.play(atkKey,true);
-        try{sc.sound.play('s_shoot');}catch(e){}
-        ts.setFlipX(ts.x>360);
-      } else {
-        ts._isAttacking=false; 
-        const idleKey=`${ts._typeKey}_idle_anim`;
-        if(sc.anims.exists(idleKey)&&(!ts.anims.currentAnim||ts.anims.currentAnim.key!==idleKey)) ts.play(idleKey,true);
-      }
-    }
-  } catch(err){console.warn(err);}
-},200);
+    } catch (err) { console.warn(err); }
+}, 200);
 
 // =====================
 // 13. Пауза и рестарт
