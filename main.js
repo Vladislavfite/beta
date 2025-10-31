@@ -1,6 +1,5 @@
 // === main.js === 
-// Tower Defense — fixed tower idle/attack animations, enemy aggro, scaling damage, faster fire-rate,
-// enemy death animation, base HP bar, towers hp and dying from enemy hits, enemy rotation fixed.
+// Tower Defense — enemies rotate toward movement, molot reappears after tower destroyed.
 
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
 const PATHS = [
@@ -13,7 +12,6 @@ const PATHS = [
 
 const BASE_POS = { x:160, y:1005 };
 const BASE_RECT = { w:153, h:93 };
-
 const START_GOLD = 500, KILL_REWARD = 10, WAVE_BONUS = 50, TOWER_COST = 100;
 let UPGRADE_COST_BASE = 150;
 const ENEMY_AGGRO = 150, TOWER_RANGE = 200;
@@ -25,40 +23,31 @@ let canWatchAd = true;
 let isPaused = false;
 let baseHp = 1000;
 
-// Phaser scene functions
 function create_preload() {
   this.load.image('map', 'assets/map.png');
   this.load.image('molot', 'assets/elements/moloticon.png');
   this.load.image('up_icon', 'assets/elements/up.png');
   this.load.image('noup_icon', 'assets/elements/noup.png');
-
   for (let i = 1; i <= 12; i++) {
     for (let j = 1; j <= 4; j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
     for (let j = 1; j <= 5; j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
   }
-
   for (let i = 0; i < 7; i++) {
     this.load.image('e_walk_' + i, `assets/enemy/walk/walk${i+1}.png`);
     this.load.image('e_atk_' + i, `assets/enemy/atack_enemy/atackenemy${i+1}.png`);
     this.load.image('e_die_' + i, `assets/enemy/die_enemy/dead${i+1}.png`);
   }
-
   try { this.load.audio('s_shoot', 'assets/sounds/shoot.mp3'); } catch(e){}
   try { this.load.audio('s_death', 'assets/sounds/death.mp3'); } catch(e){}
-
-  this.load.on('filecomplete', key => console.log('Loaded:', key));
-  this.load.on('loaderror', f => console.warn('Load err', f && f.src));
 }
 
 function create() {
   this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
-
   enemies = this.add.group();
   bullets = this.add.group();
   towers = [];
   buildSprites = [];
   ui = {};
-
   for (let i = 0; i < BUILD_SPOTS.length; i++) {
     const p = BUILD_SPOTS[i];
     const s = this.add.image(p[0], p[1], 'molot').setInteractive().setScale(0.6);
@@ -66,55 +55,45 @@ function create() {
     s.on('pointerdown', () => buildTower(this, i));
     buildSprites.push(s);
   }
-
   ui.goldText = this.add.text(12, 12, 'Gold:' + gold, { font: '22px Arial', fill: '#fff' }).setDepth(50);
   ui.waveText = this.add.text(12, 44, 'Wave:' + wave, { font: '18px Arial', fill: '#fff' }).setDepth(50);
   ui.baseBarBg = this.add.rectangle(360, 22, 320, 18, 0x222222).setOrigin(0.5, 0).setDepth(50);
   ui.baseBar = this.add.rectangle(360 - 160, 22, 320, 18, 0x00cc00).setOrigin(0,0).setDepth(51);
   ui.baseText = this.add.text(360, 6, 'BASE HP', { font: '14px Arial', fill: '#fff' }).setOrigin(0.5,0).setDepth(52);
-
   ui.pauseBtn = this.add.text(200, 1220, '⏸️ Пауза', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive().setDepth(50);
   ui.restartBtn = this.add.text(400, 1220, '🔁 Рестарт', { font: '20px Arial', fill: '#fff', backgroundColor: '#333' }).setInteractive().setDepth(50);
-
   ui.pauseBtn.on('pointerdown', () => togglePause(this));
   ui.restartBtn.on('pointerdown', () => restartGame(this));
-
   createAnimations(this);
-
   this.time.addEvent({ delay: 1000, callback: () => startNextWave(this) });
 }
 
 function update() {
   if (isPaused) return;
-
   enemies.getChildren().forEach(e => updateEnemy(e));
   bullets.getChildren().forEach(b => updateBullet(b));
-
   ui.baseBar.width = Math.max(0, 320 * (baseHp / 1000));
   ui.baseBar.fillColor = baseHp > 600 ? 0x00cc00 : (baseHp > 300 ? 0xcccc00 : 0xcc0000);
-
   for (let t of towers) {
     const ts = t.sprite;
     if (ts && ts.upIcon) {
-      const key = (t.level >= 12) ? null : (gold >= UPGRADE_COST_BASE * (t.level + 0) ? 'up_icon' : 'noup_icon');
-      if (key) { if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key); ts.upIcon.setVisible(true); }
+      const key = (ts.level >= 12) ? null : (gold >= UPGRADE_COST_BASE * (ts.level + 0) ? 'up_icon' : 'noup_icon');
+      if (key) { if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key); ts.upIcon.setVisible(true); } 
       else ts.upIcon.setVisible(false);
       ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
     }
   }
 }
 
-/* ------------------------- HELPERS ------------------------- */
 function createAnimations(scene) {
   for (let i = 1; i <= 12; i++) {
-    const idleFrames = []; for (let j = 1; j <= 4; j++) idleFrames.push({ key: `tower${i}_idle_${j}` });
-    const atkFrames = []; for (let j = 0; j < 5; j++) atkFrames.push({ key: `tower${i}_atk_${j}` });
-
+    const idleFrames = []; const atkFrames = [];
+    for (let j = 1; j <= 4; j++) idleFrames.push({ key: `tower${i}_idle_${j}` });
+    for (let j = 0; j < 5; j++) atkFrames.push({ key: `tower${i}_atk_${j}` });
     scene.anims.create({ key: `tower${i}_idle_anim`, frames: idleFrames, frameRate: 8, repeat: -1 });
     scene.anims.create({ key: `tower${i}_atk_anim`, frames: atkFrames, frameRate: 12, repeat: -1 });
   }
-
-  const eWalk = [], eAtk = [], eDie = [];
+  const eWalk = []; const eAtk = []; const eDie = [];
   for (let i = 0; i < 7; i++) { eWalk.push({ key: `e_walk_${i}` }); eAtk.push({ key: `e_atk_${i}` }); eDie.push({ key: `e_die_${i}` }); }
   scene.anims.create({ key: 'e_walk_anim', frames: eWalk, frameRate: 8, repeat: -1 });
   scene.anims.create({ key: 'e_atk_anim', frames: eAtk, frameRate: 8, repeat: -1 });
@@ -122,40 +101,29 @@ function createAnimations(scene) {
 }
 
 function startNextWave(scene) {
-  wave++; gold += WAVE_BONUS; ui.waveText.setText('Wave:' + wave); ui.goldText.setText('Gold:' + gold);
-  canWatchAd = true;
-
+  wave++; gold += WAVE_BONUS; ui.waveText.setText('Wave:' + wave); ui.goldText.setText('Gold:' + gold); canWatchAd = true;
   let count = 8 + Math.floor(wave * 1.5);
   for (let i = 0; i < count; i++) scene.time.addEvent({ delay: i * 1000, callback: () => spawnEnemy(scene) });
   scene.time.addEvent({ delay: (count + 6) * 1000, callback: () => startNextWave(scene) });
 }
 
-/* ------------------------- ENEMY ------------------------- */
 function spawnEnemy(scene) {
-  const path = PATHS[Math.floor(Math.random() * PATHS.length)];
-  if (!path || path.length === 0) return;
+  const path = PATHS[Math.floor(Math.random() * PATHS.length)]; if (!path || path.length === 0) return;
   const spawn = path[0];
   let e = scene.physics.add.sprite(spawn[0], spawn[1], 'e_walk_0').setScale(0.35);
   e.maxHp = 100; e.hp = e.maxHp; e.speed = 0.2; e.path = path; e.pathIndex = 1; e.state = 'walk'; e._savedPathIndex = null; e._lastAttack = 0;
   e.play('e_walk_anim');
   e.on('animationcomplete-e_die_anim', () => { if (e.active) { try { scene.sound.play('s_death'); } catch(e){} e.destroy(); } });
-  // убираем переворот
-  e.setFlipX(false);
-  e.setFlipY(false);
   enemies.add(e);
 }
 
 function updateEnemy(e) {
   if (!e || !e.active || e.state === 'die') return;
-
   if (e.targetTower && e.targetTower.active) {
     e.state = 'attack';
     moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
-    // убираем перевороты
-    e.setFlipX(false);
-    e.setFlipY(false);
+    e.setFlipX(e.targetTower.x < e.x);
     e.rotation = Phaser.Math.Angle.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
-
     let d = Phaser.Math.Distance.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
     if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 800)) {
       e._lastAttack = Date.now();
@@ -163,95 +131,35 @@ function updateEnemy(e) {
         e.targetTower.hp -= 10;
         try { e.targetTower.setTint(0xff9999); setTimeout(()=>e.targetTower.clearTint(),80); } catch(e){}
         if (e.targetTower.hp <= 0) {
-          let idx = buildSprites.findIndex(s=>s==null);
-          if(idx>=0){
-            const p=BUILD_SPOTS[idx];
-            buildSprites[idx]=e.scene.add.image(p[0],p[1],'molot').setInteractive().setScale(0.6).on('pointerdown',()=>buildTower(e.scene,idx));
-          }
-          e.targetTower.destroy();
-          towers=towers.filter(t=>t.sprite&&t.sprite.active);
-          e.targetTower=null;
-          e.state='returning';
-          if (e._savedPathIndex != null) e.pathIndex = e._savedPathIndex;
+          let idx = buildSprites.findIndex(s=>s==null); if(idx>=0){const p=BUILD_SPOTS[idx]; buildSprites[idx]=e.scene.add.image(p[0],p[1],'molot').setInteractive().setScale(0.6).on('pointerdown',()=>buildTower(e.scene,idx));}
+          e.targetTower.destroy(); towers=towers.filter(t=>t.sprite&&t.sprite.active); e.targetTower=null; e.state='returning';
+          if (e._savedPathIndex!=null) e.pathIndex=e._savedPathIndex;
         }
-      } else { e.targetTower = null; e.state = 'returning'; }
+      } else { e.targetTower=null; e.state='returning'; }
     }
-
     if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key!=='e_atk_anim') e.play('e_atk_anim');
     return;
   }
-
-  // оставляем движение по пути
-  if(e.pathIndex >= e.path.length){
-    e.state='attack';
-    if(!e._lastAttack || Date.now()-e._lastAttack>800){ e._lastAttack=Date.now(); baseHp-=10; ui.baseText.setText(`BASE HP ${Math.max(0,baseHp)}`); if(baseHp<=0){baseHp=0; alert('База уничтожена!'); restartGame(e.scene); } }
-    if(e.anims && e.anims.currentAnim && e.anims.currentAnim.key!=='e_atk_anim') e.play('e_atk_anim');
-    return;
-  }
-
-  e.state='walk';
-  const wp = e.path[e.pathIndex];
-  if(wp){ moveTowards(e, wp[0], wp[1], e.speed); if(Phaser.Math.Distance.Between(e.x, e.y, wp[0], wp[1])<6) e.pathIndex++; }
-  // движение без переворотов
-  e.setFlipX(false);
-  e.setFlipY(false);
-  e.rotation = Phaser.Math.Angle.Between(e.x, e.y, wp ? wp[0] : e.x, wp ? wp[1] : e.y);
-
-  if(e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key!=='e_walk_anim')) e.play('e_walk_anim');
+  let nearest=null,nd=1e9;
+  for(let t of towers){const ts=t.sprite;if(!ts||!ts.active)continue;const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);if(d<ENEMY_AGGRO&&d<nd){nd=d;nearest=ts;}}
+  if(nearest){e.targetTower=nearest;e._savedPathIndex=e.pathIndex;if(e.anims&&e.anims.currentAnim&&e.anims.currentAnim.key!=='e_atk_anim')e.play('e_atk_anim');return;}
+  if(e.state==='returning'){const target=e.path[e.pathIndex]||e.path[e.path.length-1];moveTowards(e,target[0],target[1],e.speed);if(Phaser.Math.Distance.Between(e.x,e.y,target[0],target[1])<8){e.state='walk';if(e.anims&&(!e.anims.currentAnim||e.anims.currentAnim.key!=='e_walk_anim'))e.play('e_walk_anim');}return;}
+  if(e.pathIndex>=e.path.length){e.state='attack';if(!e._lastAttack||Date.now()-e._lastAttack>800){e._lastAttack=Date.now();baseHp-=10;ui.baseText.setText(`BASE HP ${Math.max(0,baseHp)}`);if(baseHp<=0){baseHp=0;alert('База уничтожена!');restartGame(e.scene);}}if(e.anims&&e.anims.currentAnim&&e.anims.currentAnim.key!=='e_atk_anim')e.play('e_atk_anim');return;}
+  e.state='walk';const wp=e.path[e.pathIndex];if(wp){moveTowards(e,wp[0],wp[1],e.speed);if(Phaser.Math.Distance.Between(e.x,e.y,wp[0],wp[1])<6)e.pathIndex++;}e.rotation=Phaser.Math.Angle.Between(e.x,e.y,(wp?wp[0]:e.x),(wp?wp[1]:e.y));if(e.anims&&(!e.anims.currentAnim||e.anims.currentAnim.key!=='e_walk_anim'))e.play('e_walk_anim');
 }
 
+function moveTowards(obj,tx,ty,speed){let dx=tx-obj.x,dy=ty-obj.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<0.1)return;obj.x+=(dx/dist)*speed*2;obj.y+=(dy/dist)*speed*2;}
 
-/* ------------------------- TOWER BUILD / UPGRADE ------------------------- */
-function buildTower(scene,index){
-  if(index<0||index>=BUILD_SPOTS.length) return; if(!buildSprites[index]) return; if(gold<TOWER_COST){alert('Not enough gold'); return;}
-  const pos=BUILD_SPOTS[index]; buildSprites[index].destroy(); buildSprites[index]=null;
-  gold-=TOWER_COST; ui.goldText.setText('Gold:'+gold);
+function buildTower(scene,index){if(index<0||index>=BUILD_SPOTS.length)return;if(!buildSprites[index])return;if(gold<TOWER_COST){alert('Not enough gold');return;}const pos=BUILD_SPOTS[index];buildSprites[index].destroy();buildSprites[index]=null;gold-=TOWER_COST;ui.goldText.setText('Gold:'+gold);const ts=scene.add.sprite(pos[0],pos[1],`tower1_idle_1`).setInteractive();ts.setDepth(5);ts.hp=50;ts.level=1;ts._typeKey='tower1';ts._isAttacking=false;ts._lastShot=0;ts._shootRate=450;ts._range=TOWER_RANGE;ts._damage=3*ts.level;if(scene.textures.exists('up_icon')&&scene.textures.exists('noup_icon'))ts.upIcon=scene.add.image(pos[0]-28,pos[1]+40,'noup_icon').setScale(0.6).setDepth(6);const idleAnimKey=`${ts._typeKey}_idle_anim`;if(scene.anims.exists(idleAnimKey))ts.play(idleAnimKey);const upgradeHandler=()=>upgradeTower(scene,ts);ts.on('pointerdown',upgradeHandler);towers.push({sprite:ts,upgradeHandler});ts.setFlipX(ts.x>360);}
 
-  const ts=scene.add.sprite(pos[0],pos[1],`tower1_idle_1`).setInteractive().setDepth(5);
-  ts.hp=50; ts.level=1; ts._typeKey='tower1'; ts._isAttacking=false; ts._lastShot=0; ts._shootRate=450; ts._range=TOWER_RANGE; ts._damage=3*ts.level;
-  if(scene.textures.exists('up_icon') && scene.textures.exists('noup_icon')) ts.upIcon=scene.add.image(pos[0]-28,pos[1]+40,'noup_icon').setScale(0.6).setDepth(6);
-  const idleAnimKey=`${ts._typeKey}_idle_anim`; if(scene.anims.exists(idleAnimKey)) ts.play(idleAnimKey);
-  const upgradeHandler=()=>upgradeTower(scene,ts); ts.on('pointerdown',upgradeHandler);
-  towers.push({sprite:ts,upgradeHandler}); ts.setFlipX(ts.x>360);
-}
+function upgradeTower(scene,ts){if(!ts||!ts._typeKey)return;let curNum=parseInt(ts._typeKey.replace(/[^0-9]/g,''))||1;if(curNum>=12)return;const nextLevel=curNum+1;const cost=UPGRADE_COST_BASE*nextLevel;if(gold<cost){alert('Need '+cost+' gold');return;}gold-=cost;ui.goldText.setText('Gold:'+gold);ts._typeKey='tower'+nextLevel;ts.level=nextLevel;ts._range=Math.min(300,ts._range+30);ts._shootRate=Math.max(200,ts._shootRate-100);ts._damage=3*ts.level;ts.hp+=50;const idleAnim=`${ts._typeKey}_idle_anim`;const atkAnim=`${ts._typeKey}_atk_anim`;if(scene.anims.exists(idleAnim))ts.play(idleAnim);if(nextLevel>=12){if(ts.upIcon)ts.upIcon.setVisible(false);ts.removeAllListeners('pointerdown');}}
 
-function upgradeTower(scene,ts){
-  if(!ts||!ts._typeKey) return; let curNum=parseInt(ts._typeKey.replace(/[^0-9]/g,''))||1; if(curNum>=12) return;
-  const nextLevel=curNum+1, cost=UPGRADE_COST_BASE*nextLevel; if(gold<cost){alert('Need '+cost+' gold'); return;}
-  gold-=cost; ui.goldText.setText('Gold:'+gold);
-  ts._typeKey='tower'+nextLevel; ts.level=nextLevel; ts._range=Math.min(300,ts._range+30); ts._shootRate=Math.max(200,ts._shootRate-100); ts._damage=3*ts.level; ts.hp+=50;
-  const idleAnim=`${ts._typeKey}_idle_anim`; if(scene.anims.exists(idleAnim)) ts.play(idleAnim);
-  if(nextLevel>=12){ if(ts.upIcon) ts.upIcon.setVisible(false); ts.removeAllListeners('pointerdown'); }
-}
+function updateBullet(b){if(!b.active)return;if(!b.target||!b.target.active||b.target.state==='die'){try{b.destroy();}catch(e){}return;}const dx=b.target.x-b.x,dy=b.target.y-b.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<8){b.target.hp-=b.damage;try{b.target.setTint(0xffcccc);setTimeout(()=>b.target.clearTint(),60);}catch(e){}if(b.target.hp<=0&&b.target.state!=='die'){b.target.state='die';b.target.play('e_die_anim');gold+=KILL_REWARD;ui.goldText.setText('Gold:'+gold);}try{b.destroy();}catch(e){}return;}b.x+=(dx/dist)*b.speed;b.y+=(dy/dist)*b.speed;}
 
-/* ------------------------- BULLETS ------------------------- */
-function updateBullet(b){
-  if(!b.active) return; if(!b.target||!b.target.active||b.target.state==='die'){ try{b.destroy();}catch(e){} return; }
-  const dx=b.target.x-b.x, dy=b.target.y-b.y, dist=Math.sqrt(dx*dx+dy*dy);
-  if(dist<8){ b.target.hp-=b.damage; try{b.target.setTint(0xffcccc); setTimeout(()=>b.target.clearTint(),60);}catch(e){} if(b.target.hp<=0 && b.target.state!=='die'){ b.target.state='die'; b.target.play('e_die_anim'); gold+=KILL_REWARD; ui.goldText.setText('Gold:'+gold);} try{b.destroy();}catch(e){} return;}
-  b.x+=(dx/dist)*b.speed; b.y+=(dy/dist)*b.speed;
-}
+setInterval(()=>{if(isPaused)return;try{let sc=game.scene.scenes[0];if(!sc)return;for(let t of towers){let ts=t.sprite;if(!ts||!ts.active)continue;ts._lastShot+=200;if(ts.upIcon&&ts.upIcon.active){if(ts.level>=12)ts.upIcon.setVisible(false);else{const key=gold>=UPGRADE_COST_BASE*(parseInt(ts._typeKey.replace(/[^0-9]/g,''))+1)?'up_icon':'noup_icon';if(ts.upIcon.texture.key!==key)ts.upIcon.setTexture(key);ts.upIcon.setVisible(true);}}if(ts._lastShot<ts._shootRate){if(ts.anims&&(!ts.anims.currentAnim||ts.anims.currentAnim.key.indexOf('_idle_anim')===-1)){const idleKey=`${ts._typeKey}_idle_anim`;if(sc.anims.exists(idleKey))ts.play(idleKey,true);}ts._isAttacking=false;continue;}ts._lastShot=0;let target=null,dmin=1e9;enemies.getChildren().forEach(e=>{if(!e.active||e.state==='die')return;const d=Phaser.Math.Distance.Between(ts.x,ts.y,e.x,e.y);if(d<ts._range&&d<dmin){dmin=d;target=e;}});if(target){let b=sc.add.circle(ts.x,ts.y,6,0xffdd00);sc.physics.add.existing(b);b.target=target;b.speed=10;b.damage=ts._damage||3*ts.level;bullets.add(b);ts._isAttacking=true;const atkKey=`${ts._typeKey}_atk_anim`;if(sc.anims.exists(atkKey)&&(!ts.anims.currentAnim||ts.anims.currentAnim.key!==atkKey))ts.play(atkKey,true);try{sc.sound.play('s_shoot');}catch(e){}ts.setFlipX(ts.x>360);}else{ts._isAttacking=false;const idleKey=`${ts._typeKey}_idle_anim`;if(sc.anims.exists(idleKey)&&(!ts.anims.currentAnim||ts.anims.currentAnim.key!==idleKey))ts.play(idleKey,true);}}}catch(err){console.warn(err);}},200);
 
-/* ------------------------- TOWER SHOOT LOOP ------------------------- */
-setInterval(()=>{
-  if(isPaused) return; try{
-    let sc=game.scene.scenes[0]; if(!sc) return;
-    for(let t of towers){
-      let ts=t.sprite; if(!ts||!ts.active) continue;
-      ts._lastShot+=200;
-      if(ts.upIcon && ts.upIcon.active){ if(ts.level>=12) ts.upIcon.setVisible(false); else{ const key=gold>=UPGRADE_COST_BASE*(parseInt(ts._typeKey.replace(/[^0-9]/g,''))||1)?'up_icon':'noup_icon'; if(ts.upIcon.texture.key!==key) ts.upIcon.setTexture(key); ts.upIcon.setVisible(true);} }
-      let nearest=null, nd=1e9;
-      for(let e of enemies.getChildren()){ if(!e.active||e.state==='die') continue; const d=Phaser.Math.Distance.Between(ts.x,ts.y,e.x,e.y); if(d<ts._range && d<nd){ nd=d; nearest=e; } }
-      if(nearest && Date.now()-ts._lastShot>ts._shootRate){ ts._lastShot=Date.now(); shootBullet(sc,ts,nearest,ts._damage); const atkAnim=`${ts._typeKey}_atk_anim`; if(sc.anims.exists(atkAnim)) ts.play(atkAnim); }
-    }
-  }catch(e){}
-}, 200);
+function togglePause(scene){isPaused=!isPaused;ui.pauseBtn.setText(isPaused?'▶️ Продолжить':'⏸️ Пауза');}
+function restartGame(scene){scene.scene.restart();gold=START_GOLD;wave=0;baseHp=1000;isPaused=false;}
 
-function shootBullet(scene,ts,target,dmg){
-  if(!ts||!target||!target.active) return;
-  const b=scene.add.circle(ts.x,ts.y,5,0xff0000).setDepth(6); b.speed=5; b.target=target; b.damage=dmg; bullets.add(b);
-}
-
-/* ------------------------- PAUSE / RESTART ------------------------- */
-function togglePause(scene){ isPaused=!isPaused; ui.pauseBtn.setText(isPaused?'▶️ Продолжить':'⏸️ Пауза'); }
-function restartGame(scene){ scene.scene.restart(); gold=START_GOLD; wave=0; baseHp=1000; }
+const config2={type:Phaser.AUTO,parent:'game',width:720,height:1280,scene:{preload:create_preload,create:create,update:update},physics:{default:'arcade'}};
+const game=new Phaser.Game(config2);
