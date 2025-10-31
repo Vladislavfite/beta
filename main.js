@@ -20,18 +20,12 @@ const config = {
   width: 720,
   height: 1280,
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    minWidth: 360,
-    minHeight: 640,
-    maxWidth: 720,
-    maxHeight: 1280
+    mode: Phaser.Scale.ENVELOP, // сохраняет соотношение, не искажает
+    autoCenter: Phaser.Scale.CENTER_BOTH
   },
   scene: { preload: create_preload, create: create, update: update },
   physics: { default: 'arcade' }
 };
-
-
 
 const game = new Phaser.Game(config);
 
