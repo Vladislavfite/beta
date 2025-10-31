@@ -1,5 +1,5 @@
-// === Tower Defense — Final Mobile Stable Version ===
-// фиксированный вертикальный формат 720x1280, автоадаптация без растяжки
+// === Tower Defense — Fixed 720x1280 Version ===
+// стабильная версия без адаптации, строго фиксированный размер окна
 
 const BUILD_SPOTS = [
   [484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],
@@ -20,7 +20,7 @@ const config = {
   width: 720,
   height: 1280,
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.NONE, // никакого масштабирования
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   physics: { default: 'arcade' },
@@ -38,12 +38,15 @@ function preload() {
   this.load.image('up_icon', 'assets/elements/up.png');
   this.load.image('noup_icon', 'assets/elements/noup.png');
 
+  // башни
   for (let i = 1; i <= 12; i++) {
     this.load.image('tower' + i, 'assets/attacktower/statik/tower' + i + '/stower1.png');
     for (let j = 0; j < 5; j++)
-      this.load.image('tower' + i + '_atk_' + j, 'assets/attacktower/attack/tower' + i + '/aatcktower' + (j + 1) + '.png');
+      this.load.image('tower' + i + '_atk_' + j,
+        'assets/attacktower/attack/tower' + i + '/aatcktower' + (j + 1) + '.png');
   }
 
+  // враги
   for (let i = 0; i < 7; i++) {
     this.load.image('e_walk_' + i, 'assets/enemy/walk/walk' + (i + 1) + '.png');
     this.load.image('e_atk_' + i, 'assets/enemy/atack_enemy/atackenemy' + (i + 1) + '.png');
@@ -52,7 +55,7 @@ function preload() {
 }
 
 function create() {
-  // Фон без путей
+  // Фон
   this.bg = this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
 
   enemies = this.add.group();
@@ -62,7 +65,7 @@ function create() {
   ui = {};
 
   BUILD_SPOTS.forEach((p, i) => {
-    const s = this.add.image(p[0], p[1], 'molot').setInteractive();
+    let s = this.add.image(p[0], p[1], 'molot').setInteractive();
     s.setScale(0.6);
     s.on('pointerdown', () => buildTower(this, i));
     buildSprites.push(s);
@@ -70,7 +73,7 @@ function create() {
 
   ui.goldText = this.add.text(12, 12, 'Gold:' + gold, { font: '22px Arial', fill: '#fff' }).setDepth(50);
   ui.waveText = this.add.text(12, 44, 'Wave:' + wave, { font: '18px Arial', fill: '#fff' }).setDepth(50);
-  ui.adBtn = this.add.text(this.scale.width - 120, 12, 'Watch Ad', { font: '16px Arial', fill: '#0f0', backgroundColor: '#222' })
+  ui.adBtn = this.add.text(600, 12, 'Watch Ad', { font: '16px Arial', fill: '#0f0', backgroundColor: '#222' })
     .setInteractive().setDepth(50);
   ui.adBtn.on('pointerdown', () => tryWatchAd(this));
 
@@ -125,7 +128,6 @@ function updateEnemy(e) {
     }
     return;
   }
-
   let nearest = null, nd = 1e9;
   for (let t of towers) {
     if (!t.sprite.active) continue;
@@ -133,7 +135,6 @@ function updateEnemy(e) {
     if (d < ENEMY_AGGRO && d < nd) { nd = d; nearest = t.sprite; }
   }
   if (nearest) { e.targetTower = nearest; return; }
-
   moveTowards(e, BASE_POS.x, BASE_POS.y, e.speed);
   let db = Phaser.Math.Distance.Between(e.x, e.y, BASE_POS.x, BASE_POS.y);
   if (db < 26) { e.destroy(); gold = Math.max(0, gold - 10); ui.goldText.setText('Gold:' + gold); }
