@@ -32,6 +32,7 @@ const config = {
 };
 
 
+
 const game = new Phaser.Game(config);
 
 let enemies, towers, bullets, buildSprites, ui;
