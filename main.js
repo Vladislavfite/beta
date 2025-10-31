@@ -79,7 +79,8 @@ function create() {
   ui.adBtn.on('pointerdown', () => tryWatchAd(this));
 
   // base rect
-  this.add.rectangle(BASE_POS.x, BASE_POS.y, 153, 93, 0x0000ff, 0.25).setOrigin(0.5);
+  
+//this.add.rectangle(BASE_POS.x, BASE_POS.y, 153, 93, 0x0000ff, 0.25).setOrigin(0.5);
 
   // start waves
   this.time.addEvent({ delay: 800, callback: () => startNextWave(this) });
