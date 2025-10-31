@@ -311,3 +311,27 @@ window.addEventListener('resize', () => {
     scene.bg.setPosition(scene.scale.width / 2, scene.scale.height / 2);
   }
 });
+// --- ручной масштаб canvas под экран без растяжки ---
+function resizeCanvas() {
+  const canvas = document.querySelector('canvas');
+  if (!canvas) return;
+
+  const gameWidth = 720;
+  const gameHeight = 1280;
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  const scale = Math.min(windowWidth / gameWidth, windowHeight / gameHeight);
+  const newWidth = gameWidth * scale;
+  const newHeight = gameHeight * scale;
+
+  canvas.style.width = `${newWidth}px`;
+  canvas.style.height = `${newHeight}px`;
+  canvas.style.position = 'absolute';
+  canvas.style.left = `${(windowWidth - newWidth) / 2}px`;
+  canvas.style.top = `${(windowHeight - newHeight) / 2}px`;
+}
+
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('load', resizeCanvas);
+
