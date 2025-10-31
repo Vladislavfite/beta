@@ -334,7 +334,9 @@ function updateBullet(b) {
     try {
       const tgt = b.target;
       if (tgt && tgt.setTint) tgt.setTint(0xffcccc);
-      setTimeout(()=>{ if (tgt && tgt.clearTint) tgt.clearTint(); }, 60);
+setTimeout(()=>{
+  if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint();
+}, 60);
     } catch(err){}
     if (b.target.hp <= 0 && b.target.state !== 'die') {
       b.target.state = 'die'; b.target.play && b.target.play('e_die_anim');
