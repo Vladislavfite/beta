@@ -189,7 +189,12 @@ function updateEnemy(e) {
       e._lastAttack = Date.now();
       if (e.targetTower.hp != null) {
         e.targetTower.hp -= 10;
-        try { e.targetTower.setTint(0xff9999); setTimeout(()=>e.targetTower.clearTint(),80); } catch(e){}
+        try { 
+  e.targetTower.setTint(0xff9999); 
+  setTimeout(() => {
+    if (e.targetTower && e.targetTower.clearTint) e.targetTower.clearTint();
+  }, 80); 
+} catch(e){}
         if (e.targetTower.hp <= 0) {
           let idx = buildSprites.findIndex(s=>s==null); 
           if(idx>=0){
@@ -308,7 +313,12 @@ function updateBullet(b){
   const dx=b.target.x-b.x,dy=b.target.y-b.y,dist=Math.sqrt(dx*dx+dy*dy);
   if(dist<8){
     b.target.hp-=b.damage;
-    try{b.target.setTint(0xffcccc);setTimeout(()=>b.target.clearTint(),60);}catch(e){}
+    try {
+  b.target.setTint(0xffcccc);
+  setTimeout(() => {
+    if (b.target && b.target.clearTint) b.target.clearTint();
+  }, 60);
+} catch(e){}
     if(b.target.hp<=0&&b.target.state!=='die'){b.target.state='die';b.target.play('e_die_anim');gold+=KILL_REWARD;ui.goldText.setText('Gold:'+gold);}
     try{b.destroy();}catch(e){}
     return;
