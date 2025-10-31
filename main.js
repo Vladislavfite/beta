@@ -1,5 +1,5 @@
-// === Tower Defense — Final Compact Adaptive Version ===
-// фиксированный формат 720x1280, без путей, с автоадаптацией под экран
+// === Tower Defense — Final Mobile Stable Version ===
+// фиксированный вертикальный формат 720x1280, автоадаптация без растяжки
 
 const BUILD_SPOTS = [
   [484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],
@@ -17,14 +17,14 @@ const ENEMY_AGGRO=150, TOWER_RANGE=200;
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
+  width: 720,
+  height: 1280,
   scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: window.innerWidth,
-    height: window.innerHeight
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: { preload: create_preload, create: create, update: update },
-  physics: { default: 'arcade' }
+  physics: { default: 'arcade' },
+  scene: { preload, create, update }
 };
 
 const game = new Phaser.Game(config);
@@ -52,6 +52,7 @@ function preload() {
 }
 
 function create() {
+  // Фон без путей
   this.bg = this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
 
   enemies = this.add.group();
@@ -61,7 +62,7 @@ function create() {
   ui = {};
 
   BUILD_SPOTS.forEach((p, i) => {
-    let s = this.add.image(p[0], p[1], 'molot').setInteractive();
+    const s = this.add.image(p[0], p[1], 'molot').setInteractive();
     s.setScale(0.6);
     s.on('pointerdown', () => buildTower(this, i));
     buildSprites.push(s);
@@ -100,7 +101,10 @@ function spawnEnemy(scene) {
   e.targetTower = null;
   enemies.add(e);
   let idx = 0;
-  e.animTimer = scene.time.addEvent({ delay: 120, loop: true, callback: () => { idx = (idx + 1) % 7; if (e.active) e.setTexture('e_walk_' + idx); }});
+  e.animTimer = scene.time.addEvent({
+    delay: 120, loop: true,
+    callback: () => { idx = (idx + 1) % 7; if (e.active) e.setTexture('e_walk_' + idx); }
+  });
 }
 
 function updateEnemy(e) {
@@ -121,6 +125,7 @@ function updateEnemy(e) {
     }
     return;
   }
+
   let nearest = null, nd = 1e9;
   for (let t of towers) {
     if (!t.sprite.active) continue;
@@ -128,6 +133,7 @@ function updateEnemy(e) {
     if (d < ENEMY_AGGRO && d < nd) { nd = d; nearest = t.sprite; }
   }
   if (nearest) { e.targetTower = nearest; return; }
+
   moveTowards(e, BASE_POS.x, BASE_POS.y, e.speed);
   let db = Phaser.Math.Distance.Between(e.x, e.y, BASE_POS.x, BASE_POS.y);
   if (db < 26) { e.destroy(); gold = Math.max(0, gold - 10); ui.goldText.setText('Gold:' + gold); }
@@ -193,7 +199,6 @@ setInterval(() => {
   } catch (e) { console.warn(e); }
 }, 200);
 
-// реклама
 function tryWatchAd(scene) {
   if (!canWatchAd) return;
   if (wave % 3 !== 0) { alert('Ad available every 3 waves'); return; }
@@ -201,20 +206,3 @@ function tryWatchAd(scene) {
   alert('Simulated ad playing...');
   setTimeout(() => { gold += 100; ui.goldText.setText('Gold:' + gold); alert('Ad finished: +100 gold'); }, 1000);
 }
-
-// --- масштаб под экран ---
-function resizeCanvas() {
-  const canvas = document.querySelector('canvas');
-  if (!canvas) return;
-  const gameWidth = 720, gameHeight = 1280;
-  const windowWidth = window.innerWidth, windowHeight = window.innerHeight;
-  const scale = Math.min(windowWidth / gameWidth, windowHeight / gameHeight);
-  const newWidth = gameWidth * scale, newHeight = gameHeight * scale;
-  canvas.style.width = `${newWidth}px`;
-  canvas.style.height = `${newHeight}px`;
-  canvas.style.position = 'absolute';
-  canvas.style.left = `${(windowWidth - newWidth) / 2}px`;
-  canvas.style.top = `${(windowHeight - newHeight) / 2}px`;
-}
-window.addEventListener('resize', resizeCanvas);
-window.addEventListener('load', resizeCanvas);
