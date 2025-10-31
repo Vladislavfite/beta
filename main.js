@@ -20,12 +20,13 @@ const config = {
   width: 720,
   height: 1280,
   scale: {
-    mode: Phaser.Scale.FIT,           // вписывает без искажения
+    mode: Phaser.Scale.NONE, // полностью ручное управление размером
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   scene: { preload: create_preload, create: create, update: update },
   physics: { default: 'arcade' }
 };
+
 
 
 const game = new Phaser.Game(config);
