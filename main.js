@@ -108,38 +108,114 @@ function startNextWave(scene) {
 }
 
 function spawnEnemy(scene) {
-  const path = PATHS[Math.floor(Math.random() * PATHS.length)]; if (!path || path.length === 0) return;
-  const spawn = path[0];
-  let e = scene.physics.add.sprite(spawn[0], spawn[1], 'e_walk_0').setScale(0.35);
-  e.maxHp = 100; e.hp = e.maxHp; e.speed = 0.2; e.path = path; e.pathIndex = 1; e.state = 'walk'; e._savedPathIndex = null; e._lastAttack = 0;
-  e.play('e_walk_anim');
-  e.on('animationcomplete-e_die_anim', () => { if (e.active) { try { scene.sound.play('s_death'); } catch(e){} e.destroy(); } });
-  enemies.add(e);
+    const path = PATHS[Math.floor(Math.random() * PATHS.length)];
+    if (!path || path.length === 0) return;
+    const spawn = path[0];
+    let e = scene.physics.add.sprite(spawn[0], spawn[1], 'e_walk_0').setScale(0.35);
+
+    const nextPoint = path[1];
+    if (nextPoint) e.rotation = Phaser.Math.Angle.Between(spawn[0], spawn[1], nextPoint[0], nextPoint[1]);
+    e.setFlipY(false);
+
+    e.maxHp = 100;
+    e.hp = e.maxHp;
+    e.speed = 0.2;
+    e.path = path;
+    e.pathIndex = 1;
+    e.state = 'walk';
+    e._savedPathIndex = null;
+    e._lastAttack = 0;
+
+    e.play('e_walk_anim');
+    e.on('animationcomplete-e_die_anim', () => {
+        if (e.active) {
+            try { scene.sound.play('s_death'); } catch(e){}
+            e.destroy();
+        }
+    });
+
+    enemies.add(e);
 }
 
 function updateEnemy(e) {
-  if (!e || !e.active || e.state === 'die') return;
-  if (e.targetTower && e.targetTower.active) {
-    e.state = 'attack';
-    moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
-    e.setFlipX(e.targetTower.x < e.x);
-    e.rotation = Phaser.Math.Angle.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
-    let d = Phaser.Math.Distance.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
-    if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 800)) {
-      e._lastAttack = Date.now();
-      if (e.targetTower.hp != null) {
-        e.targetTower.hp -= 10;
-        try { e.targetTower.setTint(0xff9999); setTimeout(()=>e.targetTower.clearTint(),80); } catch(e){}
-        if (e.targetTower.hp <= 0) {
-          let idx = buildSprites.findIndex(s=>s==null); if(idx>=0){const p=BUILD_SPOTS[idx]; buildSprites[idx]=e.scene.add.image(p[0],p[1],'molot').setInteractive().setScale(0.6).on('pointerdown',()=>buildTower(e.scene,idx));}
-          e.targetTower.destroy(); towers=towers.filter(t=>t.sprite&&t.sprite.active); e.targetTower=null; e.state='returning';
-          if (e._savedPathIndex!=null) e.pathIndex=e._savedPathIndex;
+    if (!e || !e.active || e.state === 'die') return;
+
+    if (e.targetTower && e.targetTower.active) {
+        e.state = 'attack';
+        moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
+        e.setFlipX(e.targetTower.x < e.x);
+        e.setFlipY(false);
+        let d = Phaser.Math.Distance.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
+        if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 800)) {
+            e._lastAttack = Date.now();
+            if (e.targetTower.hp != null) {
+                e.targetTower.hp -= 10;
+                try { e.targetTower.setTint(0xff9999); setTimeout(()=>e.targetTower.clearTint(), 80); } catch(e){}
+                if (e.targetTower.hp <= 0) {
+                    e.targetTower.destroy();
+                    towers = towers.filter(t => t.sprite && t.sprite.active);
+                    e.targetTower = null;
+                    e.state = 'returning';
+                    if (e._savedPathIndex != null) e.pathIndex = e._savedPathIndex;
+                }
+            } else {
+                e.targetTower = null;
+                e.state = 'returning';
+            }
         }
-      } else { e.targetTower=null; e.state='returning'; }
+        if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key !== 'e_atk_anim') e.play('e_atk_anim');
+        return;
     }
-    if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key!=='e_atk_anim') e.play('e_atk_anim');
-    return;
-  }
+
+    let nearest = null, nd = 1e9;
+    for (let t of towers) {
+        const ts = t.sprite;
+        if (!ts || !ts.active) continue;
+        const d = Phaser.Math.Distance.Between(e.x, e.y, ts.x, ts.y);
+        if (d < ENEMY_AGGRO && d < nd) { nd = d; nearest = ts; }
+    }
+    if (nearest) {
+        e.targetTower = nearest;
+        e._savedPathIndex = e.pathIndex;
+        if (e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key !== 'e_atk_anim')) e.play('e_atk_anim');
+        return;
+    }
+
+    if (e.state === 'returning') {
+        const target = e.path[e.pathIndex] || e.path[e.path.length - 1];
+        moveTowards(e, target[0], target[1], e.speed);
+        e.rotation = Phaser.Math.Angle.Between(e.x, e.y, target[0], target[1]);
+        e.setFlipY(false);
+        if (Phaser.Math.Distance.Between(e.x, e.y, target[0], target[1]) < 8) {
+            e.state = 'walk';
+            if (e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key !== 'e_walk_anim')) e.play('e_walk_anim');
+        }
+        return;
+    }
+
+    if (e.pathIndex >= e.path.length) {
+        e.state = 'attack';
+        if (!e._lastAttack || Date.now() - e._lastAttack > 800) {
+            e._lastAttack = Date.now();
+            baseHp -= 10;
+            ui.baseText.setText(`BASE HP ${Math.max(0, baseHp)}`);
+            if (baseHp <= 0) { baseHp = 0; alert('База уничтожена!'); restartGame(e.scene); }
+        }
+        if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key !== 'e_atk_anim') e.play('e_atk_anim');
+        return;
+    }
+
+    e.state = 'walk';
+    const waypoint = e.path[e.pathIndex];
+    if (waypoint) {
+        moveTowards(e, waypoint[0], waypoint[1], e.speed);
+        e.rotation = Phaser.Math.Angle.Between(e.x, e.y, waypoint[0], waypoint[1]);
+        e.setFlipY(false);
+        if (Phaser.Math.Distance.Between(e.x, e.y, waypoint[0], waypoint[1]) < 6) e.pathIndex++;
+    }
+    if (e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key !== 'e_walk_anim')) e.play('e_walk_anim');
+}
+
   let nearest=null,nd=1e9;
   for(let t of towers){const ts=t.sprite;if(!ts||!ts.active)continue;const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);if(d<ENEMY_AGGRO&&d<nd){nd=d;nearest=ts;}}
   if(nearest){e.targetTower=nearest;e._savedPathIndex=e.pathIndex;if(e.anims&&e.anims.currentAnim&&e.anims.currentAnim.key!=='e_atk_anim')e.play('e_atk_anim');return;}
