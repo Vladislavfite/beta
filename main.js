@@ -1,5 +1,5 @@
 // === main.js === 
-// Tower Defense — enemies rotate toward movement, molot reappears after tower destroyed.
+// Tower Defense — enemies flip only horizontally, molot reappears after tower destroyed.
 
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
 const PATHS = [
@@ -119,11 +119,11 @@ function spawnEnemy(scene) {
 
 function updateEnemy(e) {
   if (!e || !e.active || e.state === 'die') return;
+
   if (e.targetTower && e.targetTower.active) {
     e.state = 'attack';
     moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
     e.setFlipX(e.targetTower.x < e.x);
-    e.rotation = Phaser.Math.Angle.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
     let d = Phaser.Math.Distance.Between(e.x, e.y, e.targetTower.x, e.targetTower.y);
     if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 800)) {
       e._lastAttack = Date.now();
@@ -140,12 +140,21 @@ function updateEnemy(e) {
     if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key!=='e_atk_anim') e.play('e_atk_anim');
     return;
   }
+
   let nearest=null,nd=1e9;
   for(let t of towers){const ts=t.sprite;if(!ts||!ts.active)continue;const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);if(d<ENEMY_AGGRO&&d<nd){nd=d;nearest=ts;}}
   if(nearest){e.targetTower=nearest;e._savedPathIndex=e.pathIndex;if(e.anims&&e.anims.currentAnim&&e.anims.currentAnim.key!=='e_atk_anim')e.play('e_atk_anim');return;}
+
   if(e.state==='returning'){const target=e.path[e.pathIndex]||e.path[e.path.length-1];moveTowards(e,target[0],target[1],e.speed);if(Phaser.Math.Distance.Between(e.x,e.y,target[0],target[1])<8){e.state='walk';if(e.anims&&(!e.anims.currentAnim||e.anims.currentAnim.key!=='e_walk_anim'))e.play('e_walk_anim');}return;}
+
   if(e.pathIndex>=e.path.length){e.state='attack';if(!e._lastAttack||Date.now()-e._lastAttack>800){e._lastAttack=Date.now();baseHp-=10;ui.baseText.setText(`BASE HP ${Math.max(0,baseHp)}`);if(baseHp<=0){baseHp=0;alert('База уничтожена!');restartGame(e.scene);}}if(e.anims&&e.anims.currentAnim&&e.anims.currentAnim.key!=='e_atk_anim')e.play('e_atk_anim');return;}
-  e.state='walk';const wp=e.path[e.pathIndex];if(wp){moveTowards(e,wp[0],wp[1],e.speed);if(Phaser.Math.Distance.Between(e.x,e.y,wp[0],wp[1])<6)e.pathIndex++;}e.rotation=Phaser.Math.Angle.Between(e.x,e.y,(wp?wp[0]:e.x),(wp?wp[1]:e.y));if(e.anims&&(!e.anims.currentAnim||e.anims.currentAnim.key!=='e_walk_anim'))e.play('e_walk_anim');
+
+  e.state='walk';
+  const wp=e.path[e.pathIndex];
+  if(wp){moveTowards(e,wp[0],wp[1],e.speed);if(Phaser.Math.Distance.Between(e.x,e.y,wp[0],wp[1])<6)e.pathIndex++;}
+  // горизонтальное отражение в зависимости от направления
+  if(wp) e.setFlipX(wp[0] < e.x);
+  if(e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key!=='e_walk_anim')) e.play('e_walk_anim');
 }
 
 function moveTowards(obj,tx,ty,speed){let dx=tx-obj.x,dy=ty-obj.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<0.1)return;obj.x+=(dx/dist)*speed*2;obj.y+=(dy/dist)*speed*2;}
