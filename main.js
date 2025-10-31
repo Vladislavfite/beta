@@ -23,7 +23,7 @@ const ENEMY_AGGRO = 150, TOWER_RANGE = 200;
 // =====================
 // 2. Глобальные переменные
 // =====================
-let enemies, towers, bullets, buildSprites, ui;
+var enemies, towers, bullets, buildSprites, ui;
 let gold = START_GOLD;
 let wave = 0;
 let canWatchAd = true;
