@@ -229,7 +229,6 @@ function updateEnemy(e) {
 function moveTowards(obj,tx,ty,speed){let dx=tx-obj.x,dy=ty-obj.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<0.1)return;obj.x+=(dx/dist)*speed*2;obj.y+=(dy/dist)*speed*2;}
 
 // =====================
-// =====================
 // 10. Башни — строительство и улучшение
 // =====================
 function buildTower(scene, index) {
@@ -254,8 +253,9 @@ function buildTower(scene, index) {
     ts._shootRate = 450;
     ts._range = TOWER_RANGE;
     ts._damage = 10 * ts.level;
+    ts._upgradeCost = 100; // базовая стоимость апгрейда
 
-    // иконка улучшения (одна, с двумя состояниями)
+    // иконка
     ts.upIcon = scene.add.image(pos[0] - 28, pos[1] + 40, 'noup_icon').setScale(0.6).setDepth(6).setVisible(true);
 
     const idleAnimKey = `${ts._typeKey}_idle_anim`;
@@ -274,23 +274,25 @@ function upgradeTower(scene, ts) {
     if (curNum >= 12) return;
 
     const nextLevel = curNum + 1;
-    const cost = UPGRADE_COST_BASE * nextLevel;
+    const cost = Math.floor(ts._upgradeCost * 1.5); // плавное удорожание
+    console.log(`Апгрейд башни ${curNum} -> ${nextLevel}, цена: ${cost}, золота: ${gold}`);
+
     if (gold < cost) { alert('Need ' + cost + ' gold'); return; }
 
     gold -= cost;
     ui.goldText.setText('Gold:' + gold);
 
+    ts._upgradeCost = cost;
     ts._typeKey = 'tower' + nextLevel;
     ts.level = nextLevel;
     ts._range = Math.min(300, ts._range + 30);
-    ts._shootRate = Math.max(200, ts._shootRate - 100);
-    ts._damage = 10 * ts.level;
+    ts._shootRate = Math.max(200, ts._shootRate - 80);
+    ts._damage = 10 * ts.level; // урон растёт пропорционально
     ts.hp += 50;
 
     const idleAnim = `${ts._typeKey}_idle_anim`;
     if (scene.anims.exists(idleAnim)) ts.play(idleAnim);
 
-    // если достигнут максимум — скрыть иконку и отключить апгрейд
     if (nextLevel >= 12 && ts.upIcon) {
         ts.upIcon.setVisible(false);
         ts.removeAllListeners('pointerdown');
@@ -315,7 +317,7 @@ function updateBullet(b){
 }
 
 // =====================
-// 12. Логика стрельбы башен (интервал)
+// 12. Стрельба башен
 // =====================
 setInterval(() => {
     if (isPaused) return;
@@ -326,17 +328,16 @@ setInterval(() => {
         for (let t of towers) {
             let ts = t.sprite;
             if (!ts || !ts.active) continue;
-
             ts._lastShot += 200;
 
-            // --- Обновление иконки улучшения ---
+            // Обновление иконки
             if (ts.upIcon && ts.upIcon.active) {
                 if (!ts.active || ts.hp <= 0) {
                     ts.upIcon.setVisible(false);
                 } else if (ts.level >= 12) {
                     ts.upIcon.setVisible(false);
                 } else {
-                    const nextCost = UPGRADE_COST_BASE * (ts.level + 1);
+                    const nextCost = Math.floor(ts._upgradeCost * 1.5);
                     const iconKey = gold >= nextCost ? 'up_icon' : 'noup_icon';
                     if (ts.upIcon.texture.key !== iconKey) ts.upIcon.setTexture(iconKey);
                     ts.upIcon.setVisible(true);
@@ -368,8 +369,8 @@ setInterval(() => {
                 b.speed = 10;
                 b.damage = ts._damage;
                 bullets.add(b);
-                ts._isAttacking = true;
 
+                ts._isAttacking = true;
                 const atkKey = `${ts._typeKey}_atk_anim`;
                 if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey))
                     ts.play(atkKey, true);
