@@ -229,37 +229,73 @@ function updateEnemy(e) {
 function moveTowards(obj,tx,ty,speed){let dx=tx-obj.x,dy=ty-obj.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<0.1)return;obj.x+=(dx/dist)*speed*2;obj.y+=(dy/dist)*speed*2;}
 
 // =====================
+// =====================
 // 10. Башни — строительство и улучшение
 // =====================
-function buildTower(scene,index){
-  if(index<0||index>=BUILD_SPOTS.length)return;
-  if(!buildSprites[index])return;
-  if(gold<TOWER_COST){alert('Not enough gold');return;}
-  const pos=BUILD_SPOTS[index];
-  buildSprites[index].destroy(); buildSprites[index]=null;
-  gold-=TOWER_COST; ui.goldText.setText('Gold:'+gold);
+function buildTower(scene, index) {
+    if (index < 0 || index >= BUILD_SPOTS.length) return;
+    if (!buildSprites[index]) return;
+    if (gold < TOWER_COST) { alert('Not enough gold'); return; }
 
-  const ts=scene.add.sprite(pos[0],pos[1],`tower1_idle_1`).setInteractive();
-  ts.setDepth(5); ts.hp=50; ts.level=1; ts._typeKey='tower1'; ts._isAttacking=false; ts._lastShot=0; ts._shootRate=450; ts._range=TOWER_RANGE; ts._damage=3*ts.level;
-  if(scene.textures.exists('up_icon')&&scene.textures.exists('noup_icon')) ts.upIcon=scene.add.image(pos[0]-28,pos[1]+40,'noup_icon').setScale(0.6).setDepth(6);
-  const idleAnimKey=`${ts._typeKey}_idle_anim`; if(scene.anims.exists(idleAnimKey))ts.play(idleAnimKey);
-  const upgradeHandler=()=>upgradeTower(scene,ts); ts.on('pointerdown',upgradeHandler);
-  towers.push({sprite:ts,upgradeHandler});
-  ts.setFlipX(ts.x>360);
+    const pos = BUILD_SPOTS[index];
+    buildSprites[index].destroy();
+    buildSprites[index] = null;
+
+    gold -= TOWER_COST;
+    ui.goldText.setText('Gold:' + gold);
+
+    const ts = scene.add.sprite(pos[0], pos[1], `tower1_idle_1`).setInteractive();
+    ts.setDepth(5);
+    ts.hp = 50;                 // здоровье башни
+    ts.level = 1;               // уровень башни
+    ts._typeKey = 'tower1';
+    ts._isAttacking = false;
+    ts._lastShot = 0;
+    ts._shootRate = 450;
+    ts._range = TOWER_RANGE;
+    ts._damage = 10 * ts.level; // урон = 10 × уровень
+
+    if (scene.textures.exists('up_icon') && scene.textures.exists('noup_icon')) {
+        ts.upIcon = scene.add.image(pos[0]-28, pos[1]+40, 'noup_icon').setScale(0.6).setDepth(6);
+    }
+
+    const idleAnimKey = `${ts._typeKey}_idle_anim`;
+    if (scene.anims.exists(idleAnimKey)) ts.play(idleAnimKey);
+
+    const upgradeHandler = () => upgradeTower(scene, ts);
+    ts.on('pointerdown', upgradeHandler);
+
+    towers.push({ sprite: ts, upgradeHandler });
+    ts.setFlipX(ts.x > 360);
 }
 
-function upgradeTower(scene,ts){
-  if(!ts||!ts._typeKey)return;
-  let curNum=parseInt(ts._typeKey.replace(/[^0-9]/g,''))||1;
-  if(curNum>=12)return;
-  const nextLevel=curNum+1;
-  const cost=UPGRADE_COST_BASE*nextLevel;
-  if(gold<cost){alert('Need '+cost+' gold');return;}
-  gold-=cost; ui.goldText.setText('Gold:'+gold);
-  ts._typeKey='tower'+nextLevel; ts.level=nextLevel; ts._range=Math.min(300,ts._range+30); ts._shootRate=Math.max(200,ts._shootRate-100); ts._damage=3*ts.level; ts.hp+=50;
-  const idleAnim=`${ts._typeKey}_idle_anim`; const atkAnim=`${ts._typeKey}_atk_anim`;
-  if(scene.anims.exists(idleAnim)) ts.play(idleAnim);
-  if(nextLevel>=12){ if(ts.upIcon) ts.upIcon.setVisible(false); ts.removeAllListeners('pointerdown'); }
+function upgradeTower(scene, ts) {
+    if (!ts || !ts._typeKey) return;
+    let curNum = parseInt(ts._typeKey.replace(/[^0-9]/g, '')) || 1;
+    if (curNum >= 12) return;
+
+    const nextLevel = curNum + 1;
+    const cost = UPGRADE_COST_BASE * nextLevel;
+    if (gold < cost) { alert('Need ' + cost + ' gold'); return; }
+
+    gold -= cost;
+    ui.goldText.setText('Gold:' + gold);
+
+    ts._typeKey = 'tower' + nextLevel;
+    ts.level = nextLevel;
+    ts._range = Math.min(300, ts._range + 30);
+    ts._shootRate = Math.max(200, ts._shootRate - 100);
+    ts._damage = 10 * ts.level; // урон = 10 × уровень
+    ts.hp += 50;
+
+    const idleAnim = `${ts._typeKey}_idle_anim`;
+    const atkAnim = `${ts._typeKey}_atk_anim`;
+    if (scene.anims.exists(idleAnim)) ts.play(idleAnim);
+
+    if (nextLevel >= 12) {
+        if (ts.upIcon) ts.upIcon.setVisible(false);
+        ts.removeAllListeners('pointerdown');
+    }
 }
 
 // =====================
