@@ -172,9 +172,9 @@ function updateEnemy(e) {
           // защищаемся от возможного удаления цели внутри таймаута
           const tgt = e.targetTower;
           if (tgt && tgt.setTint) tgt.setTint(0xff9999);
-          setTimeout(()=>{
-            if (tgt && tgt.clearTint) tgt.clearTint();
-          }, 80);
+setTimeout(()=>{
+  if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint();
+}, 80);
         } catch(err){}
         if (e.targetTower.hp <= 0) {
           // когда башня уничтожена — вернуть молот на первое пустое место
