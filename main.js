@@ -321,4 +321,74 @@ function updateBullet(b) {
   b.rotation = Math.atan2(dy, dx);
 }
 
-// ---------------- TOW
+// ---------------- TOWER SHOOT LOOP ----------------
+setInterval(() => {
+  if (isPaused) return;
+  try {
+    let sc = game.scene.scenes[0];
+    if (!sc) return;
+    for (let t of towers) {
+      let ts = t.sprite;
+      if (!ts || !ts.active) continue;
+      ts._lastShot += 200;
+      if (ts.upIcon && ts.upIcon.active) {
+        const key = gold >= UPGRADE_COST ? 'up_icon' : 'noup_icon';
+        if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
+      }
+      if (ts._lastShot < ts._shootRate) continue;
+      ts._lastShot = 0;
+      let target = null, dmin = 1e9;
+      enemies.getChildren().forEach(e => {
+        if (!e.active) return;
+        let d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
+        if (d < ts._range && d < dmin) { dmin = d; target = e; }
+      });
+      if (target) {
+        let b = sc.add.circle(ts.x, ts.y, 6, 0xffdd00);
+        sc.physics.add.existing(b);
+        b.target = target;
+        b.speed = 10;
+        bullets.add(b);
+        ts._isAttacking = true;
+        try { sc.sound.play('s_shoot'); } catch(e){}
+        ts.setFlipX(ts.x > 360);
+      } else {
+        ts._isAttacking = false;
+      }
+    }
+  } catch (e) { console.warn(e); }
+}, 200);
+
+// ---------------- PAUSE / RESTART ----------------
+function togglePause(scene) {
+  isPaused = !isPaused;
+  ui.pauseBtn.setText(isPaused ? '▶️ Продолжить' : '⏸️ Пауза');
+}
+
+function restartGame(scene) {
+  scene.scene.restart();
+  gold = START_GOLD;
+  wave = 0;
+  isPaused = false;
+}
+
+// ---------------- PHASER CONFIG ----------------
+const config2 = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  width: 720,
+  height: 1280,
+  scene: { preload: create_preload, create: create, update: update },
+  physics: { default: 'arcade' }
+};
+const game = new Phaser.Game(config2);
+
+/* 
+Кратко о правках:
+- Важно: использую оригинальные ключи ассетов, поэтому графика не сломается.
+- Враги идут по PATHS (каждый спавн — случайный путь), pathIndex++ логика сохранена.
+- Задержка 1s между врагами и уменьшенный scale 0.5.
+- Волны бесконечны — стартуют рекурсивно.
+- Индикатор up/noup только визуален, улучшение — по клику на башню.
+- Кнопки Пауза/Рестарт сохранены.
+*/
