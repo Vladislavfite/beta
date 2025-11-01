@@ -321,7 +321,16 @@ function createHammerAt(scene, pos, index) {
     console.error("Ошибка: scene не определена при создании молотка");
     return;
   }
-  const hammer = scene.add.image(pos[0], pos[1], "hammer").setInteractive().setScale(0.8);
+
+  // на всякий случай очищаем старый объект
+  if (buildSprites[index]) {
+    buildSprites[index].destroy();
+    buildSprites[index] = null;
+  }
+
+  // создаём спрайт молотка
+  const hammer = scene.add.image(pos[0], pos[1], "hammer").setInteractive();
+  hammer.setScale(0.8);
   hammer.setDepth(4);
   buildSprites[index] = hammer;
 
@@ -350,7 +359,7 @@ function upgradeTower(scene, ts) {
   ts.level = nextLevel;
   ts._range = Math.min(300, ts._range + 30);
   ts._shootRate = Math.max(200, ts._shootRate - 100);
-  ts._damage = 10 * ts.level; // урон увеличивается пропорционально
+  ts._damage = 10 * ts.level;
   ts.hp += 50;
   ts._upgradeCost = UPGRADE_COST_BASE * (ts.level + 1);
 
@@ -362,6 +371,7 @@ function upgradeTower(scene, ts) {
     ts.removeAllListeners("pointerdown");
   }
 }
+
 
 
 // =====================
