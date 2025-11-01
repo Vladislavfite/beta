@@ -144,8 +144,8 @@ function startNextWave(scene) {
 
   // === Новая логика прогрессии ===
   const enemyHp = 100 + wave; // каждую волну +1 HP
-  const maxEnemiesPerSpawn = 10; // максимум врагов с точки
-  const baseEnemies = 3; // начальное число врагов с точки
+  const maxEnemiesPerSpawn = 20; // максимум врагов с точки
+  const baseEnemies = 1; // начальное число врагов с точки
   const enemiesPerSpawn = Math.min(maxEnemiesPerSpawn, baseEnemies + wave); // плавный рост
   const totalSpawns = PATHS.length;
 
@@ -161,8 +161,8 @@ function startNextWave(scene) {
     }
   }
 
-  // запускаем следующую волну через 5 секунд после последнего спавна
-  const nextDelay = (enemiesPerSpawn * 800) + 5000;
+  // запускаем следующую волну через 3 секунд после последнего спавна
+  const nextDelay = (enemiesPerSpawn * 800) + 3000;
   scene.time.addEvent({ delay: nextDelay, callback: () => startNextWave(scene) });
 }
 
