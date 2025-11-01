@@ -273,7 +273,7 @@ function buildTower(scene, index) {
 
   const pos = BUILD_SPOTS[index];
   // убираем молот
-  buildSprites[index].destroy();
+  try { buildSprites[index] && buildSprites[index].destroy(); } catch(e){}
   buildSprites[index] = null;
 
   gold -= TOWER_COST;
@@ -311,6 +311,7 @@ function buildTower(scene, index) {
 
   // если башню уничтожили — вернуть молоток
   ts.on("destroy", () => {
+    // создаём молот сразу — передаём индекс (чтобы корректно занять место)
     createHammerAt(scene, pos, index);
   });
 }
@@ -322,26 +323,33 @@ function createHammerAt(scene, pos, index) {
     return;
   }
 
-  // защита от дублей
+  // защита от дублей — если уже есть, удаляем и потом создаём заново
   if (buildSprites[index]) {
-    buildSprites[index].destroy();
+    try { buildSprites[index].destroy(); } catch(e){}
     buildSprites[index] = null;
   }
 
-  // проверяем, загружена ли текстура
-  if (!scene.textures.exists("moloticon")) {
-    console.error("Текстура moloticon не найдена! Убедись, что загружена в preload().");
+  // ключ текстуры молотка — в preload у тебя грузилось как 'molot'
+  const hammerKey = "molot";
+  if (!scene.textures.exists(hammerKey)) {
+    console.error(`Текстура ${hammerKey} не найдена! Убедись, что она загружена в preload().`);
     return;
   }
 
-  // создаём иконку молотка
-  const hammer = scene.add.image(pos[0], pos[1], "moloticon").setInteractive();
-  hammer.setScale(0.8);
-  hammer.setDepth(4);
+  // создаём иконку молотка, даём высокий depth чтобы точно ловила клики
+  const hammer = scene.add.image(pos[0], pos[1], hammerKey).setInteractive({ useHandCursor: true });
+  hammer.setScale(0.6);
+  hammer.setDepth(10);
+  hammer.setData('buildIndex', index);
   buildSprites[index] = hammer;
 
-  hammer.on("pointerdown", () => {
-    buildTower(scene, index);
+  // клик по молоту — пробуем построить; если не хватает денег, молот остаётся
+  hammer.on("pointerdown", function () {
+    // защита: если кто-то уже поставил/удалил молот — проверить
+    const idx = this.getData('buildIndex');
+    if (idx == null) return;
+    // вызываем buildTower с scene из замыкания
+    buildTower(scene, idx);
   });
 }
 
@@ -374,9 +382,10 @@ function upgradeTower(scene, ts) {
 
   if (nextLevel >= 12) {
     if (ts.upIcon) ts.upIcon.setVisible(false);
-    ts.removeAllListeners("pointerdown");
+    ts.removeAllListeners && ts.removeAllListeners("pointerdown");
   }
 }
+
 // =====================
 // 11. Пули
 // =====================
