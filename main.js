@@ -315,21 +315,27 @@ function buildTower(scene, index) {
   });
 }
 
-// новая функция для безопасного создания молотка
+// создание молотка (иконки строительства)
 function createHammerAt(scene, pos, index) {
   if (!scene || !scene.add) {
     console.error("Ошибка: scene не определена при создании молотка");
     return;
   }
 
-  // на всякий случай очищаем старый объект
+  // защита от дублей
   if (buildSprites[index]) {
     buildSprites[index].destroy();
     buildSprites[index] = null;
   }
 
-  // создаём спрайт молотка
-  const hammer = scene.add.image(pos[0], pos[1], "hammer").setInteractive();
+  // проверяем, загружена ли текстура
+  if (!scene.textures.exists("moloticon")) {
+    console.error("Текстура moloticon не найдена! Убедись, что загружена в preload().");
+    return;
+  }
+
+  // создаём иконку молотка
+  const hammer = scene.add.image(pos[0], pos[1], "moloticon").setInteractive();
   hammer.setScale(0.8);
   hammer.setDepth(4);
   buildSprites[index] = hammer;
@@ -371,9 +377,6 @@ function upgradeTower(scene, ts) {
     ts.removeAllListeners("pointerdown");
   }
 }
-
-
-
 // =====================
 // 11. Пули
 // =====================
