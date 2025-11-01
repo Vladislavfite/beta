@@ -255,72 +255,114 @@ function moveTowards(obj, tx, ty, speed) {
   obj.y += (dy / dist) * speed * 2;
 }
 
-// =====================
 // 10. Башни — строительство и улучшение
 // =====================
 function buildTower(scene, index) {
+  if (!scene || !scene.add) {
+    console.error("Ошибка: scene не определена при вызове buildTower()");
+    return;
+  }
+
   if (index < 0 || index >= BUILD_SPOTS.length) return;
   if (!buildSprites[index]) return;
-  if (gold < TOWER_COST) { alert('Not enough gold'); return; }
+
+  if (gold < TOWER_COST) {
+    alert("Not enough gold");
+    return;
+  }
 
   const pos = BUILD_SPOTS[index];
   // убираем молот
   buildSprites[index].destroy();
   buildSprites[index] = null;
 
-  gold -= TOWER_COST; ui.goldText.setText('Gold:' + gold);
+  gold -= TOWER_COST;
+  ui.goldText.setText("Gold:" + gold);
 
   const ts = scene.add.sprite(pos[0], pos[1], `tower1_idle_1`).setInteractive();
-  ts.setDepth(5); ts.hp = 50; ts.level = 1; ts._typeKey = 'tower1'; ts._isAttacking = false; ts._lastShot = 0;
-  ts._shootRate = 450; ts._range = TOWER_RANGE;
-  // урон = 10 × уровень, как просил
+  ts.setDepth(5);
+  ts.hp = 50;
+  ts.level = 1;
+  ts._typeKey = "tower1";
+  ts._isAttacking = false;
+  ts._lastShot = 0;
+  ts._shootRate = 450;
+  ts._range = TOWER_RANGE;
   ts._damage = 10 * ts.level;
-  // стоимость следующего апгрейда (храним в объекте башни)
   ts._upgradeCost = UPGRADE_COST_BASE * (ts.level + 1);
 
-  // иконка — единственная, два состояния (up/noup)
-  if (scene.textures.exists('up_icon') && scene.textures.exists('noup_icon')) {
-    ts.upIcon = scene.add.image(pos[0] - 28, pos[1] + 40, 'noup_icon').setScale(0.6).setDepth(6).setVisible(true);
+  // индикатор улучшения
+  if (scene.textures.exists("up_icon") && scene.textures.exists("noup_icon")) {
+    ts.upIcon = scene.add
+      .image(pos[0] - 28, pos[1] + 40, "noup_icon")
+      .setScale(0.6)
+      .setDepth(6)
+      .setVisible(true);
   }
 
   const idleAnimKey = `${ts._typeKey}_idle_anim`;
   if (scene.anims.exists(idleAnimKey)) ts.play(idleAnimKey);
+
   const upgradeHandler = () => upgradeTower(scene, ts);
-  ts.on('pointerdown', upgradeHandler);
+  ts.on("pointerdown", upgradeHandler);
 
   towers.push({ sprite: ts, upgradeHandler });
   ts.setFlipX(ts.x > 360);
+
+  // если башню уничтожили — вернуть молоток
+  ts.on("destroy", () => {
+    createHammerAt(scene, pos, index);
+  });
 }
 
+// новая функция для безопасного создания молотка
+function createHammerAt(scene, pos, index) {
+  if (!scene || !scene.add) {
+    console.error("Ошибка: scene не определена при создании молотка");
+    return;
+  }
+  const hammer = scene.add.image(pos[0], pos[1], "hammer").setInteractive().setScale(0.8);
+  hammer.setDepth(4);
+  buildSprites[index] = hammer;
+
+  hammer.on("pointerdown", () => {
+    buildTower(scene, index);
+  });
+}
+
+// улучшение башни
 function upgradeTower(scene, ts) {
   if (!ts || !ts._typeKey) return;
-  // стоимость следующего уровня хранится в ts._upgradeCost
+
   const cost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
   if (ts.level >= 12) return;
-  if (gold < cost) { alert('Need ' + cost + ' gold'); return; }
 
-  gold -= cost; ui.goldText.setText('Gold:' + gold);
+  if (gold < cost) {
+    alert("Need " + cost + " gold");
+    return;
+  }
 
-  // применяем апгрейд
-  ts._typeKey = 'tower' + (ts.level + 1);
-  ts.level += 1;
+  gold -= cost;
+  ui.goldText.setText("Gold:" + gold);
+
+  const nextLevel = ts.level + 1;
+  ts._typeKey = "tower" + nextLevel;
+  ts.level = nextLevel;
   ts._range = Math.min(300, ts._range + 30);
   ts._shootRate = Math.max(200, ts._shootRate - 100);
-  ts._damage = 10 * ts.level; // урон = 10 × уровень
+  ts._damage = 10 * ts.level; // урон увеличивается пропорционально
   ts.hp += 50;
-
-  // пересчитываем стоимость следующего апгрейда
   ts._upgradeCost = UPGRADE_COST_BASE * (ts.level + 1);
 
   const idleAnim = `${ts._typeKey}_idle_anim`;
   if (scene.anims.exists(idleAnim)) ts.play(idleAnim);
 
-  // если достигнут макс — убираем иконку и отвязываем слушатели
-  if (ts.level >= 12) {
-    if (ts.upIcon && ts.upIcon.destroy) { ts.upIcon.destroy(); ts.upIcon = null; }
-    ts.removeAllListeners && ts.removeAllListeners('pointerdown');
+  if (nextLevel >= 12) {
+    if (ts.upIcon) ts.upIcon.setVisible(false);
+    ts.removeAllListeners("pointerdown");
   }
 }
+
 
 // =====================
 // 11. Пули
