@@ -131,26 +131,65 @@ function createAnimations(scene) {
   scene.anims.create({ key: 'e_die_anim', frames: eDie, frameRate: 10, repeat: 0 });
 }
 
+
 // =====================
-// 7. Волны и спавн врагов
+// 7. Волны и спавн врагов (с прогрессией)
 // =====================
 function startNextWave(scene) {
-  wave++; gold += WAVE_BONUS; ui.waveText.setText('Wave:' + wave); ui.goldText.setText('Gold:' + gold); canWatchAd = true;
-  let count = 8 + Math.floor(wave * 1.5);
-  for (let i = 0; i < count; i++) scene.time.addEvent({ delay: i * 1000, callback: () => spawnEnemy(scene) });
-  scene.time.addEvent({ delay: (count + 6) * 1000, callback: () => startNextWave(scene) });
+  wave++; 
+  gold += WAVE_BONUS; 
+  ui.waveText.setText('Wave:' + wave); 
+  ui.goldText.setText('Gold:' + gold); 
+  canWatchAd = true;
+
+  // === Новая логика прогрессии ===
+  const enemyHp = 100 + wave; // каждую волну +1 HP
+  const maxEnemiesPerSpawn = 10; // максимум врагов с точки
+  const baseEnemies = 3; // начальное число врагов с точки
+  const enemiesPerSpawn = Math.min(maxEnemiesPerSpawn, baseEnemies + wave); // плавный рост
+  const totalSpawns = PATHS.length;
+
+  // для каждой точки спавна создаём врагов
+  for (let i = 0; i < totalSpawns; i++) {
+    const path = PATHS[i];
+    for (let j = 0; j < enemiesPerSpawn; j++) {
+      // задержка, чтобы враги шли постепенно
+      scene.time.addEvent({
+        delay: j * 800 + i * 300,
+        callback: () => spawnEnemy(scene, path, enemyHp)
+      });
+    }
+  }
+
+  // запускаем следующую волну через 5 секунд после последнего спавна
+  const nextDelay = (enemiesPerSpawn * 800) + 5000;
+  scene.time.addEvent({ delay: nextDelay, callback: () => startNextWave(scene) });
 }
 
-function spawnEnemy(scene) {
-  const path = PATHS[Math.floor(Math.random() * PATHS.length)]; if (!path || path.length === 0) return;
+// Спавн врагов с учётом HP
+function spawnEnemy(scene, path = null, customHp = 100) {
+  if (!path) path = PATHS[Math.floor(Math.random() * PATHS.length)];
+  if (!path || path.length === 0) return;
   const spawn = path[0];
+
   let e = scene.physics.add.sprite(spawn[0], spawn[1], 'e_walk_0').setScale(0.35);
-  e.maxHp = 100; e.hp = e.maxHp; e.speed = 0.2; e.path = path; e.pathIndex = 1; e.state = 'walk'; e._savedPathIndex = null; e._lastAttack = 0;
+  e.maxHp = customHp; 
+  e.hp = e.maxHp; 
+  e.speed = 0.2 + Math.min(0.05 * wave, 0.5); // немного ускоряются
+  e.path = path; 
+  e.pathIndex = 1; 
+  e.state = 'walk'; 
+  e._savedPathIndex = null; 
+  e._lastAttack = 0;
   e.play('e_walk_anim');
-  e.on('animationcomplete-e_die_anim', () => { if (e.active) { try { scene.sound.play('s_death'); } catch(err){} e.destroy(); } });
+  e.on('animationcomplete-e_die_anim', () => { 
+    if (e.active) { 
+      try { scene.sound.play('s_death'); } catch(err){} 
+      e.destroy(); 
+    } 
+  });
   enemies.add(e);
 }
-
 // =====================
 // 8. Логика врагов
 // =====================
