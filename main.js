@@ -1,6 +1,3 @@
-// main.js — исправленный рабочий файл
-// Положи рядом menu.html и gameover.html и папку assets как в проекте.
-
 // --- Constants ---
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
 const PATHS = [
@@ -125,14 +122,14 @@ function create() {
 
     ui.soundIcon = this.add.image(576,770,'sound_on').setInteractive().setDepth(60);
     ui.soundIcon.on('pointerdown', ()=> { 
-      try{ this.sound.play('klick'); }catch(e){}
-      const newMute = !this.sound.mute;
-      this.sound.setMute(newMute);
-      ui.soundIcon.setTexture(newMute ? 'sound_off' : 'sound_on');
-    });
+  try{ this.sound.play('klick'); }catch(e){}
+  const newMute = !this.sound.mute;
+  this.sound.setMute(newMute);
+  ui.soundIcon.setTexture(newMute ? 'sound_off' : 'sound_on');
+});
   } catch(e){ console.warn('UI icons missing', e); }
 
-  // **animations — исправлено: теперь анимации башен и врагов корректно запускаются**
+  // animations
   createAnimations(this);
 
   // battle music (safe)
@@ -148,154 +145,30 @@ function create() {
 
   // firing loop (safe sc retrieval)
   setInterval(() => {
-    if (isPaused) return;
-    try {
-      let sc = (game && game.scene && game.scene.scenes && game.scene.scenes[0]) ? game.scene.scenes[0] : null;
-      if (!sc) return;
-
-      for (let tObj of Array.from(towers)) {
-        let ts = tObj.sprite; if (!ts || !ts.active) continue;
-
-        // shooting timer
-        ts._lastShotTime = ts._lastShotTime || 0;
-        const now = Date.now();
-
-        // upgrade icon (оставляем без изменений)
-        if (ts.upIcon) {
-          if (!ts.active || ts.level >= 12) {
-            ts.upIcon.setVisible(false);
-          } else {
-            const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
-            const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
-            if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
-            ts.upIcon.setVisible(true);
-            ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
-          }
-        }
-
-        if (now - ts._lastShotTime < ts._shootRate) {
-          const idleKey = `${ts._typeKey}_idle_anim`;
-          if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim') === -1)) ts.play(idleKey, true);
-          ts._isAttacking = false; 
-          continue;
-        }
-
-        // можно стрелять
-        ts._lastShotTime = now;
-
-        let target = null, dmin = 1e9;
-        (enemies && enemies.getChildren() || []).forEach(e => {
-          if (!e.active || e.state === 'die') return;
-          const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
-          if (d < ts._range && d < dmin) { dmin = d; target = e; }
-        });
-
-        if (target) {
-          let b = bullets.get();
-          if (!b) {
-            b = sc.physics.add.image(ts.x, ts.y - (ts.displayHeight ? Math.round(ts.displayHeight / 2) : 40), 'arrow');
-            bullets.add(b);
-          } else {
-            b.setTexture('arrow');
-            b.setScale(0.5);
-            b.setActive(true).setVisible(true);
-            if (b.body) b.body.enable = true;
-            const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
-            b.setPosition(ts.x, spawnY);
-          }
-          b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
-          try { b.setDepth(30); b.setOrigin(0.5, 0.5); } catch (e) {}
-          ts._isAttacking = true;
-          const atkKey = `${ts._typeKey}_atk_anim`;
-          if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey)) ts.play(atkKey, true);
-          sc._isAnyShooting = true;
-          ts.setFlipX(ts.x > 360);
-        } else {
-          ts._isAttacking = false;
-          const idleKey = `${ts._typeKey}_idle_anim`;
-          if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey)) ts.play(idleKey, true);
-        }
-      }
-    } catch (err) { console.warn(err); }
-  }, 100);
-
-
-  // bullets vs enemies overlap
-  try {
-    this.physics.add.overlap(bullets, enemies, (b,e) => {
-      if (!b.active || !e.active) return;
-      e.hp -= (b.damage || 10);
-      try {
-        const tgt = e;
-        if (tgt && tgt.setTint) tgt.setTint(0xffcccc);
-        setTimeout(()=>{ if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint(); }, 60);
-      } catch(err){}
-     if (e.hp <= 0 && e.state !== 'die') {
-        e.state = 'die';
-        e.play('e_die_anim');
-
-        gold += KILL_REWARD;
-        ui.goldText.setText('Gold:' + gold);
-
-        e.targetTower = null;
-
-        // уничтожение после анимации
-        e.once('animationcomplete', (anim, frame) => {
-          if (anim.key === 'e_die_anim') {
-            try { 
-              e.body && (e.body.enable = false);
-              e.destroy(); 
-            } catch(err){}
-          }
-        });
-     }
-      try {
-        b.setActive(false); b.setVisible(false);
-        if (b.body) { b.body.enable = false; b.body.setVelocity(0,0); }
-      } catch(er){}
-    });
-  } catch(e){ console.warn('overlap setup failed', e); }
-
-  // start waves
-  this.time.addEvent({ delay: 1000, callback: ()=> startNextWave(this) });
-}
-
-// --- Update ---
-function update() {
   if (isPaused) return;
-
   try {
-    enemies && enemies.getChildren().forEach(e => updateEnemy(e));
-  } catch(e) {}
+    let sc = (game && game.scene && game.scene.scenes && game.scene.scenes[0]) ? game.scene.scenes[0] : null;
+    if (!sc) return;
 
-  try {
-    bullets && bullets.getChildren().forEach(b => updateBullet(b));
-  } catch(e){}
+    for (let tObj of Array.from(towers)) {
+      let ts = tObj.sprite; if (!ts || !ts.active) continue;
 
-  if (ui && ui.baseBar) {
-    ui.baseBar.width = Math.max(0, 320 * (baseHp / 1000));
-    ui.baseBar.fillColor = baseHp > 600 ? 0x00cc00 : (baseHp > 300 ? 0xcccc00 : 0xcc0000);
-  }
+      // shooting timer
+      ts._lastShotTime = ts._lastShotTime || 0;
+      const now = Date.now();
 
-  for (let tObj of towers) {
-    const ts = tObj.sprite;
-    if (!ts) continue;
-    if (ts.upIcon) {
-      if (!ts.active || ts.level >= 12) {
-        ts.upIcon.setVisible(false);
-      } else {
-        const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
-        const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
-        if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
-        ts.upIcon.setVisible(true);
-        ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
+      // upgrade icon (оставляем без изменений)
+      if (ts.upIcon) {
+        if (!ts.active || ts.level >= 12) {
+          ts.upIcon.setVisible(false);
+        } else {
+          const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
+          const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
+          if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
+          ts.upIcon.setVisible(true);
+          ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
+        }
       }
-    }
-  }
-}
-
-// --- Остальной код — без изменений ---
-
 
       if (now - ts._lastShotTime < ts._shootRate) {
         const idleKey = `${ts._typeKey}_idle_anim`;
