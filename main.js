@@ -254,6 +254,43 @@ function create() {
   // запуск первой волны (как у тебя было)
   this.time.addEvent({ delay: 1000, callback: ()=> startNextWave(this) });
 }
+// --- вставь этот блок в main.js (ровно как есть) ---
+function update() {
+  if (isPaused) return;
+
+  // Обновляем поведение врагов и пуль
+  try {
+    enemies && enemies.getChildren().forEach(e => updateEnemy(e));
+  } catch(e) { /* если enemies не готов — молча пропускаем */ }
+
+  try {
+    bullets && bullets.getChildren().forEach(b => updateBullet(b));
+  } catch(e){}
+
+  // Обновляем HP-бар базы (ширина от 0 до 320)
+  if (ui && ui.baseBar) {
+    ui.baseBar.width = Math.max(0, 320 * (baseHp / 1000));
+    ui.baseBar.fillColor = baseHp > 600 ? 0x00cc00 : (baseHp > 300 ? 0xcccc00 : 0xcc0000);
+  }
+
+  // Обновляем иконки улучшения для каждой башни (как в оригинале)
+  for (let tObj of towers) {
+    const ts = tObj.sprite;
+    if (!ts) continue;
+    if (ts.upIcon) {
+      if (!ts.active || ts.level >= 12) {
+        ts.upIcon.setVisible(false);
+      } else {
+        const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
+        const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
+        if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
+        ts.upIcon.setVisible(true);
+        ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
+      }
+    }
+  }
+}
+// --- конец блока update() ---
 
 // === Shared shooting sound monitor ===
 function setupSharedShootingSound(scene){
