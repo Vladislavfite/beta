@@ -112,7 +112,7 @@ function create() {
     ui.reklamaBtn.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} console.log('Ad placeholder'); });
 
     ui.menuIcon = this.add.image(575,700,'menu_icon').setInteractive().setDepth(60);
-    ui.menuIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} window.location.href = 'menu.html'; });
+    ui.menuIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} window.location.href = 'index.html'; });
 
     ui.play2 = this.add.image(657,700,'play2').setInteractive().setDepth(60);
     ui.play2.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} if(isPaused) togglePause(this); });
@@ -124,7 +124,12 @@ function create() {
     ui.reloadIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} restartGame(this); });
 
     ui.soundIcon = this.add.image(576,770,'sound_on').setInteractive().setDepth(60);
-    ui.soundIcon.on('pointerdown', ()=> { this.sound.mute = !this.sound.mute; ui.soundIcon.setTexture(this.sound.mute ? 'sound_off' : 'sound_on'); });
+    ui.soundIcon.on('pointerdown', ()=> { 
+  try{ this.sound.play('klick'); }catch(e){}
+  const newMute = !this.sound.mute;
+  this.sound.setMute(newMute);
+  ui.soundIcon.setTexture(newMute ? 'sound_off' : 'sound_on');
+});
   } catch(e){ console.warn('UI icons missing', e); }
 
   // animations
@@ -185,9 +190,10 @@ function create() {
             bullets.add(b);
           } else {
             b.setTexture('arrow');
+            b.setScale(0.5);
             b.setActive(true).setVisible(true);
             if (b.body) b.body.enable = true;
-            const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.9) : 40);
+            const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
             b.setPosition(ts.x, spawnY);
           }
           b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
