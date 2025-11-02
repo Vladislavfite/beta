@@ -127,7 +127,7 @@ function create() {
     ui.reklamaBtn.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} console.log('Ad placeholder'); });
 
     ui.menuIcon = this.add.image(575,700,'menu_icon').setInteractive().setDepth(60);
-    ui.menuIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} window.location.href = 'menu.html'; });
+    ui.menuIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} window.location.href = 'index.html'; });
 
     ui.play2 = this.add.image(657,700,'play2').setInteractive().setDepth(60);
     ui.play2.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} if(isPaused) togglePause(this); });
