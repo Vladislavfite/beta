@@ -620,24 +620,32 @@ function createAnimations(scene) {
   if (!scene.anims.exists('e_die_anim')) scene.anims.create({ key: 'e_die_anim', frames: eDie, frameRate: 10, repeat: 0 });
 }
 
-// === Основная конфигурация Phaser и запуск (с твоим оригинальным config2 переименован) ===
 // =====================
-// Конфигурация Phaser и запуск
+// 14. Конфиг Phaser и запуск игры (исправленная версия)
 // =====================
+
+// Создаем объект сцены, который ссылается на функции, объявленные выше
 const MainScene = {
   preload: create_preload,
   create: create,
   update: update
 };
 
+// Конфигурация Phaser
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
   width: 720,
   height: 1280,
-  physics: { default: 'arcade' },
-  scene: [MainScene] // важно — Phaser теперь получает полноценный объект сцены
+  physics: {
+    default: 'arcade'
+  },
+  scene: [MainScene] // обязательно массив, иначе Phaser ищет глобальные функции
 };
+
+// Запуск игры
+const game = new Phaser.Game(config);
+
 
 const game = new Phaser.Game(config);
 
