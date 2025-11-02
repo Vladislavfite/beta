@@ -1,32 +1,78 @@
 <!doctype html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <title>Game Over</title>
   <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#000}
-    #bg{position:fixed;left:0;top:0;width:100%;height:100%;object-fit:cover;z-index:0}
-    #play{position:absolute;left:340px;top:340px;z-index:2;cursor:pointer}
-    #msg{position:absolute;left:50%;top:80px;transform:translateX(-50%);z-index:2;color:#fff;font-family:Arial, sans-serif}
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #container {
+      width: 720px;
+      height: 1280px;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+    }
+    #bg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 720px;
+      height: 1280px;
+      object-fit: cover;
+      z-index: 0;
+    }
+    #msg {
+      position: absolute;
+      top: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 52px;
+      text-align: center;
+      z-index: 2;
+    }
+    #play {
+      position: absolute;
+      left: 50%;
+      top: 950px;
+      transform: translateX(-50%);
+      cursor: pointer;
+      z-index: 2;
+      width: 200px;
+      height: 80px;
+    }
   </style>
 </head>
 <body>
-  <video id="bg" autoplay playsinline src="assets/gameover.webm" width="1280" height="720"></video>
-  <div id="msg"><h2 style="margin:0">Game Over</h2></div>
-  <img id="play" src="assets/elements/play.png" alt="Play" width="160" height="60">
-  <audio id="gameover_s" src="assets/sound/gameover.mp3"></audio>
-<script>
-(function(){
-  const g = document.getElementById('gameover_s');
-  window.addEventListener('load', ()=>{
-    // try to play gameover sound; browsers may require interaction
-    g.play().catch(()=>{});
-  });
-  document.getElementById('play').addEventListener('click', ()=>{
-    try{ g.pause(); }catch(e){}
-    window.location.href = 'index.html';
-  });
-})();
-</script>
+  <div id="container">
+    <video id="bg" autoplay playsinline src="assets/gameover.webm" muted></video>
+    <div id="msg">Game Over</div>
+    <img id="play" src="assets/elements/play.png" alt="Play">
+    <audio id="gameover_s" src="assets/sound/gameover.mp3"></audio>
+  </div>
+
+  <script>
+    (function(){
+      const sound = document.getElementById('gameover_s');
+      window.addEventListener('load', () => {
+        sound.play().catch(()=>{});
+      });
+      document.getElementById('play').addEventListener('click', () => {
+        try { sound.pause(); } catch(e){}
+        window.location.href = 'index.html';
+      });
+    })();
+  </script>
 </body>
 </html>
