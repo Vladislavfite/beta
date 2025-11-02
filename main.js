@@ -646,6 +646,3 @@ const config = {
 // Запуск игры
 const game = new Phaser.Game(config);
 
-
-const game = new Phaser.Game(config);
-
