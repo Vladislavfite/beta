@@ -147,70 +147,78 @@ function create() {
   setupSharedShootingSound(this);
 
   // firing loop (safe sc retrieval)
-  setInterval(()=> {
-    if (isPaused) return;
-    try {
-      let sc = (game && game.scene && game.scene.scenes && game.scene.scenes[0]) ? game.scene.scenes[0] : null;
-      if (!sc) return;
-      for (let tObj of Array.from(towers)) {
-        let ts = tObj.sprite; if (!ts || !ts.active) continue;
-        ts._lastShot = (ts._lastShot || 0) + 200;
+  setInterval(() => {
+  if (isPaused) return;
+  try {
+    let sc = (game && game.scene && game.scene.scenes && game.scene.scenes[0]) ? game.scene.scenes[0] : null;
+    if (!sc) return;
 
-        // upgrade icon
-        if (ts.upIcon) {
-          if (!ts.active || ts.level >= 12) {
-            ts.upIcon.setVisible(false);
-          } else {
-            const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
-            const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
-            if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
-            ts.upIcon.setVisible(true);
-            ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
-          }
-        }
+    for (let tObj of Array.from(towers)) {
+      let ts = tObj.sprite; if (!ts || !ts.active) continue;
 
-        if (ts._lastShot < ts._shootRate) {
-          const idleKey = `${ts._typeKey}_idle_anim`;
-          if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim') === -1)) ts.play(idleKey, true);
-          ts._isAttacking = false; continue;
-        }
+      // shooting timer
+      ts._lastShotTime = ts._lastShotTime || 0;
+      const now = Date.now();
 
-        ts._lastShot = 0;
-        let target = null, dmin = 1e9;
-        (enemies && enemies.getChildren() || []).forEach(e => {
-          if (!e.active || e.state === 'die') return;
-          const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
-          if (d < ts._range && d < dmin) { dmin = d; target = e; }
-        });
-
-        if (target) {
-          let b = bullets.get();
-          if (!b) {
-            b = sc.physics.add.image(ts.x, ts.y - (ts.displayHeight ? Math.round(ts.displayHeight/2) : 40), 'arrow');
-            bullets.add(b);
-          } else {
-            b.setTexture('arrow');
-            b.setScale(0.5);
-            b.setActive(true).setVisible(true);
-            if (b.body) b.body.enable = true;
-            const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
-            b.setPosition(ts.x, spawnY);
-          }
-          b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
-          try { b.setDepth(30); b.setOrigin(0.5,0.5); } catch(e){}
-          ts._isAttacking = true;
-          const atkKey = `${ts._typeKey}_atk_anim`;
-          if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey)) ts.play(atkKey, true);
-          sc._isAnyShooting = true;
-          ts.setFlipX(ts.x > 360);
+      // upgrade icon (оставляем без изменений)
+      if (ts.upIcon) {
+        if (!ts.active || ts.level >= 12) {
+          ts.upIcon.setVisible(false);
         } else {
-          ts._isAttacking = false;
-          const idleKey = `${ts._typeKey}_idle_anim`;
-          if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey)) ts.play(idleKey, true);
+          const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
+          const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
+          if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
+          ts.upIcon.setVisible(true);
+          ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
         }
       }
-    } catch(err) { console.warn(err); }
-  }, 200);
+
+      if (now - ts._lastShotTime < ts._shootRate) {
+        const idleKey = `${ts._typeKey}_idle_anim`;
+        if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim') === -1)) ts.play(idleKey, true);
+        ts._isAttacking = false; 
+        continue;
+      }
+
+      // можно стрелять
+      ts._lastShotTime = now;
+
+      let target = null, dmin = 1e9;
+      (enemies && enemies.getChildren() || []).forEach(e => {
+        if (!e.active || e.state === 'die') return;
+        const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
+        if (d < ts._range && d < dmin) { dmin = d; target = e; }
+      });
+
+      if (target) {
+        let b = bullets.get();
+        if (!b) {
+          b = sc.physics.add.image(ts.x, ts.y - (ts.displayHeight ? Math.round(ts.displayHeight / 2) : 40), 'arrow');
+          bullets.add(b);
+        } else {
+          b.setTexture('arrow');
+          b.setScale(0.5);
+          b.setActive(true).setVisible(true);
+          if (b.body) b.body.enable = true;
+          const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
+          b.setPosition(ts.x, spawnY);
+        }
+        b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
+        try { b.setDepth(30); b.setOrigin(0.5, 0.5); } catch (e) {}
+        ts._isAttacking = true;
+        const atkKey = `${ts._typeKey}_atk_anim`;
+        if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey)) ts.play(atkKey, true);
+        sc._isAnyShooting = true;
+        ts.setFlipX(ts.x > 360);
+      } else {
+        ts._isAttacking = false;
+        const idleKey = `${ts._typeKey}_idle_anim`;
+        if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey)) ts.play(idleKey, true);
+      }
+    }
+  } catch (err) { console.warn(err); }
+}, 200);
+
 
   // bullets vs enemies overlap
   try {
@@ -223,9 +231,17 @@ function create() {
         setTimeout(()=>{ if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint(); }, 60);
       } catch(err){}
       if (e.hp <= 0 && e.state !== 'die') {
-        e.state = 'die'; e.play && e.play('e_die_anim');
-        gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
-      }
+    e.state = 'die';
+    if (e.play) e.play('e_die_anim');
+    gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
+
+    // destroy после окончания анимации
+    e.on('animationcomplete-e_die_anim', () => {
+        if (e.active) {
+            try { e.destroy(); } catch(err){}
+        }
+    });
+}
       try {
         b.setActive(false); b.setVisible(false);
         if (b.body) { b.body.enable = false; b.body.setVelocity(0,0); }
