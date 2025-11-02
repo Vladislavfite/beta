@@ -217,7 +217,7 @@ function create() {
       }
     }
   } catch (err) { console.warn(err); }
-}, 200);
+}, 100);
 
 
   // bullets vs enemies overlap
@@ -362,7 +362,7 @@ function buildTower(scene, index) {
 
     const ts = scene.add.sprite(pos[0], pos[1], `tower1_idle_1`).setInteractive();
     ts.setDepth(5); ts.hp = 50; ts.level = 1; ts._typeKey = 'tower1';
-    ts._isAttacking = false; ts._lastShot = 0; ts._shootRate = 450; ts._range = TOWER_RANGE;
+    ts._isAttacking = false; ts._lastShot = 0; ts._shootRate = 500; ts._range = TOWER_RANGE;
     ts._damage = 10 * ts.level; ts._upgradeCost = UPGRADE_COST_BASE * (ts.level + 1);
     ts._bulletSpeed = 10;
 
