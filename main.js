@@ -621,6 +621,23 @@ function createAnimations(scene) {
 }
 
 // === Основная конфигурация Phaser и запуск (с твоим оригинальным config2 переименован) ===
-const config2 = { type: Phaser.AUTO, parent: 'game', width: 720, height: 1280, scene:{ preload:create_preload, create:create, update:update }, physics:{ default:'arcade' } };
-const game = new Phaser.Game(config2);
+// =====================
+// Конфигурация Phaser и запуск
+// =====================
+const MainScene = {
+  preload: create_preload,
+  create: create,
+  update: update
+};
+
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  width: 720,
+  height: 1280,
+  physics: { default: 'arcade' },
+  scene: [MainScene] // важно — Phaser теперь получает полноценный объект сцены
+};
+
+const game = new Phaser.Game(config);
 
