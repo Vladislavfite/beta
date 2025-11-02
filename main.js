@@ -433,12 +433,6 @@ function spawnEnemy(scene, path = null, customHp = 100) {
   e._savedPathIndex = null;
   e._lastAttack = 0;
   e.play('e_walk_anim');
-  e.on('animationcomplete-e_die_anim', () => {
-    if (e.active) {
-      try { scene.sound.play('s_death'); } catch(err){}
-      e.destroy();
-    }
-  });
   enemies.add(e);
 }
 
