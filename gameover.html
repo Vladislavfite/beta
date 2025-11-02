@@ -28,17 +28,7 @@
       width: 720px;
       height: 1280px;
       object-fit: cover;
-    }
-    h1 {
-      position: absolute;
-      top: 200px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: sans-serif;
-      font-size: 64px;
-      color: #ff4444;
-      text-shadow: 0 0 20px rgba(0,0,0,0.8);
-      margin: 0;
+      z-index: 0;
     }
     button {
       position: absolute;
@@ -56,6 +46,7 @@
       cursor: pointer;
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
       transition: transform 0.1s, background 0.2s;
+      z-index: 2;
     }
     button:hover {
       transform: translateX(-50%) scale(1.05);
@@ -65,8 +56,7 @@
 </head>
 <body>
   <div id="game-container">
-    <video id="bg-video" src="assets/gameover.webm" autoplay muted playsinline></video>
-    <h1>GAME OVER</h1>
+    <video id="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
     <audio id="gameover-sound" src="assets/sound/gameover.mp3"></audio>
     <button id="restartBtn">▶ Начать заново</button>
   </div>
@@ -76,7 +66,6 @@
     const gameOverSound = document.getElementById('gameover-sound');
 
     window.addEventListener('load', () => {
-      // Попытка проиграть звук
       gameOverSound.play().catch(()=>{});
     });
 
@@ -86,7 +75,6 @@
         const clickSound = new Audio('assets/sound/klick.ogg');
         clickSound.play();
       } catch(e){}
-      // Возврат в главное меню
       window.location.href = 'index.html';
     });
   </script>
