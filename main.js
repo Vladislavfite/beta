@@ -502,3 +502,4 @@ const MainScene = { preload: create_preload, create: create, update: update };
 const config = { type: Phaser.AUTO, width: 720, height: 1280, parent: 'game', physics: { default: 'arcade' }, scene: [MainScene] };
 
 const game = new Phaser.Game(config);
+
