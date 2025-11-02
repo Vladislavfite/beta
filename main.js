@@ -668,18 +668,22 @@ const MainScene = {
   update: update
 };
 
-// Конфигурация Phaser
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: 720,
-  height: 1280,
-  physics: {
-    default: 'arcade'
-  },
-  scene: [MainScene] // обязательно массив, иначе Phaser ищет глобальные функции
+// === Конфигурация Phaser и запуск ===
+const MainScene = {
+  preload: create_preload,
+  create: create,
+  update: update
 };
 
-// Запуск игры
+const config = {
+  type: Phaser.AUTO,
+  width: 720,
+  height: 1280,
+  parent: 'game', // ВАЖНО! Совпадает с div id="game"
+  physics: { default: 'arcade' },
+  scene: [MainScene]
+};
+
 const game = new Phaser.Game(config);
+
 
