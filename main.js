@@ -230,17 +230,18 @@ function create() {
         if (tgt && tgt.setTint) tgt.setTint(0xffcccc);
         setTimeout(()=>{ if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint(); }, 60);
       } catch(err){}
-      if (e.hp <= 0 && e.state !== 'die') {
-    e.state = 'die';
-    if (e.play) e.play('e_die_anim');
-    gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
+     if (e.hp <= 0 && e.state !== 'die') {
+  e.state = 'die';
+  e.play('e_die_anim');
+  gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
+  
+  // отключаем коллайдер/цель
+  e.body && (e.body.enable = false);
+  e.targetTower = null;
 
-    // destroy после окончания анимации
-    e.on('animationcomplete-e_die_anim', () => {
-        if (e.active) {
-            try { e.destroy(); } catch(err){}
-        }
-    });
+  e.once('animationcomplete-e_die_anim', () => {
+    try { e.destroy(); } catch(err){}
+  });
 }
       try {
         b.setActive(false); b.setVisible(false);
