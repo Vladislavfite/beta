@@ -233,14 +233,20 @@ function create() {
      if (e.hp <= 0 && e.state !== 'die') {
   e.state = 'die';
   e.play('e_die_anim');
-  gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
-  
-  // отключаем коллайдер/цель
-  e.body && (e.body.enable = false);
+
+  gold += KILL_REWARD;
+  ui.goldText.setText('Gold:' + gold);
+
   e.targetTower = null;
 
-  e.once('animationcomplete-e_die_anim', () => {
-    try { e.destroy(); } catch(err){}
+  // уничтожение после анимации
+  e.once('animationcomplete', (anim, frame) => {
+    if (anim.key === 'e_die_anim') {
+      try { 
+        e.body && (e.body.enable = false);
+        e.destroy(); 
+      } catch(err){}
+    }
   });
 }
       try {
