@@ -1,78 +1,94 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
   <title>Game Over</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
       overflow: hidden;
+      background: black;
       display: flex;
       justify-content: center;
       align-items: center;
+      height: 100vh;
     }
-    #container {
+    #game-container {
       width: 720px;
       height: 1280px;
-      position: relative;
       background: #000;
+      position: relative;
       overflow: hidden;
     }
-    #bg {
+    video {
       position: absolute;
-      left: 0;
       top: 0;
+      left: 0;
       width: 720px;
       height: 1280px;
       object-fit: cover;
-      z-index: 0;
     }
-    #msg {
+    h1 {
       position: absolute;
-      top: 180px;
+      top: 200px;
       left: 50%;
       transform: translateX(-50%);
-      color: #fff;
-      font-family: Arial, sans-serif;
-      font-size: 52px;
-      text-align: center;
-      z-index: 2;
+      font-family: sans-serif;
+      font-size: 64px;
+      color: #ff4444;
+      text-shadow: 0 0 20px rgba(0,0,0,0.8);
+      margin: 0;
     }
-    #play {
+    button {
       position: absolute;
+      bottom: 260px;
       left: 50%;
-      top: 950px;
       transform: translateX(-50%);
-      cursor: pointer;
-      z-index: 2;
-      width: 200px;
+      width: 280px;
       height: 80px;
+      font-size: 28px;
+      font-family: sans-serif;
+      background: #1e90ff;
+      color: white;
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      transition: transform 0.1s, background 0.2s;
+    }
+    button:hover {
+      transform: translateX(-50%) scale(1.05);
+      background: #3ba3ff;
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <video id="bg" autoplay playsinline src="assets/gameover.webm" muted></video>
-    <div id="msg">Game Over</div>
-    <img id="play" src="assets/elements/play.png" alt="Play">
-    <audio id="gameover_s" src="assets/sound/gameover.mp3"></audio>
+  <div id="game-container">
+    <video id="bg-video" src="assets/gameover.webm" autoplay muted playsinline></video>
+    <h1>GAME OVER</h1>
+    <audio id="gameover-sound" src="assets/sound/gameover.mp3"></audio>
+    <button id="restartBtn">▶ Начать заново</button>
   </div>
 
   <script>
-    (function(){
-      const sound = document.getElementById('gameover_s');
-      window.addEventListener('load', () => {
-        sound.play().catch(()=>{});
-      });
-      document.getElementById('play').addEventListener('click', () => {
-        try { sound.pause(); } catch(e){}
-        window.location.href = 'index.html';
-      });
-    })();
+    const restartBtn = document.getElementById('restartBtn');
+    const gameOverSound = document.getElementById('gameover-sound');
+
+    window.addEventListener('load', () => {
+      // Попытка проиграть звук
+      gameOverSound.play().catch(()=>{});
+    });
+
+    restartBtn.addEventListener('click', () => {
+      try { 
+        gameOverSound.pause();
+        const clickSound = new Audio('assets/sound/klick.ogg');
+        clickSound.play();
+      } catch(e){}
+      // Возврат в главное меню
+      window.location.href = 'index.html';
+    });
   </script>
 </body>
 </html>
