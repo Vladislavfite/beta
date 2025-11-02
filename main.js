@@ -311,11 +311,6 @@ function updateBullet(b) {
         b.target.hp -= (b.damage || 10);
         if (b.target.setTint) b.target.setTint(0xffcccc);
         setTimeout(()=>{ if (b.target && b.target.active && typeof b.target.clearTint === 'function') b.target.clearTint(); }, 60);
-        if (b.target.hp <= 0 && b.target.state !== 'die') {
-          b.target.state = 'die';
-          b.target.play && b.target.play('e_die_anim');
-          gold += KILL_REWARD; ui.goldText.setText('Gold:' + gold);
-        }
       }
     } catch(e){}
     try { b.setActive(false); b.setVisible(false); if (b.body) { b.body.enable = false; b.body.setVelocity(0,0); } } catch(e){}
