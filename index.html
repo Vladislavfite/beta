@@ -145,77 +145,6 @@
     wave: 0,
     baseHp: 1000,
   };
-class Bullet extends Phaser.Physics.Arcade.Image {
-    constructor(scene, x = 0, y = 0){
-      super(scene, x, y, 'arrow');
-      scene.add.existing(this);
-      scene.physics.add.existing(this);
-      this.setActive(false);
-      this.setVisible(false);
-      this.setDepth(30);
-      if(this.body){ this.body.setAllowGravity(false); }
-      this.target = null;
-      this.speed = 9;
-      this.damage = 5;
-      this.hitRadius = 16;
-    }
-
-    fire(x, y, target, speed, damage, hitRadius){
-      this.target = target || null;
-      this.speed = speed || 8;
-      this.damage = damage || 5;
-      this.hitRadius = hitRadius || 16;
-      this.setTexture('arrow');
-      this.setScale(0.5);
-      this.setDepth(30);
-      this.setPosition(x, y);
-      this.setActive(true);
-      this.setVisible(true);
-    }
-
-    _deactivate(){
-      this.setActive(false);
-      this.setVisible(false);
-      this.target = null;
-    }
-
-    preUpdate(time, delta){
-      super.preUpdate(time, delta);
-      if(!this.active) return;
-
-      const target = this.target;
-      if(!target || !target.active || target.state === 'die'){
-        this._deactivate();
-        return;
-      }
-
-      const dx = target.x - this.x;
-      const dy = target.y - this.y;
-      const dist = Math.hypot(dx, dy);
-      const hitR = this.hitRadius || 16;
-
-      if(dist <= hitR){
-        target.hp -= (this.damage || 5);
-        if(target.hp <= 0){ this.scene._killEnemy(target); }
-        this._deactivate();
-        return;
-      }
-
-      const sp = this.speed || 8;
-      if(dist > 0){
-        const nx = dx / dist;
-        const ny = dy / dist;
-        this.x += nx * sp;
-        this.y += ny * sp;
-      }
-
-      this.rotation = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-
-      if(this.x < -50 || this.x > CONST.WIDTH + 50 || this.y < -50 || this.y > CONST.HEIGHT + 50){
-        this._deactivate();
-      }
-    }
-  }
 
   // Служебные функции управления слоями
   function showPreloader(){ preloaderOverlay.classList.remove('hidden'); }
@@ -287,7 +216,7 @@ class Bullet extends Phaser.Physics.Arcade.Image {
       // Группы и коллекции
       this.enemies = this.add.group();
       // ВАЖНО: обычная группа без overlap — коллизию считаем вручную
-      this.bullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+      this.bullets = this.add.group();
       this.towers = [];
       this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
 
@@ -346,6 +275,7 @@ class Bullet extends Phaser.Physics.Arcade.Image {
     update(){
       if(!State.started) { this._syncHUD(); return; }
       this.enemies.getChildren().forEach(e => this._updateEnemy(e));
+      this.bullets.getChildren().forEach(b => this._updateBullet(b));
       this._syncHUD();
     }
 
@@ -537,12 +467,21 @@ class Bullet extends Phaser.Physics.Arcade.Image {
 
         ts._lastShotTime = now;
         if(target){
-           const spawnX = ts.x;
-          const spawnY = ts.y - Math.round((ts.displayHeight||40)*0.4);
-          const b = this.bullets.get(spawnX, spawnY);
-          if(b){
-            b.fire(spawnX, spawnY, target, ts._bulletSpeed || 9, ts._damage || (5*ts.level), 16);
+          let b = this.bullets.get();
+          if(!b){
+            b = this.add.image(ts.x, ts.y, 'arrow'); // НЕ physics
+            this.bullets.add(b);
           }
+          b.setActive(true).setVisible(true);
+          b.setTexture('arrow');
+          b.setScale(0.5);
+          b.setPosition(ts.x, ts.y - Math.round((ts.displayHeight||40)*0.4));
+          b.target = target;
+          b.speed = ts._bulletSpeed || 9;
+          b.damage = ts._damage || (5*ts.level);
+          b.hitRadius = 16; // радиус попадания
+          b.setDepth(30);
+
           const atkKey = `${ts._typeKey}_atk_anim`; if(this.anims.exists(atkKey)) ts.play(atkKey,true);
           ts.setFlipX(ts.x > CONST.WIDTH/2);
           anyShot = true;
@@ -560,7 +499,46 @@ class Bullet extends Phaser.Physics.Arcade.Image {
       }catch(_){}
     }
 
-    
+    // ====== ЕДИНСТВЕННАЯ КОЛЛИЗИЯ: в апдейте пули ======
+    _updateBullet(b){
+      if(!b || !b.active) return;
+
+      // Нет цели — выключаем пулю
+      if(!b.target || !b.target.active || b.target.state==='die'){
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
+        return;
+      }
+
+      // Вектор до цели
+      const dx = b.target.x - b.x;
+      const dy = b.target.y - b.y;
+      const dist = Math.hypot(dx, dy);
+      const sp = b.speed || 8;
+      const hitR = b.hitRadius || 16;
+
+      // Если уже в радиусе попадания — засчитываем удар и деактивируем пулю
+      if(dist <= hitR){
+        // НЕТ ДВОЙНОГО УРОНА: урон только тут, overlap не используется
+        b.target.hp -= (b.damage || 5);
+        if(b.target.hp <= 0){ this._killEnemy(b.target); }
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
+        return;
+      }
+
+      // Движение к цели
+      const nx = dx / dist;
+      const ny = dy / dist;
+      b.x += nx * sp;
+      b.y += ny * sp;
+
+      // Поворот стрелы в сторону цели
+      b.rotation = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
+
+      // Улетела за экран — выключаем
+      if(b.x < -50 || b.x > CONST.WIDTH+50 || b.y < -50 || b.y > CONST.HEIGHT+50){
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
+      }
+    }
 
     _killEnemy(e){
       if(!e || e.state==='die') return;
