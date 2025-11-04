@@ -40,7 +40,7 @@
 <body>
   <div id="container">
 
-    <!-- ====== ГЛАВНОЕ МЕНЮ (ЛУПАЮЩЕЕСЯ ВИДЕО + ЗВУК LOBBY) ====== -->
+    <!-- ====== ГЛАВНОЕ МЕНЮ (ЛУПАЮЩЕЕСЯ ВИДЕО + МУЗЫКА LOBBY) ====== -->
     <!-- Важно: видео должно быть MUTED, чтобы автостарт прошёл в браузерах -->
     <div id="menuOverlay" class="overlay">
       <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <!-- ====== ЭКРАН GAME OVER (ЛУПАЮЩЕЕСЯ ВИДЕО + КНОПКА) ====== -->
+    <!-- ====== ЭКРАН GAME OVER (ЛУПАЮЩЕЕСЯ ВИДЕО + КНОПКА + МУЗЫКА) ====== -->
     <div id="gameoverOverlay" class="overlay hidden">
       <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
       <div class="panel">
@@ -80,7 +80,7 @@
      ЕДИНЫЙ ФАЙЛ С ТРЕМЯ СЛОЯМИ:
      - Меню (menu.webm + lobby.mp3), кнопка "Начать".
      - Игра (Phaser сцена), боковое меню: MENU / RELOAD / SOUND_ON|OFF.
-     - GameOver (gameover.webm), кнопка "Рестарт".
+     - GameOver (gameover.webm + gameover.mp3), кнопка "Рестарт".
      Все ассеты остаются в /assets. Никаких переходов на другие HTML.
      ======================================================================== */
 
@@ -148,16 +148,16 @@
       this.load.image('up_icon','assets/elements/up.png');
       this.load.image('noup_icon','assets/elements/noup.png');
 
-      // ПУЛЯ/СТРЕЛА — обязательно этот путь (исправлено): assets/elements/arrow.png
+      // ПУЛЯ/СТРЕЛА — обязательно этот путь: assets/elements/arrow.png
       this.load.image('arrow','assets/elements/arrow.png');
 
-      // Боковые кнопки (только 3 по твоему ТЗ): menu, reload, sound_on/off
+      // Боковые кнопки (только 3 по ТЗ): menu, reload, sound_on/off
       this.load.image('menu','assets/elements/menu.png');
       this.load.image('reload','assets/elements/reload.png');
       this.load.image('sound_on','assets/elements/sound.png');
       this.load.image('sound_off','assets/elements/soundoff.png');
 
-      // ВРАГИ: анимации ходьбы/атаки/смерти — кадры по твоей структуре
+      // ВРАГИ: анимации ходьбы/атаки/смерти — кадры по структуре ассетов
       for(let i=0;i<7;i++){
         this.load.image(`e_walk_${i}`,`assets/enemy/walk/walk${i+1}.png`);
         this.load.image(`e_atk_${i}`,`assets/enemy/atack_enemy/atackenemy${i+1}.png`);
@@ -170,12 +170,14 @@
         for(let j=1;j<=5;j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
       }
 
-      // Звуки: lobby (меню), battle (игра), стрелы (arrow), клик и т.д.
+      // Звуки: lobby (меню), battle (игра), стрелы (arrow loop), клик, gameover, апгрейд/разрушение
       try{ this.load.audio('lobby','assets/sound/lobby.mp3'); }catch(e){}
       try{ this.load.audio('battle','assets/sound/battle.mp3'); }catch(e){}
       try{ this.load.audio('arrow_s','assets/sound/arrow.mp3'); }catch(e){}
       try{ this.load.audio('klick','assets/sound/klick.ogg'); }catch(e){}
       try{ this.load.audio('gameover_s','assets/sound/gameover.mp3'); }catch(e){}
+      try{ this.load.audio('towerup','assets/sound/towerup.mp3'); }catch(e){}
+      try{ this.load.audio('towerrush','assets/sound/towerrush.mp3'); }catch(e){}
     }
 
     create(){
@@ -194,15 +196,14 @@
       // Анимации
       this._createAnims();
 
-      // Тексты HUD синхронизируем в каждом update
-      this._syncHUD();
-
       // Аудио-объекты
       try{
         this.sndLobby   = this.sound.add('lobby',  { loop:true, volume:0.6 });
         this.sndBattle  = this.sound.add('battle', { loop:true, volume:0.6 });
         this.sndArrowLp = this.sound.add('arrow_s',{ loop:true, volume:0.35 });
         this.sndOver    = this.sound.add('gameover_s', { volume: 0.9 });
+        this.sndUp      = this.sound.add('towerup', { volume: 0.9 });
+        this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
       }catch(e){}
 
       // Боковое меню (три кнопки: MENU / RELOAD / SOUND)
@@ -219,7 +220,7 @@
     }
 
     update(){
-      // Если игра не начата — ничего не обновляем
+      // Если игра не начата — ничего не обновляем (HUD синхронизируем на всякий)
       if(!State.started) { this._syncHUD(); return; }
 
       // Апдейт врагов и пуль
@@ -247,7 +248,7 @@
     }
 
     showGameOver(){
-      // Остановить боевую музыку, проиграть звук окончания, показать оверлей с видео
+      // Остановить боевую музыку, выключить луп стрел, проиграть звук окончания, показать оверлей с видео
       State.started = false;
       try{ this.sndBattle && this.sndBattle.stop(); }catch(_){}
       try{ this.sndArrowLp && this.sndArrowLp.stop(); }catch(_){}
@@ -290,10 +291,11 @@
     }
 
     _buildSideButtons(){
+      // Расположение 3-х кнопок справа
       const x = 576;
-      const yMenu = 629;       // MENU
-      const yReload = 629+71;  // RELOAD
-      const ySound = 629+71*2; // SOUND
+      const yMenu   = 629;        // MENU
+      const yReload = 629 + 80;   // RELOAD
+      const ySound  = 629 + 160;  // SOUND
 
       // MENU — вернуться в главное меню (пауза + лобби)
       const btnMenu = this.add.image(x, yMenu, 'menu').setInteractive().setDepth(60);
@@ -378,8 +380,12 @@
       ts.hp += 50;
       ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
 
+      // Смена спрайтовой анимации на новый тип башни
       const idle = `${ts._typeKey}_idle_anim`; if(this.anims.exists(idle)) ts.play(idle);
       if(ts.level>=12 && ts.upIcon) ts.upIcon.setVisible(false);
+
+      // ЗВУК АПГРЕЙДА БАШНИ
+      try{ this.sndUp && this.sndUp.play(); }catch(_){}
     }
 
     // ====== Бой/стрельба ======
@@ -457,7 +463,7 @@
       this.time.delayedCall(60, ()=>{ try{ e && e.clearTint && e.clearTint(); }catch(_){} });
 
       if(e.hp <= 0 && e.state !== 'die'){
-        this._killEnemy(e);
+        this._killEnemy(e); // анимация смерти + удаление по завершению
       }
 
       // Ресайкл пули
@@ -499,7 +505,7 @@
 
     _killEnemy(e){
       e.state = 'die';
-      // === ВКЛЮЧАЕМ АНИМАЦИЮ СМЕРТИ ===
+      // === ВКЛЮЧАЕМ АНИМАЦИЮ СМЕРТИ (assets/enemy/die_enemy/dead1..7.png) ===
       if(this.anims.exists('e_die_anim')) e.play('e_die_anim');
       State.gold += CONST.KILL_REWARD; this._syncHUD();
 
@@ -546,6 +552,9 @@
             e.targetTower.hp -= 10;
             try{ e.targetTower.setTint && e.targetTower.setTint(0xff9999); this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){}});}catch(_){}
             if(e.targetTower.hp <= 0){
+              // ЗВУК "враг сломал башню"
+              try{ this.sndRush && this.sndRush.play(); }catch(_){}
+
               // Восстановить точку строительства (молот)
               const idx = this.towers.findIndex(t=>t.sprite===e.targetTower);
               try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
@@ -644,7 +653,7 @@
       for(let i=0;i<7;i++){ eWalk.push({key:`e_walk_${i}`}); eAtk.push({key:`e_atk_${i}`}); eDie.push({key:`e_die_${i}`}); }
       if(!this.anims.exists('e_walk_anim')) this.anims.create({key:'e_walk_anim',frames:eWalk,frameRate:8,repeat:-1});
       if(!this.anims.exists('e_atk_anim'))  this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8,repeat:-1});
-      if(!this.anims.exists('e_die_anim'))  this.anims.create({key:'e_die_anim', frames:eDie, frameRate:10, repeat:0});
+      if(!this.anims.exists('e_die_anim'))  this.anims.create({key:'e_die_anim', frames:eDie, frameRate:10, repeat:0}); // <— смерть проигрывается ОДИН РАЗ
     }
   }
 
@@ -683,7 +692,7 @@
     sc.restartToMenu();
   });
 
-  // На загрузке страницы показываем меню и запускаем видео (звук играет из сцены, когда она создастся)
+  // На загрузке страницы показываем меню и запускаем видео (звук меню запускается из сцены)
   window.addEventListener('load', ()=>{
     try{ showMenuOverlay(); menuVideo.play().catch(()=>{}); }catch(_){}
   });
