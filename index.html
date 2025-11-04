@@ -483,6 +483,7 @@
           b.target = target;
           b.speed = ts._bulletSpeed || 9;
           b.damage = ts._damage || (5*ts.level);
+          b._hasHit = false;
           b.setDepth(30);
 
           const atkKey = `${ts._typeKey}_atk_anim`; if(this.anims.exists(atkKey)) ts.play(atkKey,true);
@@ -504,21 +505,40 @@
 
     _onBulletHit(b,e){
       if(!b.active || !e.active) return;
-      if(e.state!=='die'){
-        e.hp -= (b.damage || 5);
-        if(e.hp <= 0){ this._killEnemy(e); }
-        else{
-          if(e.setTint) e.setTint(0xffcccc);
-          this.time.delayedCall(60, ()=>{ try{ e && e.clearTint && e.clearTint(); }catch(_){} });
-        }
+      this._dealBulletDamage(b, e);
+      this._deactivateBullet(b);
+    }
+
+    _dealBulletDamage(b, target){
+      if(!b || b._hasHit) return;
+      b._hasHit = true;
+
+      if(!target || !target.active || target.state==='die') return;
+
+      target.hp -= (b.damage || 5);
+      if(target.hp <= 0){
+        this._killEnemy(target);
+      }else{
+        if(target.setTint) target.setTint(0xffcccc);
+        this.time.delayedCall(60, ()=>{ try{ target && target.clearTint && target.clearTint(); }catch(_){} });
       }
-      try{ b.setActive(false); b.setVisible(false); if(b.body){ b.body.enable=false; b.body.setVelocity(0,0); } }catch(_){}
+    }
+
+    _deactivateBullet(b){
+      try{
+        b.setActive(false);
+        b.setVisible(false);
+        if(b.body){
+          b.body.enable=false;
+          b.body.setVelocity(0,0);
+        }
+      }catch(_){}
     }
 
     _updateBullet(b){
       if(!b || !b.active) return;
       if(!b.target || !b.target.active || b.target.state==='die'){
-        try{ b.setActive(false); b.setVisible(false); if(b.body){ b.body.enable=false; b.body.setVelocity(0,0); } }catch(_){}
+        this._deactivateBullet(b);
         return;
       }
       const a = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
@@ -528,13 +548,12 @@
 
       const dx=b.target.x-b.x, dy=b.target.y-b.y;
       if(Math.hypot(dx,dy) < 10 && b.target.state!=='die'){
-        b.target.hp -= (b.damage||5);
-        if(b.target.hp <= 0){ this._killEnemy(b.target); }
-        try{ b.setActive(false); b.setVisible(false); if(b.body){ b.body.enable=false; b.body.setVelocity(0,0); } }catch(_){}
+        this._dealBulletDamage(b, b.target);
+        this._deactivateBullet(b);
       }
 
       if(b.x < -50 || b.x > CONST.WIDTH+50 || b.y < -50 || b.y > CONST.HEIGHT+50){
-        try{ b.setActive(false); b.setVisible(false); if(b.body) b.body.enable=false; }catch(_){}
+        this._deactivateBullet(b);
       }
     }
 
