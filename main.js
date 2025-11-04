@@ -1,4 +1,12 @@
-// --- Constants ---
+// main.js
+// Полный рабочий файл игры (обновлённая версия).
+// - НЕ создаёт Phaser.Game в этом файле (чтобы избежать дублирования).
+// - Определяет глобально: create_preload, create, update и все вспомогательные функции.
+// - При разрушении базы вызывает window.showGameOver(), если он определён (index.html должен показать экран Game Over).
+// - Меню-иконка внутри игры вызывает window.showMenu(), если он определён (чтобы вернуться в меню без переходов).
+// - Минимальные изменения логики, максимум совместимости и защиты от ошибок.
+
+// -------------------- Константы --------------------
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
 const PATHS = [
   [[377,50],[429,138],[410,189],[346,224],[311,257],[290,305],[331,354],[400,463],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
@@ -14,7 +22,7 @@ const START_GOLD = 50000, KILL_REWARD = 10, WAVE_BONUS = 50, TOWER_COST = 100;
 let UPGRADE_COST_BASE = 150;
 const ENEMY_AGGRO = 150, TOWER_RANGE = 200;
 
-// --- Globals ---
+// -------------------- Глобальные --------------------
 let enemies, towers = [], bullets, buildSprites, ui;
 let gold = START_GOLD;
 let wave = 0;
@@ -22,58 +30,67 @@ let canWatchAd = true;
 let isPaused = false;
 let baseHp = 1000;
 
-// --- Preload ---
+// Защита: не запускать несколько однотипных интервалов, если скрипт загружен повторно
+if (!window._td_firingLoopStarted) window._td_firingLoopStarted = false;
+
+// -------------------- Preload --------------------
 function create_preload() {
-  this.load.image('map', 'assets/map.png');
-  this.load.image('molot', 'assets/elements/moloticon.png');
-  this.load.image('up_icon', 'assets/elements/up.png');
-  this.load.image('noup_icon', 'assets/elements/noup.png');
+  // Загружаем необходимые ресурсы. Немного try/catch, чтобы не падало, если чего-то нет.
+  try {
+    this.load.image('map', 'assets/map.png');
+    this.load.image('molot', 'assets/elements/moloticon.png');
+    this.load.image('up_icon', 'assets/elements/up.png');
+    this.load.image('noup_icon', 'assets/elements/noup.png');
+    this.load.image('arrow', 'assets/elements/arrow.png');
 
-  // towers
-  for (let i = 1; i <= 12; i++) {
-    for (let j = 1; j <= 4; j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
-    for (let j = 1; j <= 5; j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
+    // towers
+    for (let i = 1; i <= 12; i++) {
+      for (let j = 1; j <= 4; j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
+      for (let j = 1; j <= 5; j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
+    }
+
+    // enemies
+    for (let i = 0; i < 7; i++) {
+      this.load.image('e_walk_' + i, `assets/enemy/walk/walk${i+1}.png`);
+      this.load.image('e_atk_' + i, `assets/enemy/atack_enemy/atackenemy${i+1}.png`);
+      this.load.image('e_die_' + i, `assets/enemy/die_enemy/dead${i+1}.png`);
+    }
+
+    // UI
+    this.load.image('play_btn', 'assets/elements/play.png');
+    this.load.image('menu_icon', 'assets/elements/menu.png');
+    this.load.image('play2', 'assets/elements/play2.png');
+    this.load.image('pause_icon', 'assets/elements/pause.png');
+    this.load.image('reload_icon', 'assets/elements/reload.png');
+    this.load.image('sound_on', 'assets/elements/sound.png');
+    this.load.image('sound_off', 'assets/elements/soundoff.png');
+    this.load.image('reklama', 'assets/elements/reklama.png');
+
+    for (let i=0;i<12;i++){
+      this.load.image('money_'+i, `assets/money/m${i+1}.png`);
+    }
+
+    this.load.video('menu_vid', 'assets/menu.webm', 'loadeddata', false, true);
+    this.load.video('gameover_vid', 'assets/gameover.webm', 'loadeddata', false, true);
+
+    // sounds
+    try { this.load.audio('arrow_s', 'assets/sound/arrow.mp3'); } catch(e){}
+    try { this.load.audio('battle', 'assets/sound/battle.mp3'); } catch(e){}
+    try { this.load.audio('lobby', 'assets/sound/lobby.mp3'); } catch(e){}
+    try { this.load.audio('gameover_s', 'assets/sound/gameover.mp3'); } catch(e){}
+    try { this.load.audio('klick', 'assets/sound/klick.ogg'); } catch(e){}
+    try { this.load.audio('money_s', 'assets/sound/money.mp3'); } catch(e){}
+    try { this.load.audio('towerrush', 'assets/sound/towerrush.mp3'); } catch(e){}
+    try { this.load.audio('s_shoot', 'assets/sounds/shoot.mp3'); } catch(e){}
+    try { this.load.audio('s_death', 'assets/sounds/death.mp3'); } catch(e){}
+  } catch (e) {
+    console.warn('preload failed', e);
   }
-  // enemies
-  for (let i = 0; i < 7; i++) {
-    this.load.image('e_walk_' + i, `assets/enemy/walk/walk${i+1}.png`);
-    this.load.image('e_atk_' + i, `assets/enemy/atack_enemy/atackenemy${i+1}.png`);
-    this.load.image('e_die_' + i, `assets/enemy/die_enemy/dead${i+1}.png`);
-  }
-
-  // UI elements
-  this.load.image('play_btn', 'assets/elements/play.png');
-  this.load.image('menu_icon', 'assets/elements/menu.png');
-  this.load.image('play2', 'assets/elements/play2.png');
-  this.load.image('pause_icon', 'assets/elements/pause.png');
-  this.load.image('reload_icon', 'assets/elements/reload.png');
-  this.load.image('sound_on', 'assets/elements/sound.png');
-  this.load.image('sound_off', 'assets/elements/soundoff.png');
-  this.load.image('reklama', 'assets/elements/reklama.png');
-  this.load.image('arrow', 'assets/elements/arrow.png');
-
-  for (let i=0;i<12;i++){
-    this.load.image('money_'+i, `assets/money/m${i+1}.png`);
-  }
-
-  this.load.video('menu_vid', 'assets/menu.webm', 'loadeddata', false, true);
-  this.load.video('gameover_vid', 'assets/gameover.webm', 'loadeddata', false, true);
-
-  // sounds (try/catch in case files missing)
-  try { this.load.audio('arrow_s', 'assets/sound/arrow.mp3'); } catch(e){}
-  try { this.load.audio('battle', 'assets/sound/battle.mp3'); } catch(e){}
-  try { this.load.audio('lobby', 'assets/sound/lobby.mp3'); } catch(e){}
-  try { this.load.audio('gameover_s', 'assets/sound/gameover.mp3'); } catch(e){}
-  try { this.load.audio('klick', 'assets/sound/klick.ogg'); } catch(e){}
-  try { this.load.audio('money_s', 'assets/sound/money.mp3'); } catch(e){}
-  try { this.load.audio('towerrush', 'assets/sound/towerrush.mp3'); } catch(e){}
-  try { this.load.audio('s_shoot', 'assets/sounds/shoot.mp3'); } catch(e){}
-  try { this.load.audio('s_death', 'assets/sounds/death.mp3'); } catch(e){}
 }
 
-// --- Create ---
+// -------------------- Create (main scene) --------------------
 function create() {
-  // background
+  // background map
   this.add.image(360, 640, 'map').setDisplaySize(720, 1280);
 
   // groups
@@ -109,7 +126,16 @@ function create() {
     ui.reklamaBtn.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} console.log('Ad placeholder'); });
 
     ui.menuIcon = this.add.image(575,700,'menu_icon').setInteractive().setDepth(60);
-    ui.menuIcon.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} window.location.href = 'index.html'; });
+    // заменили переход window.location.href -> вызов window.showMenu() если есть, иначе fallback на reload
+    ui.menuIcon.on('pointerdown', ()=> { 
+      try{ this.sound.play('klick'); }catch(e){}
+      if (window.showMenu) {
+        try { window.showMenu(); } catch(err) { console.warn('showMenu failed', err); }
+      } else {
+        // fallback: перезагрузить страницу
+        window.location.reload();
+      }
+    });
 
     ui.play2 = this.add.image(657,700,'play2').setInteractive().setDepth(60);
     ui.play2.on('pointerdown', ()=> { try{ this.sound.play('klick'); }catch(e){} if(isPaused) togglePause(this); });
@@ -122,11 +148,11 @@ function create() {
 
     ui.soundIcon = this.add.image(576,770,'sound_on').setInteractive().setDepth(60);
     ui.soundIcon.on('pointerdown', ()=> { 
-  try{ this.sound.play('klick'); }catch(e){}
-  const newMute = !this.sound.mute;
-  this.sound.setMute(newMute);
-  ui.soundIcon.setTexture(newMute ? 'sound_off' : 'sound_on');
-});
+      try{ this.sound.play('klick'); }catch(e){}
+      const newMute = !this.sound.mute;
+      this.sound.setMute(newMute);
+      ui.soundIcon.setTexture(newMute ? 'sound_off' : 'sound_on');
+    });
   } catch(e){ console.warn('UI icons missing', e); }
 
   // animations
@@ -143,79 +169,82 @@ function create() {
   // shared shooting sound monitor
   setupSharedShootingSound(this);
 
-  // firing loop (safe sc retrieval)
-  setInterval(() => {
-  if (isPaused) return;
-  try {
-    let sc = (game && game.scene && game.scene.scenes && game.scene.scenes[0]) ? game.scene.scenes[0] : null;
-    if (!sc) return;
+  // firing loop (mелкая защита от множественного старта)
+  if (!window._td_firingLoopStarted) {
+    window._td_firingLoopStarted = true;
+    setInterval(() => {
+      if (isPaused) return;
+      try {
+        // стараемся получить сцену корректно
+        let sc = (window.game && window.game.scene && window.game.scene.scenes && window.game.scene.scenes[0]) ? window.game.scene.scenes[0] : null;
+        if (!sc && typeof this !== 'undefined' && this.scene) sc = this;
+        if (!sc) return;
 
-    for (let tObj of Array.from(towers)) {
-      let ts = tObj.sprite; if (!ts || !ts.active) continue;
+        for (let tObj of Array.from(towers)) {
+          let ts = tObj.sprite; if (!ts || !ts.active) continue;
 
-      // shooting timer
-      ts._lastShotTime = ts._lastShotTime || 0;
-      const now = Date.now();
+          ts._lastShotTime = ts._lastShotTime || 0;
+          const now = Date.now();
 
-      // upgrade icon (оставляем без изменений)
-      if (ts.upIcon) {
-        if (!ts.active || ts.level >= 12) {
-          ts.upIcon.setVisible(false);
-        } else {
-          const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
-          const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
-          if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
-          ts.upIcon.setVisible(true);
-          ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
+          // upgrade icon handling
+          if (ts.upIcon) {
+            if (!ts.active || ts.level >= 12) {
+              ts.upIcon.setVisible(false);
+            } else {
+              const nextCost = Math.floor(ts._upgradeCost || (UPGRADE_COST_BASE * (ts.level + 1)));
+              const key = gold >= nextCost ? 'up_icon' : 'noup_icon';
+              if (ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
+              ts.upIcon.setVisible(true);
+              ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
+            }
+          }
+
+          if (now - ts._lastShotTime < ts._shootRate) {
+            const idleKey = `${ts._typeKey}_idle_anim`;
+            if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim') === -1)) ts.play(idleKey, true);
+            ts._isAttacking = false; 
+            continue;
+          }
+
+          ts._lastShotTime = now;
+
+          // ищем цель
+          let target = null, dmin = 1e9;
+          (enemies && enemies.getChildren() || []).forEach(e => {
+            if (!e.active || e.state === 'die') return;
+            const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
+            if (d < ts._range && d < dmin) { dmin = d; target = e; }
+          });
+
+          if (target) {
+            let b = bullets.get();
+            if (!b) {
+              b = sc.physics.add.image(ts.x, ts.y - (ts.displayHeight ? Math.round(ts.displayHeight / 2) : 40), 'arrow');
+              bullets.add(b);
+            } else {
+              b.setTexture('arrow');
+              b.setScale(0.5);
+              b.setActive(true).setVisible(true);
+              if (b.body) b.body.enable = true;
+              const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
+              b.setPosition(ts.x, spawnY);
+            }
+            b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
+            try { b.setDepth(30); b.setOrigin(0.5, 0.5); } catch (e) {}
+            ts._isAttacking = true;
+            const atkKey = `${ts._typeKey}_atk_anim`;
+            if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey)) ts.play(atkKey, true);
+            sc._isAnyShooting = true;
+            ts.setFlipX(ts.x > 360);
+          } else {
+            ts._isAttacking = false;
+            const idleKey = `${ts._typeKey}_idle_anim`;
+            if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey)) ts.play(idleKey, true);
+          }
         }
-      }
-
-      if (now - ts._lastShotTime < ts._shootRate) {
-        const idleKey = `${ts._typeKey}_idle_anim`;
-        if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim') === -1)) ts.play(idleKey, true);
-        ts._isAttacking = false; 
-        continue;
-      }
-
-      // можно стрелять
-      ts._lastShotTime = now;
-
-      let target = null, dmin = 1e9;
-      (enemies && enemies.getChildren() || []).forEach(e => {
-        if (!e.active || e.state === 'die') return;
-        const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
-        if (d < ts._range && d < dmin) { dmin = d; target = e; }
-      });
-
-      if (target) {
-        let b = bullets.get();
-        if (!b) {
-          b = sc.physics.add.image(ts.x, ts.y - (ts.displayHeight ? Math.round(ts.displayHeight / 2) : 40), 'arrow');
-          bullets.add(b);
-        } else {
-          b.setTexture('arrow');
-          b.setScale(0.5);
-          b.setActive(true).setVisible(true);
-          if (b.body) b.body.enable = true;
-          const spawnY = ts.y - (ts.displayHeight ? Math.round(ts.displayHeight * 0.4) : 25);
-          b.setPosition(ts.x, spawnY);
-        }
-        b.target = target; b.speed = ts._bulletSpeed || 10; b.damage = ts._damage || (10 * ts.level);
-        try { b.setDepth(30); b.setOrigin(0.5, 0.5); } catch (e) {}
-        ts._isAttacking = true;
-        const atkKey = `${ts._typeKey}_atk_anim`;
-        if (sc.anims.exists(atkKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== atkKey)) ts.play(atkKey, true);
-        sc._isAnyShooting = true;
-        ts.setFlipX(ts.x > 360);
-      } else {
-        ts._isAttacking = false;
-        const idleKey = `${ts._typeKey}_idle_anim`;
-        if (sc.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key !== idleKey)) ts.play(idleKey, true);
-      }
-    }
-  } catch (err) { console.warn(err); }
-}, 100);
-
+      } catch (err) { console.warn(err); }
+    }, 100);
+  }
 
   // bullets vs enemies overlap
   try {
@@ -227,25 +256,21 @@ function create() {
         if (tgt && tgt.setTint) tgt.setTint(0xffcccc);
         setTimeout(()=>{ if (tgt && tgt.active && typeof tgt.clearTint === 'function') tgt.clearTint(); }, 60);
       } catch(err){}
-     if (e.hp <= 0 && e.state !== 'die') {
-  e.state = 'die';
-  e.play('e_die_anim');
 
-  gold += KILL_REWARD;
-  ui.goldText.setText('Gold:' + gold);
+      if (e.hp <= 0 && e.state !== 'die') {
+        e.state = 'die';
+        try { e.play('e_die_anim'); } catch(er) {}
+        gold += KILL_REWARD;
+        ui.goldText.setText('Gold:' + gold);
+        e.targetTower = null;
 
-  e.targetTower = null;
+        e.once && e.once('animationcomplete', (anim, frame) => {
+          if (anim && anim.key === 'e_die_anim') {
+            try { e.body && (e.body.enable = false); e.destroy(); } catch(err){}
+          }
+        });
+      }
 
-  // уничтожение после анимации
-  e.once('animationcomplete', (anim, frame) => {
-    if (anim.key === 'e_die_anim') {
-      try { 
-        e.body && (e.body.enable = false);
-        e.destroy(); 
-      } catch(err){}
-    }
-  });
-}
       try {
         b.setActive(false); b.setVisible(false);
         if (b.body) { b.body.enable = false; b.body.setVelocity(0,0); }
@@ -254,10 +279,10 @@ function create() {
   } catch(e){ console.warn('overlap setup failed', e); }
 
   // start waves
-  this.time.addEvent({ delay: 1000, callback: ()=> startNextWave(this) });
+  try { this.time.addEvent({ delay: 1000, callback: ()=> startNextWave(this) }); } catch(e){ console.warn('startNextWave fail', e); }
 }
 
-// --- Update ---
+// -------------------- Update --------------------
 function update() {
   if (isPaused) return;
 
@@ -291,8 +316,7 @@ function update() {
   }
 }
 
-// --- Helpers & fixes ---
-// updateBullet (safe, added)
+// -------------------- Хелперы --------------------
 function updateBullet(b) {
   if (!b || !b.active) return;
   if (!b.target || !b.target.active || b.target.state === 'die') {
@@ -306,7 +330,6 @@ function updateBullet(b) {
   b.x += Math.cos(angle) * speed;
   b.y += Math.sin(angle) * speed;
 
-  // hit check (redundant with overlap but keeps movement tidy)
   const dx = b.target.x - b.x, dy = b.target.y - b.y;
   if (Math.sqrt(dx*dx + dy*dy) < 10) {
     try {
@@ -320,13 +343,11 @@ function updateBullet(b) {
     return;
   }
 
-  // offscreen recycle
   if (b.x < -50 || b.x > 770 || b.y < -50 || b.y > 1330) {
     try { b.setActive(false); b.setVisible(false); if (b.body) b.body.enable = false; } catch(e){}
   }
 }
 
-// createHammerAt (minimal safe)
 function createHammerAt(scene, pos, index) {
   try {
     if (!scene || !scene.add) return;
@@ -346,7 +367,6 @@ function createHammerAt(scene, pos, index) {
   } catch(e){ console.warn('createHammerAt failed', e); }
 }
 
-// buildTower (robust)
 function buildTower(scene, index) {
   try {
     if (!scene) return;
@@ -394,7 +414,7 @@ function upgradeTower(scene, ts) {
   if (nextLevel >= 12) { if (ts.upIcon) ts.upIcon.setVisible(false); ts.removeAllListeners && ts.removeAllListeners('pointerdown'); }
 }
 
-// --- Waves & enemies ---
+// -------------------- Waves & enemies --------------------
 function startNextWave(scene) {
   wave++;
   gold += WAVE_BONUS;
@@ -435,7 +455,7 @@ function spawnEnemy(scene, path = null, customHp = 100) {
   e.state = 'walk';
   e._savedPathIndex = null;
   e._lastAttack = 0;
-  e.play('e_walk_anim');
+  try { e.play('e_walk_anim'); } catch(e){}
   enemies.add(e);
 }
 
@@ -508,9 +528,17 @@ function updateEnemy(e) {
       e._lastAttack = Date.now();
       baseHp -= 10;
       ui.baseText.setText(`BASE HP ${Math.max(0, baseHp)}`);
-     if (baseHp <= 0) {
-  if (window.showGameOver) window.showGameOver();
-}
+      if (baseHp <= 0) {
+        baseHp = 0;
+        try { scene.sound.stopAll(); } catch(err){}
+        // Вместо перехода на отдельный HTML — вызываем функцию, которая должна показать экран Game Over.
+        if (window.showGameOver) {
+          try { window.showGameOver(); } catch(err) { console.warn('showGameOver error', err); }
+        } else {
+          // fallback — если index.html не реализует showGameOver, сделаем простую перезагрузку
+          try { window.location.href = 'gameover.html'; } catch(e) { window.location.reload(); }
+        }
+      }
     }
     if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key !== 'e_atk_anim') e.play('e_atk_anim');
     return;
@@ -527,7 +555,6 @@ function updateEnemy(e) {
   if (e.anims && (!e.anims.currentAnim || e.anims.currentAnim.key !== 'e_walk_anim')) e.play('e_walk_anim');
 }
 
-// moveTowards
 function moveTowards(obj, tx, ty, speed) {
   let dx = tx - obj.x, dy = ty - obj.y, dist = Math.sqrt(dx*dx + dy*dy);
   if (dist < 0.1) return;
@@ -535,7 +562,6 @@ function moveTowards(obj, tx, ty, speed) {
   obj.y += (dy / dist) * speed * 2;
 }
 
-// setupSharedShootingSound
 function setupSharedShootingSound(scene){
   try{
     scene.time.addEvent({
@@ -559,7 +585,6 @@ function setupSharedShootingSound(scene){
   } catch(e){}
 }
 
-// pause & restart
 function togglePause(scene){ isPaused = !isPaused; ui.pauseBtn && ui.pauseBtn.setText(isPaused ? '▶️ Продолжить' : '⏸️ Пауза'); }
 function restartGame(scene){
   try{
@@ -571,10 +596,18 @@ function restartGame(scene){
     }
   } catch(e){ console.warn(e); }
   towers = []; enemies = null; bullets = null; buildSprites = []; gold = START_GOLD; wave = 0; baseHp = 1000; isPaused = false;
-  try { game.scene.scenes[0].scene.restart(); } catch(e){ window.location.reload(); }
+  // Перезапускаем сцену, если есть game
+  try {
+    if (window.game && game.scene && game.scene.scenes && game.scene.scenes[0]) {
+      game.scene.scenes[0].scene.restart();
+    } else if (window.phaserGame && phaserGame.scene && phaserGame.scene.scenes && phaserGame.scene.scenes[0]) {
+      phaserGame.scene.scenes[0].scene.restart();
+    } else {
+      window.location.reload();
+    }
+  } catch(e){ window.location.reload(); }
 }
 
-// createAnimations
 function createAnimations(scene) {
   for (let i = 1; i <= 12; i++) {
     const idleFrames = []; const atkFrames = [];
@@ -590,6 +623,13 @@ function createAnimations(scene) {
   if (!scene.anims.exists('e_die_anim')) scene.anims.create({ key: 'e_die_anim', frames: eDie, frameRate: 10, repeat: 0 });
 }
 
-// --- Phaser config & start ---
-const config = { type: Phaser.AUTO, width: 720, height: 1280, parent: 'game', physics: { default: 'arcade', arcade: { debug: false } }, scene: { preload: create_preload, create: create, update: update } };
-const game = new Phaser.Game(config);
+// -------------------- Конец файла --------------------
+// Инструкция:
+// 1) Оставь этот файл как main.js.
+// 2) В index.html (единая страница) при старте игры создавай Phaser.Game, указывая
+//    scene: { preload: create_preload, create: create, update: update }
+//    Пример (index.html):
+//      phaserGame = new Phaser.Game({ type: Phaser.AUTO, width:720, height:1280, parent:'game', physics:{...}, scene:{ preload: create_preload, create: create, update: update } });
+// 3) index.html должен реализовать window.showGameOver() (показывает экран Game Over) и (опционально) window.showMenu().
+// 4) Убедись, что в index.html нет лишних вызовов new Phaser.Game до того как main.js загружен (включай main.js до создания игры или используй defer и создавай игру после загрузки main.js).
+// 5) Если что-то не грузится — открой консоль, пришли ошибки, и я поправлю быстро.
