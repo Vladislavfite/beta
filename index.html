@@ -307,9 +307,20 @@
     // ====== HUD ======
     _buildHUD(){
       // GOLD панель: слева внизу, уменьшена в 3 раза, на уровне кнопки «реклама»
-      const yBottom = CONST.HEIGHT - 96; // такой же Y, как у adBtn
-      this.goldPanel = this.add.image(24, yBottom, 'gold_panel')
-        .setOrigin(0,1).setScale(1/3).setDepth(91);
+      // GOLD панель: слева, немного выше нижнего края (на уровне базы)
+const yBottom = CONST.HEIGHT - 500; // поднимаем выше рекламы и на уровень HUD базы
+this.goldPanel = this.add.image(24, yBottom, 'gold_panel')
+  .setOrigin(0,1).setScale(1/3).setDepth(91);
+
+// Монетка и текст подстраиваются под новую позицию
+this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 26, 'coin_1')
+  .setDepth(92).setScale(0.85);
+if (this.anims.exists('coin_anim')) this.coin.play('coin_anim');
+
+this.goldText = this.add.text(this.goldPanel.x + 95, this.goldPanel.y - 26, '0',
+  {font:'26px Arial', fill:'#fff', stroke:'#000', strokeThickness:4})
+  .setOrigin(0,0.5).setDepth(93);
+
 
       // Анимированная монетка рядом с панелью
       this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 26, 'coin_1')
