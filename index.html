@@ -18,26 +18,26 @@
     #game-container {
       width: 720px;
       height: 1280px;
-      background: #000;
       position: relative;
       overflow: hidden;
+      background: #000;
     }
 
-    /* Меню */
-    #menu-scene, #gameover-scene {
+    /* Меню и экран конца */
+    #menu, #gameover {
       position: absolute;
-      top: 0;
-      left: 0;
       width: 720px;
       height: 1280px;
+      top: 0;
+      left: 0;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-      z-index: 5;
+      z-index: 10;
     }
 
-    #menu-scene video, #gameover-scene video {
+    video {
       position: absolute;
       width: 720px;
       height: 1280px;
@@ -48,38 +48,37 @@
     }
 
     button {
-      width: 280px;
+      width: 260px;
       height: 80px;
       font-size: 28px;
-      font-family: sans-serif;
-      background: #1e90ff;
-      color: white;
       border: none;
       border-radius: 18px;
       cursor: pointer;
+      background: #1e90ff;
+      color: white;
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
       transition: transform 0.1s;
     }
 
     button:hover { transform: scale(1.05); }
 
-    /* Игровая сцена */
+    /* Игра */
     #game {
       width: 720px;
       height: 1280px;
-      background: #000;
       display: none;
     }
   </style>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
-  <script src="./main.js" defer></script>
+  <script src="main.js" defer></script>
 </head>
 <body>
   <div id="game-container">
 
     <!-- Меню -->
-    <div id="menu-scene">
-      <video id="bg-video" src="assets/menu.webm" autoplay loop muted></video>
+    <div id="menu">
+      <video src="assets/menu.webm" autoplay loop muted></video>
       <audio id="menu-music" src="assets/sound/lobby.mp3" autoplay loop></audio>
       <button id="startBtn">▶ Начать игру</button>
     </div>
@@ -87,8 +86,8 @@
     <!-- Игра -->
     <div id="game"></div>
 
-    <!-- Конец игры -->
-    <div id="gameover-scene" style="display:none;">
+    <!-- Экран конца -->
+    <div id="gameover" style="display:none;">
       <video id="gameover-video" src="assets/gameover.webm" autoplay muted></video>
       <audio id="gameover-sound" src="assets/sound/gameover.mp3"></audio>
       <button id="restartBtn">🔁 Заново</button>
@@ -97,60 +96,52 @@
   </div>
 
   <script>
-    const menuScene = document.getElementById('menu-scene');
-    const gameEl = document.getElementById('game');
-    const gameoverScene = document.getElementById('gameover-scene');
-
+    const menu = document.getElementById('menu');
+    const game = document.getElementById('game');
+    const gameover = document.getElementById('gameover');
     const menuMusic = document.getElementById('menu-music');
     const gameoverVideo = document.getElementById('gameover-video');
     const gameoverSound = document.getElementById('gameover-sound');
+    let phaserGame = null;
 
-    let gameInstance = null;
-
+    // кнопка "Начать игру"
     document.getElementById('startBtn').addEventListener('click', () => {
-      try { menuMusic.pause(); new Audio('assets/sound/klick.ogg').play(); } catch(e){}
-      menuScene.style.display = 'none';
-      gameEl.style.display = 'block';
+      menu.style.display = 'none';
+      game.style.display = 'block';
+      menuMusic.pause();
       startGame();
     });
 
+    // кнопка "Заново"
     document.getElementById('restartBtn').addEventListener('click', () => {
-      try { gameoverSound.pause(); gameoverVideo.pause(); } catch(e){}
-      gameoverScene.style.display = 'none';
-      gameEl.style.display = 'block';
+      gameover.style.display = 'none';
+      game.style.display = 'block';
       startGame();
     });
 
     function startGame() {
-      // Если игра уже есть — перезапускаем
-      if (gameInstance) {
-        gameInstance.destroy(true);
-        gameInstance = null;
+      if (phaserGame) {
+        phaserGame.destroy(true);
+        phaserGame = null;
       }
 
-      gameInstance = new Phaser.Game({
+      phaserGame = new Phaser.Game({
         type: Phaser.AUTO,
         width: 720,
         height: 1280,
         backgroundColor: '#000000',
+        parent: 'game',
         physics: { default: 'arcade', arcade: { debug: false } },
-        scene: {
-          preload: create_preload,
-          create: create,
-          update: update
-        },
-        parent: 'game'
+        scene: { preload: create_preload, create: create, update: update }
       });
 
-      // Когда база уничтожена — вызвать сцену конца игры
+      // при проигрыше (вызов из main.js)
       window.showGameOver = () => {
-        gameEl.style.display = 'none';
-        gameoverScene.style.display = 'flex';
-        try {
-          gameoverVideo.currentTime = 0;
-          gameoverVideo.play();
-          gameoverSound.play();
-        } catch(e){}
+        game.style.display = 'none';
+        gameover.style.display = 'flex';
+        gameoverVideo.currentTime = 0;
+        gameoverVideo.play();
+        gameoverSound.play();
       };
     }
   </script>
