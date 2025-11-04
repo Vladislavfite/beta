@@ -1,110 +1,51 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
-  <title>Меню игры</title>
+  <meta charset="UTF-8">
+  <title>Tower Defense</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    html, body {
       margin: 0;
-      overflow: hidden;
-      background: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    #game-container {
-      width: 720px;
-      height: 1280px;
+      padding: 0;
       background: #000;
-      position: relative;
       overflow: hidden;
-    }
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 720px;
-      height: 1280px;
-      object-fit: cover;
-    }
-    button {
-      position: absolute;
-      bottom: 260px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 280px;
-      height: 80px;
-      font-size: 28px;
-      font-family: sans-serif;
-      background: #1e90ff;
-      color: white;
-      border: none;
-      border-radius: 18px;
-      cursor: pointer;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-      transition: transform 0.1s;
-      z-index: 3;
-    }
-    button:hover {
-      transform: translateX(-50%) scale(1.05);
     }
     canvas {
-      display: none;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 2;
+      display: block;
+      margin: 0 auto;
     }
   </style>
 </head>
 <body>
-  <div id="game-container">
-    <video id="bg-video" src="assets/menu.webm" autoplay loop muted></video>
-    <audio id="menu-music" src="assets/sound/lobby.mp3" autoplay loop></audio>
-    <button id="startBtn">▶ Начать игру</button>
-  </div>
 
-  <!-- Phaser -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  <script src="phaser.min.js"></script>
   <script src="main.js"></script>
-
   <script>
-    const btn = document.getElementById('startBtn');
-    const music = document.getElementById('menu-music');
-    const container = document.getElementById('game-container');
-    const bgVideo = document.getElementById('bg-video');
-
-    btn.addEventListener('click', () => {
-      try { 
-        music.pause();
-        new Audio('assets/sound/klick.ogg').play();
-      } catch(e){}
-
-      // Меню убираем
-      btn.style.display = 'none';
-      bgVideo.style.display = 'none';
-
-      // Сбрасываем стиль контейнера
-      container.style.display = 'block';
-      container.style.position = 'relative';
-      document.body.style.display = 'block';
-      document.body.style.justifyContent = 'unset';
-      document.body.style.alignItems = 'unset';
-
-      // Показываем канвас
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.style.display = 'block';
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
+    // === ИНИЦИАЛИЗАЦИЯ ИГРЫ ===
+    const config = {
+      type: Phaser.AUTO,
+      width: 720,
+      height: 1280,
+      backgroundColor: "#000000",
+      physics: {
+        default: "arcade",
+        arcade: { debug: false }
+      },
+      scene: {
+        preload: create_preload,
+        create: create,
+        update: update
       }
+    };
 
-      // Запускаем игру
-      if (typeof startGame === 'function') startGame();
+    const game = new Phaser.Game(config);
+
+    // Безопасная обработка ошибок
+    window.addEventListener("error", (e) => {
+      console.warn("Script error:", e.message);
     });
   </script>
+
 </body>
 </html>
