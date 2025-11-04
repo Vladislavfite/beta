@@ -539,25 +539,32 @@
     }
 
     _killEnemy(e){
-      if(!e || e.state==='die') return;
-      e.state = 'die';
+  if(!e || e.state==='die') return;
+  e.state = 'die';
 
-      // 💀 ГАРАНТИРОВАННАЯ АНИМАЦИЯ СМЕРТИ
-      if(this.anims.exists('e_die_anim')) e.play('e_die_anim');
+  // 💀 Принудительно остановить другие анимации
+  if(e.anims) e.anims.stop();
 
-      // Деньги за убийство
-      State.gold += CONST.KILL_REWARD; this._syncHUD();
+  // 🎬 Запуск анимации смерти, если доступна
+  if(this.anims.exists('e_die_anim')){
+    e.play('e_die_anim', true);
+  } else {
+    console.warn('⚠ Анимация e_die_anim не найдена!');
+  }
 
-      // Удаляем ТОЛЬКО после завершения анимации; добавляем маленькую задержку как страховку
-      e.once('animationcomplete', (anim)=>{
-        if(!anim || anim.key==='e_die_anim'){
-          this.time.delayedCall(100, ()=>{ try{ e.body && (e.body.enable=false); e.destroy(); }catch(_){} });
-        }
-      });
+  State.gold += CONST.KILL_REWARD;
+  this._syncHUD();
 
-      // Доп. защита: если по какой-то причине событие не пришло (редко в моб. браузерах)
-      this.time.delayedCall(1200, ()=>{ if(e && e.active){ try{ e.destroy(); }catch(_){}}});
+  // Удалить врага после завершения анимации
+  e.once('animationcomplete', (anim)=>{
+    if(anim && anim.key === 'e_die_anim'){
+      this.time.delayedCall(150, ()=>{ e.destroy(); });
     }
+  });
+
+  // Запасной таймер, если событие не сработает
+  this.time.delayedCall(1200, ()=>{ if(e && e.active){ e.destroy(); }});
+}
 
     // ====== Враги ======
     _spawnEnemy(path, hp){
