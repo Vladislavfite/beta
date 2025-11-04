@@ -56,7 +56,6 @@
     </div>
 
     <!-- ====== МЕНЮ (menu.webm + lobby.mp3) ====== -->
-    <!-- Важно: видео MUTED, чтобы автостарт разрешили браузеры -->
     <div id="menuOverlay" class="overlay hidden">
       <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
       <div class="panel" style="margin-top: 300px;">
@@ -92,9 +91,7 @@
   <script>
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver. Без переходов страниц.
-     Добавлено:
-     - money.mp3 при строительстве новой башни.
-     - e_die_anim гарантированно проигрывается до конца перед удалением врага.
+     ФИКС: коллизия стрел без дубля урона (убрано overlap, проверка по дистанции).
      ======================================================================== */
 
   // ---------- Константы уровня ----------
@@ -204,12 +201,12 @@
       // Звуки
       this.load.audio('lobby','assets/sound/lobby.mp3');        // меню
       this.load.audio('battle','assets/sound/battle.mp3');      // игра
-      this.load.audio('arrow_s','assets/sound/arrow.mp3');      // петля стрел (если используешь)
+      this.load.audio('arrow_s','assets/sound/arrow.mp3');      // петля стрел
       this.load.audio('klick','assets/sound/klick.ogg');        // клик
       this.load.audio('gameover_s','assets/sound/gameover.mp3');// конец
       this.load.audio('towerup','assets/sound/towerup.mp3');    // апгрейд
       this.load.audio('towerrush','assets/sound/towerrush.mp3');// враг сломал башню
-      this.load.audio('money','assets/sound/money.mp3');        // 🔊 СТРОИТЕЛЬСТВО БАШНИ
+      this.load.audio('money','assets/sound/money.mp3');        // строительство
     }
 
     create(){
@@ -218,7 +215,8 @@
 
       // Группы и коллекции
       this.enemies = this.add.group();
-      this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize: 300, runChildUpdate: false });
+      // ВАЖНО: обычная группа без overlap — коллизию считаем вручную
+      this.bullets = this.add.group();
       this.towers = [];
       this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
 
@@ -229,9 +227,9 @@
       this.sndOver    = this.sound.add('gameover_s', { volume: 0.9 });
       this.sndUp      = this.sound.add('towerup', { volume: 0.9 });
       this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
-      this.sndMoney   = this.sound.add('money',   { volume: 0.9 }); // 🔊
+      this.sndMoney   = this.sound.add('money',   { volume: 0.9 });
 
-      // Универсальные помощники по звуку
+      // Помощники по звуку
       this.stopAllLoops = ()=>{
         try{ this.sndArrowLp.stop(); }catch(_){}
         try{ this.sndBattle.stop(); }catch(_){}
@@ -266,9 +264,6 @@
 
       // Тикер стрельбы
       this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
-
-      // Коллизии
-      this.physics.add.overlap(this.bullets, this.enemies, (b,e)=> this._onBulletHit(b,e));
 
       // HUD
       this._syncHUD();
@@ -389,7 +384,6 @@
       }
       State.gold -= CONST.TOWER_COST; this._syncHUD();
 
-      // 🔊 СТРОИТЕЛЬСТВО — money.mp3
       try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
 
       const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1').setInteractive().setDepth(5);
@@ -474,16 +468,18 @@
         ts._lastShotTime = now;
         if(target){
           let b = this.bullets.get();
-          if(!b){ b = this.physics.add.image(ts.x, ts.y, 'arrow'); this.bullets.add(b); }
+          if(!b){
+            b = this.add.image(ts.x, ts.y, 'arrow'); // НЕ physics
+            this.bullets.add(b);
+          }
           b.setActive(true).setVisible(true);
-          if(b.body) b.body.enable = true;
           b.setTexture('arrow');
           b.setScale(0.5);
           b.setPosition(ts.x, ts.y - Math.round((ts.displayHeight||40)*0.4));
           b.target = target;
           b.speed = ts._bulletSpeed || 9;
           b.damage = ts._damage || (5*ts.level);
-          b._hasHit = false;
+          b.hitRadius = 16; // радиус попадания
           b.setDepth(30);
 
           const atkKey = `${ts._typeKey}_atk_anim`; if(this.anims.exists(atkKey)) ts.play(atkKey,true);
@@ -503,57 +499,44 @@
       }catch(_){}
     }
 
-    _onBulletHit(b,e){
-      if(!b.active || !e.active) return;
-      this._dealBulletDamage(b, e);
-      this._deactivateBullet(b);
-    }
-
-    _dealBulletDamage(b, target){
-      if(!b || b._hasHit) return;
-      b._hasHit = true;
-
-      if(!target || !target.active || target.state==='die') return;
-
-      target.hp -= (b.damage || 5);
-      if(target.hp <= 0){
-        this._killEnemy(target);
-      }else{
-        if(target.setTint) target.setTint(0xffcccc);
-        this.time.delayedCall(60, ()=>{ try{ target && target.clearTint && target.clearTint(); }catch(_){} });
-      }
-    }
-
-    _deactivateBullet(b){
-      try{
-        b.setActive(false);
-        b.setVisible(false);
-        if(b.body){
-          b.body.enable=false;
-          b.body.setVelocity(0,0);
-        }
-      }catch(_){}
-    }
-
+    // ====== ЕДИНСТВЕННАЯ КОЛЛИЗИЯ: в апдейте пули ======
     _updateBullet(b){
       if(!b || !b.active) return;
+
+      // Нет цели — выключаем пулю
       if(!b.target || !b.target.active || b.target.state==='die'){
-        this._deactivateBullet(b);
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
         return;
       }
-      const a = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
-      b.rotation = a;
-      const sp = b.speed || 8;
-      b.x += Math.cos(a)*sp; b.y += Math.sin(a)*sp;
 
-      const dx=b.target.x-b.x, dy=b.target.y-b.y;
-      if(Math.hypot(dx,dy) < 10 && b.target.state!=='die'){
-        this._dealBulletDamage(b, b.target);
-        this._deactivateBullet(b);
+      // Вектор до цели
+      const dx = b.target.x - b.x;
+      const dy = b.target.y - b.y;
+      const dist = Math.hypot(dx, dy);
+      const sp = b.speed || 8;
+      const hitR = b.hitRadius || 16;
+
+      // Если уже в радиусе попадания — засчитываем удар и деактивируем пулю
+      if(dist <= hitR){
+        // НЕТ ДВОЙНОГО УРОНА: урон только тут, overlap не используется
+        b.target.hp -= (b.damage || 5);
+        if(b.target.hp <= 0){ this._killEnemy(b.target); }
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
+        return;
       }
 
+      // Движение к цели
+      const nx = dx / dist;
+      const ny = dy / dist;
+      b.x += nx * sp;
+      b.y += ny * sp;
+
+      // Поворот стрелы в сторону цели
+      b.rotation = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
+
+      // Улетела за экран — выключаем
       if(b.x < -50 || b.x > CONST.WIDTH+50 || b.y < -50 || b.y > CONST.HEIGHT+50){
-        this._deactivateBullet(b);
+        try{ b.setActive(false); b.setVisible(false); }catch(_){}
       }
     }
 
@@ -561,41 +544,37 @@
       if(!e || e.state==='die') return;
       e.state = 'die';
 
-      // 💀 Принудительно остановить другие анимации и движение
+      // Остановка анимаций/движения
       if(e.anims) e.anims.stop();
-      if(e.body){
-        e.body.setVelocity(0,0);
-        e.body.enable = false;
-      }
 
       const hasDieAnim = this.anims.exists('e_die_anim');
       if (hasDieAnim) {
-  e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim) => {
-    if (anim && anim.key === 'e_die_anim') {
-      this.time.delayedCall(150, () => { if (e && e.active) e.destroy(); });
-    }
-  });
-  e.play('e_die_anim');
-} else {
-  console.warn('⚠ Анимация e_die_anim не найдена!');
-  this.time.delayedCall(200, () => { if (e && e.active) e.destroy(); });
-}
+        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim) => {
+          if (anim && anim.key === 'e_die_anim') {
+            this.time.delayedCall(150, () => { if (e && e.active) e.destroy(); });
+          }
+        });
+        e.play('e_die_anim');
+      } else {
+        this.time.delayedCall(200, () => { if (e && e.active) e.destroy(); });
+      }
+
       State.gold += CONST.KILL_REWARD;
       this._syncHUD();
 
-      // Запасной таймер, если событие не сработает
+      // Запасной таймер
       this.time.delayedCall(1500, ()=>{ if(e && e.active){ e.destroy(); }});
     }
 
     // ====== Враги ======
     _spawnEnemy(path, hp){
       const spawn = path[0];
-      const e = this.physics.add.sprite(spawn[0],spawn[1],'e_walk_0').setScale(0.35);
+      const e = this.add.sprite(spawn[0],spawn[1],'e_walk_0').setScale(0.35);
       e.maxHp = hp; e.hp = hp;
       e.speed = 0.22 + Math.min(0.05*State.wave, 0.5);
       e.path = path; e.pathIndex = 1;
       e.state='walk'; e._savedPathIndex=null; e._lastAttack=0;
-      e.play('e_walk_anim');
+      if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
       this.enemies.add(e);
     }
 
@@ -609,7 +588,7 @@
         const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);
         if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=ts; }
       }
-      if(nearest){ e.targetTower=nearest; e._savedPathIndex=e.pathIndex; if(e.anims.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim'); }
+      if(nearest){ e.targetTower=nearest; e._savedPathIndex=e.pathIndex; if(this.anims.exists('e_atk_anim') && e.anims?.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim'); }
 
       // Атака башни
       if(e.targetTower && e.targetTower.active){
@@ -623,7 +602,6 @@
             try{ e.targetTower.setTint && e.targetTower.setTint(0xff9999); this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){}});}catch(_){}
             if(e.targetTower.hp <= 0){
               try{ this.sndRush.play(); }catch(_){}
-              const idx = this.towers.findIndex(t=>t.sprite===e.targetTower);
               try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
               try{ e.targetTower.destroy(); }catch(_){}
               this.towers = this.towers.filter(t=>t && t.sprite && t.sprite.active);
@@ -649,7 +627,7 @@
         const target = e.path[e.pathIndex] || e.path[e.path.length-1];
         this._moveTowards(e, target[0], target[1], e.speed);
         if(Phaser.Math.Distance.Between(e.x,e.y,target[0],target[1])<8){
-          e.state='walk'; if(e.anims.currentAnim?.key!=='e_walk_anim') e.play('e_walk_anim');
+          e.state='walk'; if(this.anims.exists('e_walk_anim') && e.anims?.currentAnim?.key!=='e_walk_anim') e.play('e_walk_anim');
         }
         return;
       }
@@ -662,7 +640,7 @@
           this._syncHUD();
           if(State.baseHp<=0){ this.showGameOver(); }
         }
-        if(e.anims.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim');
+        if(this.anims.exists('e_atk_anim') && e.anims?.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim');
         return;
       }
 
@@ -672,7 +650,7 @@
         this._moveTowards(e, wp[0], wp[1], e.speed);
         if(Phaser.Math.Distance.Between(e.x,e.y,wp[0],wp[1])<6) e.pathIndex++;
         e.setFlipX(wp[0] < e.x);
-        if(e.anims.currentAnim?.key!=='e_walk_anim') e.play('e_walk_anim');
+        if(this.anims.exists('e_walk_anim') && e.anims?.currentAnim?.key!=='e_walk_anim') e.play('e_walk_anim');
       }
     }
 
@@ -712,42 +690,42 @@
     }
 
     // ====== Анимации ======
-_createAnims(){
-  // Башни
-  for(let i=1;i<=12;i++){
-    const idle=[], atk=[];
-    for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
-    for(let j=0;j<5;j++) atk.push({key:`tower${i}_atk_${j}`});
-    if(!this.anims.exists(`tower${i}_idle_anim`))
-      this.anims.create({key:`tower${i}_idle_anim`,frames:idle,frameRate:8,repeat:-1});
-    if(!this.anims.exists(`tower${i}_atk_anim`))
-      this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12,repeat:-1});
+    _createAnims(){
+      // Башни
+      for(let i=1;i<=12;i++){
+        const idle=[], atk=[];
+        for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
+        for(let j=0;j<5;j++) atk.push({key:`tower${i}_atk_${j}`});
+        if(!this.anims.exists(`tower${i}_idle_anim`))
+          this.anims.create({key:`tower${i}_idle_anim`,frames:idle,frameRate:8,repeat:-1});
+        if(!this.anims.exists(`tower${i}_atk_anim`))
+          this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12,repeat:-1});
+      }
+
+      // Враги
+      const eWalk=[], eAtk=[], eDie=[];
+      for(let i=0;i<7;i++){
+        eWalk.push({key:`e_walk_${i}`, frame:null});
+        eAtk.push({key:`e_atk_${i}`, frame:null});
+        eDie.push({key:`e_die_${i}`, frame:null});
+      }
+
+      if(!this.anims.exists('e_walk_anim'))
+        this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
+      if(!this.anims.exists('e_atk_anim'))
+        this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8, repeat:-1});
+
+      if(!this.anims.exists('e_die_anim'))
+        this.anims.create({
+          key: 'e_die_anim',
+          frames: eDie.map(f=>({key:f.key, frame:null})),
+          frameRate: 10,
+          repeat: 0,
+          hideOnComplete: false
+        });
+    }
   }
 
-  // Враги
-  const eWalk=[], eAtk=[], eDie=[];
-  for(let i=0;i<7;i++){
-    eWalk.push({key:`e_walk_${i}`, frame:null});
-    eAtk.push({key:`e_atk_${i}`, frame:null});
-    eDie.push({key:`e_die_${i}`, frame:null});
-  }
-
-  if(!this.anims.exists('e_walk_anim'))
-    this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
-  if(!this.anims.exists('e_atk_anim'))
-    this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8, repeat:-1});
-
-  // 💀 смерть — ключевой фикс!
-  if(!this.anims.exists('e_die_anim'))
-    this.anims.create({
-      key: 'e_die_anim',
-      frames: eDie.map(f=>({key:f.key, frame:null})),
-      frameRate: 10,
-      repeat: 0,
-      hideOnComplete: false // чтобы не пропадал до destroy()
-    });
-}
-}
   // ========================================================================
   //                             PHASER СТАРТ
   // ========================================================================
@@ -766,7 +744,12 @@ _createAnims(){
   startBtn.addEventListener('click', ()=>{
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
-    sc.startGameFromMenu();
+    hideMenuOverlay();
+    try{ menuVideo.pause(); }catch(_){}
+    sc.playBattle && sc.playBattle();
+    State.started = true;
+    sc.scene.resume();
+    sc._scheduleNextWave(500);
   });
 
   restartBtn.addEventListener('click', ()=>{
