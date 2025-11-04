@@ -1,149 +1,55 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
-  <title>Orc Defense</title>
+  <meta charset="UTF-8">
+  <title>Tower Defense</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
       background: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
     }
-
-    #game-container {
-      width: 720px;
-      height: 1280px;
-      position: relative;
-      overflow: hidden;
+    canvas {
+      display: block;
+      margin: 0 auto;
       background: #000;
     }
-
-    /* Меню и экран конца */
     #menu, #gameover {
       position: absolute;
-      width: 720px;
-      height: 1280px;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      font-family: sans-serif;
       z-index: 10;
     }
-
-    video {
-      position: absolute;
-      width: 720px;
-      height: 1280px;
-      object-fit: cover;
-      top: 0;
-      left: 0;
-      z-index: -1;
-    }
-
-    button {
-      width: 260px;
-      height: 80px;
-      font-size: 28px;
-      border: none;
-      border-radius: 18px;
+    #menu button, #gameover button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 20px;
       cursor: pointer;
-      background: #1e90ff;
-      color: white;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-      transition: transform 0.1s;
     }
-
-    button:hover { transform: scale(1.05); }
-
-    /* Игра */
-    #game {
-      width: 720px;
-      height: 1280px;
-      display: none;
-    }
+    #gameover, #menu { display: none; }
   </style>
-
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
-  <script src="./main.js" defer></script>
 </head>
 <body>
-  <div id="game-container">
 
-    <!-- Меню -->
-    <div id="menu">
-      <video src="assets/menu.webm" autoplay loop muted></video>
-      <audio id="menu-music" src="assets/sound/lobby.mp3" autoplay loop></audio>
-      <button id="startBtn">▶ Начать игру</button>
-    </div>
+  <canvas id="game" width="720" height="1280"></canvas>
 
-    <!-- Игра -->
-    <div id="game"></div>
-
-    <!-- Экран конца -->
-    <div id="gameover" style="display:none;">
-      <video id="gameover-video" src="assets/gameover.webm" autoplay muted></video>
-      <audio id="gameover-sound" src="assets/sound/gameover.mp3"></audio>
-      <button id="restartBtn">🔁 Заново</button>
-    </div>
-
+  <div id="menu">
+    <h1>Главное меню</h1>
+    <button id="startBtn">Играть</button>
   </div>
 
-  <script>
-    const menu = document.getElementById('menu');
-    const game = document.getElementById('game');
-    const gameover = document.getElementById('gameover');
-    const menuMusic = document.getElementById('menu-music');
-    const gameoverVideo = document.getElementById('gameover-video');
-    const gameoverSound = document.getElementById('gameover-sound');
-    let phaserGame = null;
+  <div id="gameover">
+    <h1>Игра окончена</h1>
+    <button id="restartBtn">Начать заново</button>
+  </div>
 
-    // кнопка "Начать игру"
-    document.getElementById('startBtn').addEventListener('click', () => {
-      menu.style.display = 'none';
-      game.style.display = 'block';
-      menuMusic.pause();
-      startGame();
-    });
-
-    // кнопка "Заново"
-    document.getElementById('restartBtn').addEventListener('click', () => {
-      gameover.style.display = 'none';
-      game.style.display = 'block';
-      startGame();
-    });
-
-    function startGame() {
-      if (phaserGame) {
-        phaserGame.destroy(true);
-        phaserGame = null;
-      }
-
-      phaserGame = new Phaser.Game({
-        type: Phaser.AUTO,
-        width: 720,
-        height: 1280,
-        backgroundColor: '#000000',
-        parent: 'game',
-        physics: { default: 'arcade', arcade: { debug: false } },
-        scene: { preload: create_preload, create: create, update: update }
-      });
-
-      // при проигрыше (вызов из main.js)
-      window.showGameOver = () => {
-        game.style.display = 'none';
-        gameover.style.display = 'flex';
-        gameoverVideo.currentTime = 0;
-        gameoverVideo.play();
-        gameoverSound.play();
-      };
-    }
-  </script>
+  <script src="main.js"></script>
 </body>
 </html>
