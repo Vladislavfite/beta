@@ -1,4 +1,90 @@
+// --- Главная сцена меню ---
+class MenuScene extends Phaser.Scene {
+  constructor() {
+    super("MenuScene");
+  }
 
+  preload() {
+    this.load.image("menu_bg", "assets/menu_bg.png");
+    this.load.audio("menu_music", "assets/menu_music.mp3");
+  }
+
+  create() {
+    this.add.image(360, 640, "menu_bg").setOrigin(0.5);
+    this.sound.play("menu_music", { loop: true, volume: 0.3 });
+
+    const startBtn = this.add.text(360, 900, "НАЧАТЬ ИГРУ", {
+      fontSize: "48px",
+      color: "#ffffff",
+      fontFamily: "Arial",
+      backgroundColor: "#000000aa",
+      padding: { x: 20, y: 10 },
+      align: "center"
+    }).setOrigin(0.5).setInteractive();
+
+    startBtn.on("pointerdown", () => {
+      this.sound.stopAll();
+      this.scene.start("GameScene");
+    });
+  }
+}
+
+// --- Сцена самой игры ---
+class GameScene extends Phaser.Scene {
+  constructor() {
+    super("GameScene");
+  }
+
+  preload() {
+    this.load.image("bg", "assets/bg.png");
+    this.load.audio("battle_music", "assets/battle.mp3");
+    // тут же грузятся башни, враги и т.д.
+  }
+
+  create() {
+    this.add.image(360, 640, "bg").setOrigin(0.5);
+    this.sound.play("battle_music", { loop: true, volume: 0.4 });
+
+    // тут твоя логика игры, из старого main.js
+    // например:
+    initGame(this);
+  }
+
+  update(time, delta) {
+    updateGame(this, time, delta);
+  }
+}
+
+// --- Сцена конца игры ---
+class GameOverScene extends Phaser.Scene {
+  constructor() {
+    super("GameOverScene");
+  }
+
+  preload() {
+    this.load.image("gameover_bg", "assets/gameover.png");
+    this.load.audio("lose", "assets/lose.mp3");
+  }
+
+  create() {
+    this.add.image(360, 640, "gameover_bg").setOrigin(0.5);
+    this.sound.play("lose", { volume: 0.5 });
+
+    const restartBtn = this.add.text(360, 900, "ЗАНОВО", {
+      fontSize: "48px",
+      color: "#fff",
+      fontFamily: "Arial",
+      backgroundColor: "#000000aa",
+      padding: { x: 20, y: 10 },
+      align: "center"
+    }).setOrigin(0.5).setInteractive();
+
+    restartBtn.on("pointerdown", () => {
+      this.sound.stopAll();
+      this.scene.start("MenuScene");
+    });
+  }
+}
 
 // --- Constants ---
 const BUILD_SPOTS = [[484,95],[359,155],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],[589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,781],[430,822],[301,867],[275,1016],[355,1015],[511,992],[581,946],[667,1016],[532,1083],[458,1127],[329,1149],[174,1116]];
