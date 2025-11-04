@@ -440,14 +440,26 @@
     }
 
     // ====== Жизненный цикл ======
-    startGameFromMenu(){
-      hideMenuOverlay();
-      try{ menuVideo.pause(); }catch(_){}
-      this.playBattle();
-      State.started = true;
-      this._setPaused(false);
-      this._scheduleNextWave(1500);
-    }
+   startGameFromMenu() {
+  hideMenuOverlay();
+  try { menuVideo.pause(); } catch (_) {}
+  this.playBattle();
+
+  State.started = true;
+  this._setPaused(false);
+
+  // 🔹 Убираем старый таймер волн, если вдруг остался после рестарта
+  if (this.waveTimer) {
+    this.waveTimer.remove();
+    this.waveTimer = null;
+  }
+
+  // 🔹 Запускаем первую волну с небольшой задержкой (1.5 сек)
+  this.waveTimer = this.time.addEvent({
+    delay: 1500,
+    callback: () => this._startWave(),
+  });
+}
 
     pauseToMenu(){
       State.started = false;
@@ -474,17 +486,33 @@
       this._syncHUD();
     }
 
-    restartRound(){
-      this.stopAllLoops();
-      this.scene.restart();
-      this.events.once('create', ()=>{
-        this._resetCoreState();
-        hidePreloader(); hideMenuOverlay(); hideGameoverOverlay();
-        this.playBattle();
-        State.started = true;
-        this._scheduleNextWave(1500);
-      });
+    restartRound() {
+  this.stopAllLoops();
+  this.scene.restart();
+
+  this.events.once('create', () => {
+    this._resetCoreState();
+    hidePreloader();
+    hideMenuOverlay();
+    hideGameoverOverlay();
+    this.playBattle();
+
+    State.started = true;
+    this._setPaused(false);
+
+    // 🔹 Удаляем старый активный таймер, если он остался
+    if (this.waveTimer) {
+      this.waveTimer.remove();
+      this.waveTimer = null;
     }
+
+    // 🔹 Запускаем новую волну с задержкой 1.5 сек
+    this.waveTimer = this.time.addEvent({
+      delay: 1500,
+      callback: () => this._startWave(),
+    });
+  });
+}
 
     restartToMenu(){
       this.stopAllLoops();
@@ -820,7 +848,11 @@
 
   // ====== Волны (медленный рост сложности, постепенный выход врагов) ======
 _scheduleNextWave(delay = 1500) {
-  this.time.addEvent({ delay, callback: () => this._startWave() });
+  if (this.waveTimer) this.waveTimer.remove(); // предотвращает дублирование волн
+  this.waveTimer = this.time.addEvent({
+    delay,
+    callback: () => this._startWave(),
+  });
 }
 
 _startWave() {
