@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
-  <title>Меню игры</title>
+  <title>Orc Defense</title>
   <style>
     body {
       margin: 0;
@@ -14,6 +14,7 @@
       align-items: center;
       height: 100vh;
     }
+
     #game-container {
       width: 720px;
       height: 1280px;
@@ -21,19 +22,32 @@
       position: relative;
       overflow: hidden;
     }
-    video {
+
+    /* Меню */
+    #menu-scene, #gameover-scene {
       position: absolute;
       top: 0;
       left: 0;
       width: 720px;
       height: 1280px;
-      object-fit: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 5;
     }
-    button {
+
+    #menu-scene video, #gameover-scene video {
       position: absolute;
-      bottom: 260px;
-      left: 50%;
-      transform: translateX(-50%);
+      width: 720px;
+      height: 1280px;
+      object-fit: cover;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+
+    button {
       width: 280px;
       height: 80px;
       font-size: 28px;
@@ -46,30 +60,99 @@
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
       transition: transform 0.1s;
     }
-    button:hover {
-      transform: translateX(-50%) scale(1.05);
+
+    button:hover { transform: scale(1.05); }
+
+    /* Игровая сцена */
+    #game {
+      width: 720px;
+      height: 1280px;
+      background: #000;
+      display: none;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  <script src="./main.js" defer></script>
 </head>
 <body>
   <div id="game-container">
-    <video id="bg-video" src="assets/menu.webm" autoplay loop muted></video>
-    <audio id="menu-music" src="assets/sound/lobby.mp3" autoplay loop></audio>
-    <button id="startBtn">▶ Начать игру</button>
+
+    <!-- Меню -->
+    <div id="menu-scene">
+      <video id="bg-video" src="assets/menu.webm" autoplay loop muted></video>
+      <audio id="menu-music" src="assets/sound/lobby.mp3" autoplay loop></audio>
+      <button id="startBtn">▶ Начать игру</button>
+    </div>
+
+    <!-- Игра -->
+    <div id="game"></div>
+
+    <!-- Конец игры -->
+    <div id="gameover-scene" style="display:none;">
+      <video id="gameover-video" src="assets/gameover.webm" autoplay muted></video>
+      <audio id="gameover-sound" src="assets/sound/gameover.mp3"></audio>
+      <button id="restartBtn">🔁 Заново</button>
+    </div>
+
   </div>
 
   <script>
-    const btn = document.getElementById('startBtn');
-    const music = document.getElementById('menu-music');
+    const menuScene = document.getElementById('menu-scene');
+    const gameEl = document.getElementById('game');
+    const gameoverScene = document.getElementById('gameover-scene');
 
-    btn.addEventListener('click', () => {
-      try { 
-        music.pause();
-        const clickSound = new Audio('assets/sound/klick.ogg');
-        clickSound.play();
-      } catch(e){}
-      window.location.href = 'main.html';
+    const menuMusic = document.getElementById('menu-music');
+    const gameoverVideo = document.getElementById('gameover-video');
+    const gameoverSound = document.getElementById('gameover-sound');
+
+    let gameInstance = null;
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      try { menuMusic.pause(); new Audio('assets/sound/klick.ogg').play(); } catch(e){}
+      menuScene.style.display = 'none';
+      gameEl.style.display = 'block';
+      startGame();
     });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      try { gameoverSound.pause(); gameoverVideo.pause(); } catch(e){}
+      gameoverScene.style.display = 'none';
+      gameEl.style.display = 'block';
+      startGame();
+    });
+
+    function startGame() {
+      // Если игра уже есть — перезапускаем
+      if (gameInstance) {
+        gameInstance.destroy(true);
+        gameInstance = null;
+      }
+
+      gameInstance = new Phaser.Game({
+        type: Phaser.AUTO,
+        width: 720,
+        height: 1280,
+        backgroundColor: '#000000',
+        physics: { default: 'arcade', arcade: { debug: false } },
+        scene: {
+          preload: create_preload,
+          create: create,
+          update: update
+        },
+        parent: 'game'
+      });
+
+      // Когда база уничтожена — вызвать сцену конца игры
+      window.showGameOver = () => {
+        gameEl.style.display = 'none';
+        gameoverScene.style.display = 'flex';
+        try {
+          gameoverVideo.currentTime = 0;
+          gameoverVideo.play();
+          gameoverSound.play();
+        } catch(e){}
+      };
+    }
   </script>
 </body>
 </html>
