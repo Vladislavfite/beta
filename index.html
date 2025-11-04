@@ -446,7 +446,7 @@
       this.playBattle();
       State.started = true;
       this._setPaused(false);
-      this._scheduleNextWave(500);
+      this._scheduleNextWave(1500);
     }
 
     pauseToMenu(){
@@ -482,7 +482,7 @@
         hidePreloader(); hideMenuOverlay(); hideGameoverOverlay();
         this.playBattle();
         State.started = true;
-        this._scheduleNextWave(500);
+        this._scheduleNextWave(1500);
       });
     }
 
