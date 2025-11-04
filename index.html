@@ -92,14 +92,9 @@
   <script>
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver. Без переходов страниц.
-     Исправлено:
-     - Прелоадер с прогресс-баром (до полной загрузки ассетов).
-     - Музыка: lobby только в меню; battle только в игре; gameover только в геймовере.
-       Любая пауза/рестарт/меню полностью останавливает все лупы (в т.ч. стрелы).
-     - RELOAD перезапускает РАУНД в игре, не уводя в меню.
-       Играть заново в GameOver — тоже перезапуск раунда.
-     - Рандомизация спавна: случайная задержка, вариативность путей и количества.
-     - Анимация смерти врага: проигрывается e_die_anim (dead1..dead7) и только затем удаление.
+     Добавлено:
+     - money.mp3 при строительстве новой башни.
+     - e_die_anim гарантированно проигрывается до конца перед удалением врага.
      ======================================================================== */
 
   // ---------- Константы уровня ----------
@@ -121,7 +116,6 @@
       [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
     ],
 
-    // Баланс по запросу
     START_GOLD: 50000,
     KILL_REWARD: 10,
     WAVE_BONUS: 50,
@@ -149,7 +143,7 @@
 
   // ---------- Глобальное состояние ----------
   const State = {
-    started: false,  // активная игра идёт
+    started: false,
     gold: CONST.START_GOLD,
     wave: 0,
     baseHp: 1000,
@@ -170,7 +164,6 @@
     constructor(){ super({ key:'AppScene' }); }
 
     preload(){
-      // Включаем экран прелоадера и отображаем прогресс
       showPreloader();
       this.load.on('progress', (v)=>{
         const p = Math.floor(v*100);
@@ -211,11 +204,12 @@
       // Звуки
       this.load.audio('lobby','assets/sound/lobby.mp3');        // меню
       this.load.audio('battle','assets/sound/battle.mp3');      // игра
-      this.load.audio('arrow_s','assets/sound/arrow.mp3');      // петля стрел
+      this.load.audio('arrow_s','assets/sound/arrow.mp3');      // петля стрел (если используешь)
       this.load.audio('klick','assets/sound/klick.ogg');        // клик
       this.load.audio('gameover_s','assets/sound/gameover.mp3');// конец
       this.load.audio('towerup','assets/sound/towerup.mp3');    // апгрейд
       this.load.audio('towerrush','assets/sound/towerrush.mp3');// враг сломал башню
+      this.load.audio('money','assets/sound/money.mp3');        // 🔊 СТРОИТЕЛЬСТВО БАШНИ
     }
 
     create(){
@@ -235,8 +229,9 @@
       this.sndOver    = this.sound.add('gameover_s', { volume: 0.9 });
       this.sndUp      = this.sound.add('towerup', { volume: 0.9 });
       this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
+      this.sndMoney   = this.sound.add('money',   { volume: 0.9 }); // 🔊
 
-      // Универсальные помощники по звуку (чтобы нигде не "зависали")
+      // Универсальные помощники по звуку
       this.stopAllLoops = ()=>{
         try{ this.sndArrowLp.stop(); }catch(_){}
         try{ this.sndBattle.stop(); }catch(_){}
@@ -255,11 +250,9 @@
         try{ this.sndOver.play(); }catch(_){}
       };
 
-      // Прелоадер завершён → показываем меню, запускаем lobby.
+      // Прелоадер завершён → меню + lobby
       hidePreloader();
       showMenuOverlay();
-      // WARNING: автозапуск звука может быть заблокирован браузером.
-      // Будет гарантированно играть после первого клика по кнопке "Начать".
       try{ this.playLobby(); }catch(_){}
 
       // Споты строительства (молоты)
@@ -268,19 +261,19 @@
       // Анимации
       this._createAnims();
 
-      // Боковые кнопки (меню/перезапуск/звук)
+      // Боковые кнопки
       this._buildSideButtons();
 
-      // Стрельба башен (тикер)
+      // Тикер стрельбы
       this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
 
       // Коллизии
       this.physics.add.overlap(this.bullets, this.enemies, (b,e)=> this._onBulletHit(b,e));
 
-      // Синхронизация HUD
+      // HUD
       this._syncHUD();
 
-      // Игра пока на паузе до старта
+      // Пауза до старта
       this.scene.pause();
     }
 
@@ -299,27 +292,23 @@
     }
 
     _buildSideButtons(){
-      // Справа три кнопки
       const x = 576;
-      const yMenu   = 629;        // MENU (пауза → лобби)
-      const yReload = 629 + 80;   // RELOAD (перезапуск РАУНДА, остаёмся в игре)
-      const ySound  = 629 + 160;  // SOUND ON/OFF
+      const yMenu   = 629;
+      const yReload = 709;
+      const ySound  = 789;
 
-      // MENU — вернуться в лобби (пауза + lobby.mp3)
       const btnMenu = this.add.image(x, yMenu, 'menu').setInteractive().setDepth(60);
       btnMenu.on('pointerdown', ()=>{
         try{ this.sound.play('klick'); }catch(_){}
         this.pauseToMenu();
       });
 
-      // RELOAD — перезапуск РАУНДА (не в меню!)
       const btnReload = this.add.image(x, yReload, 'reload').setInteractive().setDepth(60);
       btnReload.on('pointerdown', ()=>{
         try{ this.sound.play('klick'); }catch(_){}
-        this.restartRound(); // остаёмся в игре
+        this.restartRound();
       });
 
-      // SOUND — mute toggle
       const btnSound = this.add.image(x, ySound, 'sound_on').setInteractive().setDepth(60);
       btnSound.on('pointerdown', ()=>{
         const m = !this.sound.mute;
@@ -329,35 +318,32 @@
       });
     }
 
-    // ====== Жизненный цикл игры и сцены ======
+    // ====== Жизненный цикл ======
     startGameFromMenu(){
       hideMenuOverlay();
       try{ menuVideo.pause(); }catch(_){}
-      this.playBattle();          // battle.mp3
+      this.playBattle();
       State.started = true;
       this.scene.resume();
-      this._scheduleNextWave(500); // первая волна
+      this._scheduleNextWave(500);
     }
 
-    // Пауза → меню
     pauseToMenu(){
       State.started = false;
       this.scene.pause();
-      this.playLobby();           // lobby.mp3
+      this.playLobby();
       showMenuOverlay();
       try{ menuVideo.currentTime = 0; menuVideo.play().catch(()=>{}); }catch(_){}
     }
 
-    // Game Over
     showGameOver(){
       State.started = false;
       this.scene.pause();
-      this.playGameOver();        // gameover.mp3
+      this.playGameOver();
       showGameoverOverlay();
       try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
     }
 
-    // Полный ресет счётчиков перед новым раундом
     _resetCoreState(){
       State.gold = CONST.START_GOLD;
       State.wave = 0;
@@ -365,11 +351,9 @@
       this._syncHUD();
     }
 
-    // Перезапуск РАУНДА (остаемся в игре, не уходим в меню)
     restartRound(){
-      this.stopAllLoops();        // остановить все лупы (стрелы/музыки)
+      this.stopAllLoops();
       this.scene.restart();
-      // В create() сцена перешла в "pause + lobby". Вернёмся в игру:
       this.events.once('create', ()=>{
         this._resetCoreState();
         hidePreloader(); hideMenuOverlay(); hideGameoverOverlay();
@@ -380,7 +364,6 @@
       });
     }
 
-    // Рестарт к меню (не используется как "reload", но пригодится)
     restartToMenu(){
       this.stopAllLoops();
       this.scene.restart();
@@ -391,7 +374,7 @@
       });
     }
 
-    // ====== Строительство/улучшение ======
+    // ====== Строительство / улучшение ======
     _createHammer(pos, index){
       const img = this.add.image(pos[0],pos[1],'molot').setInteractive({useHandCursor:true}).setScale(0.6).setDepth(10);
       img.on('pointerdown', ()=> this._buildTower(index));
@@ -406,14 +389,16 @@
       }
       State.gold -= CONST.TOWER_COST; this._syncHUD();
 
+      // 🔊 СТРОИТЕЛЬСТВО — money.mp3
+      try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
+
       const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1').setInteractive().setDepth(5);
-      // Баланс: меньшая скорострельность и урон
       ts.level = 1;
       ts._typeKey = 'tower1';
       ts._range = CONST.TOWER_RANGE;
-      ts._shootRate = 900;         // было ~500
+      ts._shootRate = 900;
       ts._bulletSpeed = 9;
-      ts._damage = 5 * ts.level;   // было 10 * level
+      ts._damage = 5 * ts.level;
       ts.hp = 50;
       ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
 
@@ -451,7 +436,6 @@
       const idle = `${ts._typeKey}_idle_anim`; if(this.anims.exists(idle)) ts.play(idle);
       if(ts.level>=12 && ts.upIcon) ts.upIcon.setVisible(false);
 
-      // SFX: апгрейд башни
       try{ this.sndUp.play(); }catch(_){}
     }
 
@@ -465,7 +449,6 @@
       for(const tObj of this.towers){
         const ts = tObj.sprite; if(!ts || !ts.active) continue;
 
-        // Иконка апгрейда
         if(ts.upIcon){
           const nextCost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE*(ts.level+1)));
           const key = State.gold >= nextCost ? 'up_icon' : 'noup_icon';
@@ -481,7 +464,6 @@
           continue;
         }
 
-        // Поиск цели в радиусе
         let target=null, dmin=1e9;
         this.enemies.getChildren().forEach(e=>{
           if(!e.active || e.state==='die') return;
@@ -511,7 +493,6 @@
         }
       }
 
-      // Луп стрел: включаем/выключаем строго по факту выстрелов
       try{
         if(anyShot){
           if(!this.sndArrowLp.isPlaying && !this.sound.mute) this.sndArrowLp.play();
@@ -523,8 +504,7 @@
 
     _onBulletHit(b,e){
       if(!b.active || !e.active) return;
-      // Урон по overlap
-      if(e.state!=='die'){ // защита от двойной смерти
+      if(e.state!=='die'){
         e.hp -= (b.damage || 5);
         if(e.hp <= 0){ this._killEnemy(e); }
         else{
@@ -532,7 +512,6 @@
           this.time.delayedCall(60, ()=>{ try{ e && e.clearTint && e.clearTint(); }catch(_){} });
         }
       }
-      // Ресайкл пули
       try{ b.setActive(false); b.setVisible(false); if(b.body){ b.body.enable=false; b.body.setVelocity(0,0); } }catch(_){}
     }
 
@@ -562,14 +541,22 @@
     _killEnemy(e){
       if(!e || e.state==='die') return;
       e.state = 'die';
-      // Смерть: проигрываем анимацию один раз и удаляем по завершению
+
+      // 💀 ГАРАНТИРОВАННАЯ АНИМАЦИЯ СМЕРТИ
       if(this.anims.exists('e_die_anim')) e.play('e_die_anim');
+
+      // Деньги за убийство
       State.gold += CONST.KILL_REWARD; this._syncHUD();
+
+      // Удаляем ТОЛЬКО после завершения анимации; добавляем маленькую задержку как страховку
       e.once('animationcomplete', (anim)=>{
         if(!anim || anim.key==='e_die_anim'){
-          try{ e.body && (e.body.enable=false); e.destroy(); }catch(_){}
+          this.time.delayedCall(100, ()=>{ try{ e.body && (e.body.enable=false); e.destroy(); }catch(_){} });
         }
       });
+
+      // Доп. защита: если по какой-то причине событие не пришло (редко в моб. браузерах)
+      this.time.delayedCall(1200, ()=>{ if(e && e.active){ try{ e.destroy(); }catch(_){}}});
     }
 
     // ====== Враги ======
@@ -607,10 +594,7 @@
             e.targetTower.hp -= 10;
             try{ e.targetTower.setTint && e.targetTower.setTint(0xff9999); this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){}});}catch(_){}
             if(e.targetTower.hp <= 0){
-              // SFX: враг сломал башню
               try{ this.sndRush.play(); }catch(_){}
-
-              // Удалить башню, восстановить спот
               const idx = this.towers.findIndex(t=>t.sprite===e.targetTower);
               try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
               try{ e.targetTower.destroy(); }catch(_){}
@@ -678,23 +662,18 @@
       if(!State.started) return;
       State.wave++; State.gold += CONST.WAVE_BONUS; this._syncHUD();
 
-      // База количества + разброс
       const basePerSpawn = 1 + State.wave;
       const enemiesPerSpawn = Math.max(1, Math.min(20, basePerSpawn + Phaser.Math.Between(-1, 2)));
 
-      // Базовое HP + волновой рост (можно варьировать случайно)
       const enemyHpBase = 100 + State.wave;
       const hpJitter = Phaser.Math.Between(0, 5);
       const enemyHp = enemyHpBase + hpJitter;
 
-      // Для каждой дорожки — пачка с джиттером появления и случайной выборкой путей
       for(let i=0;i<CONST.PATHS.length;i++){
-        // Для разнообразия: иногда берём другой путь вместо текущего i
         const chosenPath = (Math.random() < 0.35) ? CONST.PATHS[Phaser.Math.Between(0, CONST.PATHS.length-1)] : CONST.PATHS[i];
-
         for(let j=0;j<enemiesPerSpawn;j++){
-          const jitter = Phaser.Math.Between(0, 400);      // случайный сдвиг
-          const step   = Phaser.Math.Between(650, 950);    // случайный интервал
+          const jitter = Phaser.Math.Between(0, 400);
+          const step   = Phaser.Math.Between(650, 950);
           const delay = j*step + i*220 + jitter;
           this.time.addEvent({ delay, callback: ()=> this._spawnEnemy(chosenPath, enemyHp) });
         }
@@ -738,14 +717,12 @@
   // ========================================================================
   //                   DOM-ЛОГИКА ПЕРЕКЛЮЧЕНИЯ СЛОЁВ
   // ========================================================================
-  // Старт из меню
   startBtn.addEventListener('click', ()=>{
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
-    sc.startGameFromMenu(); // отключит lobby, включит battle, начнёт волны, снимет паузу
+    sc.startGameFromMenu();
   });
 
-  // Рестарт с гейм-овера → НОВЫЙ РАУНД (без меню)
   restartBtn.addEventListener('click', ()=>{
     hideGameoverOverlay();
     const sc = game.scene.keys['AppScene'];
@@ -753,7 +730,6 @@
     sc.restartRound();
   });
 
-  // В момент загрузки показываем прелоадер (меню появится из сцены после загрузки)
   window.addEventListener('load', ()=>{ showPreloader(); });
   </script>
 </body>
