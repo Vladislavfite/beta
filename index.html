@@ -3,49 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <title>Tower Defense</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+  <meta name="viewport" content="width=720, height=1280, user-scalable=no">
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #000;
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-    }
+    body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    canvas { display: block; }
   </style>
 </head>
 <body>
-
-  <script src="phaser.min.js"></script>
   <script src="main.js"></script>
   <script>
-    // === ИНИЦИАЛИЗАЦИЯ ИГРЫ ===
     const config = {
       type: Phaser.AUTO,
       width: 720,
       height: 1280,
-      backgroundColor: "#000000",
-      physics: {
-        default: "arcade",
-        arcade: { debug: false }
-      },
-      scene: {
-        preload: create_preload,
-        create: create,
-        update: update
-      }
+      backgroundColor: '#000',
+      physics: { default: 'arcade', arcade: { debug: false } },
+      scene: { preload: create_preload, create: create, update: update }
     };
-
     const game = new Phaser.Game(config);
-
-    // Безопасная обработка ошибок
-    window.addEventListener("error", (e) => {
-      console.warn("Script error:", e.message);
-    });
   </script>
-
 </body>
 </html>
