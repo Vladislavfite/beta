@@ -64,13 +64,15 @@
     </div>
 
     <!-- ====== GAME OVER ====== -->
-    <div id="gameoverOverlay" class="overlay hidden">
-      <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
-      <div class="panel" style="margin-top: 900px;">
-        <!-- assets/elements/playagain.png — кнопка Restart -->
-        <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
-      </div>
-    </div>
+   <div id="gameoverOverlay" class="overlay hidden">
+  <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
+  <div class="panel">
+    <img id="restartImg" class="imgbtn"
+         src="assets/elements/playagain.png"
+         alt="Play Again"
+         style="position:absolute; top:600px; left:50%; transform:translateX(-50%);">
+  </div>
+</div>
 
     <!-- Канвас для Phaser -->
     <div id="game" style="width:720px;height:1280px"></div>
