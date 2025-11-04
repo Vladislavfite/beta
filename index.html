@@ -693,23 +693,41 @@
     }
 
     // ====== Анимации ======
-    _createAnims(){
-      // Башни
-      for(let i=1;i<=12;i++){
-        const idle=[], atk=[];
-        for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
-        for(let j=0;j<5;j++) atk.push({key:`tower${i}_atk_${j}`});
-        if(!this.anims.exists(`tower${i}_idle_anim`)) this.anims.create({key:`tower${i}_idle_anim`,frames:idle,frameRate:8,repeat:-1});
-        if(!this.anims.exists(`tower${i}_atk_anim`))  this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12, repeat:-1});
-      }
-      // Враги
-      const eWalk=[], eAtk=[], eDie=[];
-      for(let i=0;i<7;i++){ eWalk.push({key:`e_walk_${i}`}); eAtk.push({key:`e_atk_${i}`}); eDie.push({key:`e_die_${i}`}); }
-      if(!this.anims.exists('e_walk_anim')) this.anims.create({key:'e_walk_anim',frames:eWalk,frameRate:8,repeat:-1});
-      if(!this.anims.exists('e_atk_anim'))  this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8,repeat:-1});
-      if(!this.anims.exists('e_die_anim'))  this.anims.create({key:'e_die_anim', frames:eDie, frameRate:10, repeat:0}); // смерть = 1 раз
-    }
+_createAnims(){
+  // Башни
+  for(let i=1;i<=12;i++){
+    const idle=[], atk=[];
+    for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
+    for(let j=0;j<5;j++) atk.push({key:`tower${i}_atk_${j}`});
+    if(!this.anims.exists(`tower${i}_idle_anim`))
+      this.anims.create({key:`tower${i}_idle_anim`,frames:idle,frameRate:8,repeat:-1});
+    if(!this.anims.exists(`tower${i}_atk_anim`))
+      this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12,repeat:-1});
   }
+
+  // Враги
+  const eWalk=[], eAtk=[], eDie=[];
+  for(let i=0;i<7;i++){
+    eWalk.push({key:`e_walk_${i}`, frame:null});
+    eAtk.push({key:`e_atk_${i}`, frame:null});
+    eDie.push({key:`e_die_${i}`, frame:null});
+  }
+
+  if(!this.anims.exists('e_walk_anim'))
+    this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
+  if(!this.anims.exists('e_atk_anim'))
+    this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8, repeat:-1});
+
+  // 💀 смерть — ключевой фикс!
+  if(!this.anims.exists('e_die_anim'))
+    this.anims.create({
+      key: 'e_die_anim',
+      frames: eDie.map(f=>({key:f.key, frame:null})),
+      frameRate: 10,
+      repeat: 0,
+      hideOnComplete: false // чтобы не пропадал до destroy()
+    });
+}
 
   // ========================================================================
   //                             PHASER СТАРТ
