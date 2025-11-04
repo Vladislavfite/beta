@@ -1115,13 +1115,25 @@
   }
 
   // Первый sync сразу после boot
-  window.addEventListener('load', ()=>{ showPreloader(); });
+window.addEventListener('load', ()=>{
+  showPreloader();
+  if (game && game.scale) {
+    game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+    game.scale.refresh();
+  }
+  _syncStageToCanvas();
+});
 
-  // На resize окна — говорим Phaser пересчитаться и синхронизируем DOM
-  window.addEventListener('resize', ()=>{
-    if(game && game.scale) game.scale.refresh();
-    _syncStageToCanvas();
-  });
+// При изменении размера или ориентации окна — пересчёт сцены и DOM
+window.addEventListener('resize', ()=>{
+  if (game && game.scale) {
+    // Полный пересчёт размеров логической сцены и canvas
+    game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+    game.scale.refresh();
+  }
+  _syncStageToCanvas();
+});
+
 
   // Когда Phaser изменил масштаб (например, при старте/ресайзе) — уравниваем stage
   const onReady = ()=>{
