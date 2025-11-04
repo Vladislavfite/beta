@@ -862,23 +862,24 @@ _startWave() {
   this._syncHUD();
 
   // === Настройки роста сложности ===
-  // 1 враг с каждого спота, потом медленно +1 каждые 4 волны (до 5 макс)
-  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 4), 5);
-  // здоровье растёт медленно, первые волны лёгкие
-  const enemyHpBase = 25 + State.wave * 6;
-  const hpJitter = Phaser.Math.Between(-3, 6);
+  // Мало врагов и низкое HP в начале
+  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 5), 4);
+  const enemyHpBase = 25 + State.wave * 5; // мягкий рост
+  const hpJitter = Phaser.Math.Between(-2, 4);
 
-  // === Выбор случайных точек спавна ===
-  const spawnCount = Phaser.Math.Between(2, 3); // не больше 3 спавнов за волну
+  // === Количество активных путей ===
+  // Первая волна — 1 путь, потом максимум 3
+  const spawnCount = State.wave === 1 ? 1 : Phaser.Math.Between(1, 3);
+
+  // === Постепенный выход врагов ===
   const chosenIndexes = Phaser.Utils.Array.Shuffle(
     [...Array(CONST.PATHS.length).keys()]
   ).slice(0, spawnCount);
 
-  // === Постепенный выход врагов ===
   chosenIndexes.forEach((pathIndex, idx) => {
     const path = CONST.PATHS[pathIndex];
     for (let j = 0; j < enemiesPerSpawn; j++) {
-      const delay = j * Phaser.Math.Between(1600, 2200) + idx * 800;
+      const delay = j * Phaser.Math.Between(2000, 2800) + idx * 1000;
       const hp = Math.max(10, enemyHpBase + hpJitter);
       this.time.addEvent({
         delay,
@@ -887,11 +888,17 @@ _startWave() {
     }
   });
 
-  // === Следующая волна — больше пауза, чтобы успевать строить ===
+  // === Следующая волна (пауза увеличивается с ростом сложности) ===
   const nextDelay =
-    9000 + enemiesPerSpawn * 2500 + Phaser.Math.Between(0, 2000);
+    10000 + enemiesPerSpawn * 3000 + Phaser.Math.Between(0, 2000);
   this._scheduleNextWave(nextDelay);
+
+  // Отладка
+  console.log(
+    `Волна ${State.wave}: путей=${spawnCount}, врагов=${enemiesPerSpawn}, HP=${enemyHpBase}`
+  );
 }
+
 
     // ====== Анимации ======
     _createAnims(){
