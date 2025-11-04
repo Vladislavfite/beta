@@ -120,11 +120,11 @@
       [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
     ],
 
-    START_GOLD: 500,
-    KILL_REWARD: 10,
-    WAVE_BONUS: 50,
+    START_GOLD: 600,
+    KILL_REWARD: 20,
+    WAVE_BONUS: 80,
     TOWER_COST: 100,
-    UPGRADE_COST_BASE: 150,
+    UPGRADE_COST_BASE: 120
 
     ENEMY_AGGRO: 150,
     TOWER_RANGE: 200
@@ -716,7 +716,8 @@
       const spawn = path[0];
       const e = this.add.sprite(spawn[0],spawn[1],'e_walk_0').setScale(0.35);
       e.maxHp = hp; e.hp = hp;
-      e.speed = 0.22 + Math.min(0.05*State.wave, 0.5);
+      // Скорость врагов — медленнее и растёт плавно
+      e.speed = 0.15 + Math.min(0.02 * State.wave, 0.35);
       e.path = path; e.pathIndex = 1;
       e.state='walk'; e._savedPathIndex=null; e._lastAttack=0;
       if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
@@ -817,36 +818,35 @@
       if(dist<0.1) return; obj.x += (dx/dist)*speed*2; obj.y += (dy/dist)*speed*2;
     }
 
-    // ====== Волны ======
-    // ====== Волны (плавный рост сложности, рандомизация путей) ======
-_scheduleNextWave(delay = 1000) {
+  // ====== Волны (медленный рост сложности, постепенный выход врагов) ======
+_scheduleNextWave(delay = 1500) {
   this.time.addEvent({ delay, callback: () => this._startWave() });
 }
 
 _startWave() {
   if (!State.started || State.paused) return;
 
-  // Увеличиваем номер волны, но не даём бонус сразу — чтобы баланс был ровный
   State.wave++;
   this._syncHUD();
 
-  // === Настройки сложности ===
-  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 3), 5);
-  // первые 3 волны по 1 врагу, потом плавно до 5
-  const enemyHpBase = 30 + State.wave * 8; // начальное HP и рост по волнам
-  const hpJitter = Phaser.Math.Between(-5, 5);
+  // === Настройки роста сложности ===
+  // 1 враг с каждого спота, потом медленно +1 каждые 4 волны (до 5 макс)
+  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 4), 5);
+  // здоровье растёт медленно, первые волны лёгкие
+  const enemyHpBase = 25 + State.wave * 6;
+  const hpJitter = Phaser.Math.Between(-3, 6);
 
-  // === Спавн ===
-  // Каждая волна выбирает случайные точки спавна
-  const spawnCount = Phaser.Math.Between(2, CONST.PATHS.length); // сколько путей использовать
+  // === Выбор случайных точек спавна ===
+  const spawnCount = Phaser.Math.Between(2, 3); // не больше 3 спавнов за волну
   const chosenIndexes = Phaser.Utils.Array.Shuffle(
     [...Array(CONST.PATHS.length).keys()]
   ).slice(0, spawnCount);
 
+  // === Постепенный выход врагов ===
   chosenIndexes.forEach((pathIndex, idx) => {
     const path = CONST.PATHS[pathIndex];
     for (let j = 0; j < enemiesPerSpawn; j++) {
-      const delay = j * Phaser.Math.Between(1200, 1600) + idx * 600;
+      const delay = j * Phaser.Math.Between(1600, 2200) + idx * 800;
       const hp = Math.max(10, enemyHpBase + hpJitter);
       this.time.addEvent({
         delay,
@@ -855,9 +855,9 @@ _startWave() {
     }
   });
 
-  // === Следующая волна ===
+  // === Следующая волна — больше пауза, чтобы успевать строить ===
   const nextDelay =
-    6000 + enemiesPerSpawn * 2000 + Phaser.Math.Between(0, 1000);
+    9000 + enemiesPerSpawn * 2500 + Phaser.Math.Between(0, 2000);
   this._scheduleNextWave(nextDelay);
 }
 
