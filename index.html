@@ -358,6 +358,7 @@
       ts.setFlipX(ts.x > CONST.WIDTH/2);
 
       // Восстановление молота при разрушении
+      ts.buildSpotIndex = index;
       ts.on('destroy', ()=> {
         this.buildSprites[index] = null;
         this._createHammer(pos,index);
@@ -556,17 +557,10 @@
               try{ this.sndRush && this.sndRush.play(); }catch(_){}
 
               // Восстановить точку строительства (молот)
-              const idx = this.towers.findIndex(t=>t.sprite===e.targetTower);
+            
               try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
               try{ e.targetTower.destroy(); }catch(_){}
               this.towers = this.towers.filter(t=>t && t.sprite && t.sprite.active);
-
-              // Найти свободный индекс и вернуть молот
-              const freeIndex = CONST.BUILD_SPOTS.findIndex((p,i)=> this.buildSprites[i]===null);
-              if(freeIndex>=0){
-                const p = CONST.BUILD_SPOTS[freeIndex];
-                this.buildSprites[freeIndex] = this.add.image(p[0],p[1],'molot').setInteractive().setScale(0.6).on('pointerdown', ()=> this._buildTower(freeIndex));
-              }
 
               e.targetTower=null; e.state='returning';
               if(e._savedPathIndex!=null) e.pathIndex=e._savedPathIndex;
