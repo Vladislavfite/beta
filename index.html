@@ -818,34 +818,48 @@
     }
 
     // ====== Волны ======
-    _scheduleNextWave(delay=1000){
-      this.time.addEvent({ delay, callback: ()=> this._startWave() });
+    // ====== Волны (плавный рост сложности, рандомизация путей) ======
+_scheduleNextWave(delay = 1000) {
+  this.time.addEvent({ delay, callback: () => this._startWave() });
+}
+
+_startWave() {
+  if (!State.started || State.paused) return;
+
+  // Увеличиваем номер волны, но не даём бонус сразу — чтобы баланс был ровный
+  State.wave++;
+  this._syncHUD();
+
+  // === Настройки сложности ===
+  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 3), 5);
+  // первые 3 волны по 1 врагу, потом плавно до 5
+  const enemyHpBase = 30 + State.wave * 8; // начальное HP и рост по волнам
+  const hpJitter = Phaser.Math.Between(-5, 5);
+
+  // === Спавн ===
+  // Каждая волна выбирает случайные точки спавна
+  const spawnCount = Phaser.Math.Between(2, CONST.PATHS.length); // сколько путей использовать
+  const chosenIndexes = Phaser.Utils.Array.Shuffle(
+    [...Array(CONST.PATHS.length).keys()]
+  ).slice(0, spawnCount);
+
+  chosenIndexes.forEach((pathIndex, idx) => {
+    const path = CONST.PATHS[pathIndex];
+    for (let j = 0; j < enemiesPerSpawn; j++) {
+      const delay = j * Phaser.Math.Between(1200, 1600) + idx * 600;
+      const hp = Math.max(10, enemyHpBase + hpJitter);
+      this.time.addEvent({
+        delay,
+        callback: () => this._spawnEnemy(path, hp),
+      });
     }
+  });
 
-    _startWave(){
-      if(!State.started || State.paused) return;
-      State.wave++; State.gold += CONST.WAVE_BONUS; this._syncHUD();
-
-      const basePerSpawn = 1 + State.wave;
-      const enemiesPerSpawn = Math.max(1, Math.min(20, basePerSpawn + Phaser.Math.Between(-1, 2)));
-
-      const enemyHpBase = 100 + State.wave;
-      const hpJitter = Phaser.Math.Between(0, 5);
-      const enemyHp = enemyHpBase + hpJitter;
-
-      for(let i=0;i<CONST.PATHS.length;i++){
-        const chosenPath = (Math.random() < 0.35) ? CONST.PATHS[Phaser.Math.Between(0, CONST.PATHS.length-1)] : CONST.PATHS[i];
-        for(let j=0;j<enemiesPerSpawn;j++){
-          const jitter = Phaser.Math.Between(0, 400);
-          const step   = Phaser.Math.Between(650, 950);
-          const delay = j*step + i*220 + jitter;
-          this.time.addEvent({ delay, callback: ()=> this._spawnEnemy(chosenPath, enemyHp) });
-        }
-      }
-
-      const nextDelay = (enemiesPerSpawn * 950) + 3400 + Phaser.Math.Between(0,800);
-      this._scheduleNextWave(nextDelay);
-    }
+  // === Следующая волна ===
+  const nextDelay =
+    6000 + enemiesPerSpawn * 2000 + Phaser.Math.Between(0, 1000);
+  this._scheduleNextWave(nextDelay);
+}
 
     // ====== Анимации ======
     _createAnims(){
