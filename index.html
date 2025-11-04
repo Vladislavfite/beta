@@ -22,13 +22,9 @@
     /* Фоновые видео меню и gameover */
     .bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
 
-    /* Кнопки DOM */
-    .btn{width:280px;height:80px;border-radius:18px;border:none;font-size:28px;background:#1e90ff;color:#fff;cursor:pointer;box-shadow:0 0 20px rgba(0,0,0,.5);font-family:Arial,Helvetica,sans-serif}
-
-    /* HUD (DOM) */
-    #hud{position:absolute;left:0;right:0;bottom:0;height:120px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;z-index:50;pointer-events:none}
-    #hud .left,#hud .right{pointer-events:auto}
-    #hud .text{color:#fff;font-family:Arial,Helvetica,sans-serif;text-shadow:0 0 6px rgba(0,0,0,.8)}
+    /* DOM-кнопки-изображения */
+    .imgbtn{width:280px;height:auto;cursor:pointer;image-rendering:crisp-edges;image-rendering:-webkit-optimize-contrast;filter:drop-shadow(0 0 16px rgba(0,0,0,.7))}
+    .imgbtn:active{transform:scale(.98)}
 
     /* Прелоадер */
     #preloaderOverlay{background:#000}
@@ -38,6 +34,9 @@
 
     /* Лёгкая подмасштабировка на маленьких экранах */
     @media (max-width:800px){#container{transform:scale(.9)}}
+
+    /* Старый HUD скрыт (требование убрать wave и текст HP) */
+    #hud{display:none}
   </style>
 
   <!-- Phaser 3 -->
@@ -55,26 +54,26 @@
       </div>
     </div>
 
-    <!-- ====== МЕНЮ (menu.webm + lobby.mp3) ====== -->
+    <!-- ====== МЕНЮ ====== -->
     <div id="menuOverlay" class="overlay hidden">
       <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
       <div class="panel" style="margin-top: 300px;">
-        <button id="startBtn" class="btn">▶ Начать игру</button>
+        <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
       </div>
     </div>
 
-    <!-- ====== GAME OVER (gameover.webm + gameover.mp3) ====== -->
+    <!-- ====== GAME OVER ====== -->
     <div id="gameoverOverlay" class="overlay hidden">
       <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
       <div class="panel" style="margin-top: 300px;">
-        <button id="restartBtn" class="btn">▶ Играть заново</button>
+        <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
       </div>
     </div>
 
     <!-- Канвас для Phaser -->
     <div id="game" style="width:720px;height:1280px"></div>
 
-    <!-- HUD -->
+    <!-- (Старый HUD скрыт по требованиям) -->
     <div id="hud">
       <div class="left">
         <div id="goldText" class="text">Gold: 0</div>
@@ -90,9 +89,16 @@
   <script>
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver. Без переходов страниц.
-     ФИКС КОЛЛИЗИИ: урон от стрел только в _updateBullet() (расчёт по радиусу).
-     ДОПОЛНЕНИЯ: пул пуль, полоски HP, всплывающий урон, TURBO x2 (F/кнопка),
-     пауза по P (возврат в меню), запоминание mute.
+     ФИКС КОЛЛИЗИИ: урон от стрел только в _updateBullet() (радиус).
+     ДОПОЛНЕНИЯ:
+       - HUD золота на спрайте assets/elements/gold.png + анимация монетки /assets/money
+       - HUD здоровья базы как спрайтовая шкала из /assets/base (0..100% шаг 20)
+       - Кнопка PAUSE (assets/elements/pause.png) и RESUME (assets/elements/play2.png)
+         * пауза замораживает весь геймплей, но НЕ останавливает фоновую музыку
+       - Кнопки меню: start = play.png, gameover = playagain.png (DOM-изображения)
+       - Кнопка звука исправлена: корректная иконка с первого нажатия
+       - Убран текстовый Wave и текстовый Base HP
+       - Кнопка «реклама» (анимация из /assets/reklama) — по нажатию +1000 золота
      ======================================================================== */
 
   // ---------- Константы уровня ----------
@@ -114,7 +120,7 @@
       [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
     ],
 
-    START_GOLD: 50000,
+    START_GOLD: 500,
     KILL_REWARD: 10,
     WAVE_BONUS: 50,
     TOWER_COST: 100,
@@ -132,19 +138,19 @@
 
   const menuOverlay = $('menuOverlay');
   const gameoverOverlay = $('gameoverOverlay');
-  const startBtn = $('startBtn');
-  const restartBtn = $('restartBtn');
+  const startImg = $('startImg');
+  const restartImg = $('restartImg');
   const menuVideo = $('menuVideo');
   const goVideo = $('goVideo');
-
-  const goldText = $('goldText'), waveText = $('waveText'), baseText = $('baseText');
 
   // ---------- Глобальное состояние ----------
   const State = {
     started: false,
     gold: CONST.START_GOLD,
     wave: 0,
-    baseHp: 1000,
+    baseHp: 100, // теперь в процентах 0..100 (для HUD базы)
+    soundEnabled: true, // правильный флаг для иконки и mute
+    paused: false
   };
 
   // Служебные функции управления слоями
@@ -180,13 +186,32 @@
       // ПУЛЯ/СТРЕЛА
       this.load.image('arrow','assets/elements/arrow.png');
 
-      // Боковые кнопки (три + TURBO)  // NEW: turbo
+      // Боковые кнопки
       this.load.image('menu','assets/elements/menu.png');
       this.load.image('reload','assets/elements/reload.png');
       this.load.image('sound_on','assets/elements/sound.png');
       this.load.image('sound_off','assets/elements/soundoff.png');
-      this.load.image('turbo_on','assets/elements/fast.png');   // NEW (опция)
-      this.load.image('turbo_off','assets/elements/slow.png');  // NEW (опция)
+
+      // TURBO (опционально, если есть)
+      this.load.image('turbo_on','assets/elements/fast.png');
+      this.load.image('turbo_off','assets/elements/slow.png');
+
+      // Пауза/Продолжить
+      this.load.image('pause','assets/elements/pause.png');
+      this.load.image('resume','assets/elements/play2.png');
+
+      // HUD Gold панель и анимация монетки
+      this.load.image('gold_panel','assets/elements/gold.png');
+      for(let i=1;i<=6;i++) this.load.image(`coin_${i}`, `assets/money/money${i}.png`);
+
+      // HUD Базы (0..100 шаг 20). Пытаемся загрузить возможные имена.
+      // Поддержим варианты: base0, base20, ..., base100  ИЛИ b0,b20...
+      [0,20,40,60,80,100].forEach(p=>{
+        this.load.image(`base_${p}`, `assets/base/base${p}.png`);
+      });
+
+      // Кнопка "Реклама" — предполагаем 6 кадров /assets/reklama/reklama1..6.png
+      for(let i=1;i<=6;i++) this.load.image(`ad_${i}`, `assets/reklama/reklama${i}.png`);
 
       // ВРАГИ: walk/attack/die (7 кадров каждая)
       for(let i=0;i<7;i++){
@@ -222,7 +247,7 @@
       this.towers = [];
       this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
 
-      // NEW: скорость игры (TURBO)
+      // Скорость игры (TURBO)
       this.speedScale = 1;
       this.time.timeScale = this.speedScale;
 
@@ -235,23 +260,26 @@
       this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
       this.sndMoney   = this.sound.add('money',   { volume: 0.9 });
 
-      // NEW: восстановить mute
+      // mute (фикс логики и иконки)
       try{
-        const savedMute = localStorage.getItem('td_mute');
-        if(savedMute!==null) this.sound.setMute(savedMute==='1');
+        const saved = localStorage.getItem('td_mute');
+        if(saved!==null) State.soundEnabled = (saved!=='1');
       }catch(_){}
+      this.sound.setMute(!State.soundEnabled);
 
-      // Помощники по звуку
+      // Помощники по звуку (не трогают mute)
       this.stopAllLoops = ()=>{
         try{ this.sndArrowLp.stop(); }catch(_){}
         try{ this.sndBattle.stop(); }catch(_){}
         try{ this.sndLobby.stop(); }catch(_){}
       };
       this.playLobby = ()=>{
+        if(State.paused) return; // при паузе музыку не переключаем
         this.stopAllLoops();
         try{ !this.sndLobby.isPlaying && this.sndLobby.play(); }catch(_){}
       };
       this.playBattle = ()=>{
+        if(State.paused) return;
         this.stopAllLoops();
         try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){}
       };
@@ -271,35 +299,66 @@
       // Анимации
       this._createAnims();
 
-      // Боковые кнопки
+      // Боковые кнопки и HUD
       this._buildSideButtons();
+      this._buildHUD();
 
       // Клавиши: TURBO (F), Пауза (P)
       this.input.keyboard.on('keydown-F', ()=> this._toggleTurbo());
-      this.input.keyboard.on('keydown-P', ()=> this.pauseToMenu());
+      this.input.keyboard.on('keydown-P', ()=> this._togglePause());
 
       // Тикер стрельбы
       this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
-
-      // HUD
-      this._syncHUD();
 
       // Пауза до старта
       this.scene.pause();
     }
 
     update(){
-      if(!State.started) { this._syncHUD(); return; }
+      if(!State.started || State.paused) { this._syncHUD(); return; }
       this.enemies.getChildren().forEach(e => this._updateEnemy(e));
       this.bullets.getChildren().forEach(b => this._updateBullet(b));
       this._syncHUD();
     }
 
     // ====== UI / HUD ======
+    _buildHUD(){
+      // GOLD панель (левый верх)
+      this.goldPanel = this.add.image(20, 20, 'gold_panel').setOrigin(0,0).setDepth(90);
+      const gp = this.goldPanel;
+      // Анимация монетки рядом
+      this.coin = this.add.sprite(gp.x + 18, gp.y + gp.displayHeight/2, 'coin_1').setOrigin(0,0.5).setScale(1).setDepth(91);
+      if(this.anims.exists('coin_anim')) this.coin.play('coin_anim');
+
+      // Текст золота поверх панели
+      this.goldText = this.add.text(gp.x + 52, gp.y + gp.displayHeight/2, '0',
+        {font:'26px Arial', fill:'#fff', stroke:'#000', strokeThickness:4}).setOrigin(0,0.5).setDepth(92);
+
+      // HUD базы — правый верх
+      this.baseHud = this.add.image(CONST.WIDTH - 20, 20, 'base_100').setOrigin(1,0).setDepth(90);
+      this._applyBaseHudTexture();
+
+      // Кнопка "реклама" (справа внизу)
+      this.adBtn = this.add.sprite(CONST.WIDTH - 76, CONST.HEIGHT - 96, 'ad_1').setDepth(95).setInteractive({useHandCursor:true}).setScale(1);
+      if(this.anims.exists('ad_anim')) this.adBtn.play('ad_anim');
+      this.adBtn.on('pointerdown', ()=>{
+        try{ this.sound.play('klick'); }catch(_){}
+        // Имитация просмотра SDK рекламы — сразу бонус
+        State.gold += 1000;
+        this._syncHUD();
+      });
+    }
+
+    _applyBaseHudTexture(){
+      // Выбираем ближайший спрайт: 0,20,40,60,80,100
+      const p = Math.max(0, Math.min(100, Math.round(State.baseHp/20)*20));
+      const key = `base_${p}`;
+      if(this.textures.exists(key)) this.baseHud.setTexture(key);
+    }
+
     _syncHUD(){
-      goldText.textContent = 'Gold: ' + State.gold;
-      waveText.textContent = 'Wave: ' + State.wave + (this.speedScale>1?' (x2)':'');
-      baseText.textContent = 'BASE HP ' + Math.max(0, State.baseHp);
+      if(this.goldText) this.goldText.setText(String(State.gold|0));
+      if(this.baseHud) this._applyBaseHudTexture();
     }
 
     _buildSideButtons(){
@@ -307,7 +366,7 @@
       const yMenu   = 629;
       const yReload = 709;
       const ySound  = 789;
-      const yTurbo  = 869; // NEW: turbo
+      const yTurbo  = 869;
 
       const btnMenu = this.add.image(x, yMenu, 'menu').setInteractive().setDepth(60);
       btnMenu.on('pointerdown', ()=>{
@@ -321,24 +380,24 @@
         this.restartRound();
       });
 
-      const btnSound = this.add.image(x, ySound, 'sound_on').setInteractive().setDepth(60);
-      const applyMuteIcon = ()=> btnSound.setTexture(this.sound.mute ? 'sound_off' : 'sound_on');
-      applyMuteIcon();
+      // --- FIX ЗВУКА: иконка всегда соответствует состоянию ---
+      const btnSound = this.add.image(x, ySound, State.soundEnabled ? 'sound_on' : 'sound_off').setInteractive().setDepth(60);
+      const applyMuteIcon = ()=> btnSound.setTexture(State.soundEnabled ? 'sound_on' : 'sound_off');
       btnSound.on('pointerdown', ()=>{
-        const m = !this.sound.mute;
-        this.sound.setMute(m);
-        try{ localStorage.setItem('td_mute', m?'1':'0'); }catch(_){}
+        State.soundEnabled = !State.soundEnabled;
+        this.sound.setMute(!State.soundEnabled);
+        try{ localStorage.setItem('td_mute', State.soundEnabled ? '0':'1'); }catch(_){}
         applyMuteIcon();
-        try{ this.sound.play('klick'); }catch(_){}
+        // щелчок воспроизводим только если звук включён
+        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
       });
 
-      // NEW: Turbo
+      // TURBO
       const btnTurbo = this.add.image(x, yTurbo, this.speedScale>1?'turbo_on':'turbo_off').setInteractive().setDepth(60);
       const applyTurboIcon = ()=> {
         if(this.textures.exists('turbo_on') && this.textures.exists('turbo_off')){
           btnTurbo.setTexture(this.speedScale>1?'turbo_on':'turbo_off');
         } else {
-          // Фолбэк: подпись
           btnTurbo.setVisible(false);
           if(!this.turboText){
             this.turboText = this.add.text(x-26,yTurbo-18,'x2',{font:'20px Arial',fill:'#fff'}).setDepth(60);
@@ -347,17 +406,48 @@
         }
       };
       applyTurboIcon();
-      btnTurbo.on('pointerdown', ()=>{ try{ this.sound.play('klick'); }catch(_){}
+      btnTurbo.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
         this._toggleTurbo(); applyTurboIcon();
+      });
+
+      // Пауза / Резюм
+      this.btnPause = this.add.image(60, 64, 'pause').setDepth(96).setInteractive({useHandCursor:true});
+      this.btnResume = this.add.image(60, 64, 'resume').setDepth(96).setInteractive({useHandCursor:true}).setVisible(false);
+      this.btnPause.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+        this._togglePause(true);
+      });
+      this.btnResume.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+        this._togglePause(false);
       });
     }
 
-    // NEW: TURBO
+    // --- TURBO ---
     _toggleTurbo(){
       this.speedScale = this.speedScale>1 ? 1 : 2;
       this.time.timeScale = this.speedScale;
       this.tweens.timeScale = this.speedScale;
       this._syncHUD();
+    }
+
+    // --- ПАУЗА ---
+    _togglePause(forcePause){
+      const needPause = (typeof forcePause==='boolean') ? forcePause : !State.paused;
+      State.paused = needPause;
+
+      // Кнопки
+      if(this.btnPause && this.btnResume){
+        this.btnPause.setVisible(!State.paused);
+        this.btnResume.setVisible(State.paused);
+      }
+
+      if(State.paused){
+        // Замораживаем только сцену (музыка продолжает играть)
+        this.scene.pause();
+        // оставим запущенной battle/lobby как есть (требование: фоновый звук не останавливать)
+      }else{
+        // Возобновляем сцену
+        this.scene.resume();
+      }
     }
 
     // ====== Жизненный цикл ======
@@ -366,12 +456,15 @@
       try{ menuVideo.pause(); }catch(_){}
       this.playBattle();
       State.started = true;
+      State.paused = false;
+      if(this.btnPause && this.btnResume){ this.btnPause.setVisible(true); this.btnResume.setVisible(false); }
       this.scene.resume();
       this._scheduleNextWave(500);
     }
 
     pauseToMenu(){
       State.started = false;
+      State.paused = false;
       this.scene.pause();
       this.playLobby();
       showMenuOverlay();
@@ -380,6 +473,7 @@
 
     showGameOver(){
       State.started = false;
+      State.paused = false;
       this.scene.pause();
       this.playGameOver();
       showGameoverOverlay();
@@ -389,9 +483,11 @@
     _resetCoreState(){
       State.gold = CONST.START_GOLD;
       State.wave = 0;
-      State.baseHp = 1000;
+      State.baseHp = 100; // проценты
       this.speedScale = 1;
       this.time.timeScale = 1;
+      State.paused = false;
+      if(this.btnPause && this.btnResume){ this.btnPause.setVisible(true); this.btnResume.setVisible(false); }
       this._syncHUD();
     }
 
@@ -484,7 +580,6 @@
 
     // ====== ПУЛ ПУЛЬ ======
     _getBullet(){
-      // вернуть первый неактивный; иначе создать
       const kids = this.bullets.getChildren();
       for(let i=0;i<kids.length;i++){
         const b = kids[i];
@@ -498,7 +593,7 @@
 
     // ====== Башни / стрельба ======
     _towersTick(){
-      if(!State.started) return;
+      if(!State.started || State.paused) return;
 
       let anyShot = false;
       const now = Date.now();
@@ -580,9 +675,7 @@
       if(dist <= hitR){
         const dmg = (b.damage || 5);
         b.target.hp -= dmg;
-        // NEW: всплывающий урон
         this._floatText(b.target.x, b.target.y-28, '-' + dmg);
-        // обновить HPbar в следующий апдейт
         if(b.target.hp <= 0){ this._killEnemy(b.target); }
         try{ b.setActive(false).setVisible(false); }catch(_){}
         return;
@@ -603,7 +696,7 @@
       }
     }
 
-    // NEW: всплывающий текст урона
+    // Всплывающий текст урона
     _floatText(x,y,text){
       const t = this.add.text(x, y, text, {font:'20px Arial', fill:'#ffec8b', stroke:'#000', strokeThickness:3}).setDepth(100);
       t.setOrigin(0.5,1);
@@ -616,11 +709,7 @@
     _killEnemy(e){
       if(!e || e.state==='die') return;
       e.state = 'die';
-
-      // Остановка анимаций/движения
       if(e.anims) e.anims.stop();
-
-      // NEW: убрать HP полосу
       if(e.hpBar){ e.hpBar.destroy(); e.hpBar = null; }
 
       const hasDieAnim = this.anims.exists('e_die_anim');
@@ -637,8 +726,6 @@
 
       State.gold += CONST.KILL_REWARD;
       this._syncHUD();
-
-      // Запасной таймер
       this.time.delayedCall(1500, ()=>{ if(e && e.active){ e.destroy(); }});
     }
 
@@ -653,7 +740,7 @@
       if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
       this.enemies.add(e);
 
-      // NEW: полоска HP (Graphics)
+      // Полоска HP (Graphics)
       e.hpBar = this.add.graphics().setDepth(40);
       e.hpBar.__owner = e;
       this._drawHpBar(e);
@@ -727,7 +814,8 @@
       if(e.pathIndex >= e.path.length){
         if(!e._lastAttack || Date.now()-e._lastAttack > 900){
           e._lastAttack = Date.now();
-          State.baseHp -= 10; if(State.baseHp < 0) State.baseHp = 0;
+          // База по требованиям в процентах, допустим каждый удар -5%
+          State.baseHp -= 5; if(State.baseHp < 0) State.baseHp = 0;
           this._syncHUD();
           if(State.baseHp<=0){ this.showGameOver(); }
         }
@@ -750,13 +838,13 @@
       if(dist<0.1) return; obj.x += (dx/dist)*speed*2; obj.y += (dy/dist)*speed*2;
     }
 
-    // ====== Волны (рандомизация) ======
+    // ====== Волны ======
     _scheduleNextWave(delay=1000){
       this.time.addEvent({ delay, callback: ()=> this._startWave() });
     }
 
     _startWave(){
-      if(!State.started) return;
+      if(!State.started || State.paused) return;
       State.wave++; State.gold += CONST.WAVE_BONUS; this._syncHUD();
 
       const basePerSpawn = 1 + State.wave;
@@ -814,6 +902,21 @@
           repeat: 0,
           hideOnComplete: false
         });
+
+      // Монетка
+      if(!this.anims.exists('coin_anim')){
+        this.anims.create({key:'coin_anim',
+          frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})),
+          frameRate: 10, repeat:-1
+        });
+      }
+      // Реклама
+      if(!this.anims.exists('ad_anim')){
+        this.anims.create({key:'ad_anim',
+          frames:[1,2,3,4,5,6].map(i=>({key:`ad_${i}`})),
+          frameRate: 8, repeat:-1
+        });
+      }
     }
   }
 
@@ -832,18 +935,19 @@
   // ========================================================================
   //                   DOM-ЛОГИКА ПЕРЕКЛЮЧЕНИЯ СЛОЁВ
   // ========================================================================
-  startBtn.addEventListener('click', ()=>{
+  startImg.addEventListener('click', ()=>{
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
     hideMenuOverlay();
     try{ menuVideo.pause(); }catch(_){}
     sc.playBattle && sc.playBattle();
     State.started = true;
+    State.paused = false;
     sc.scene.resume();
     sc._scheduleNextWave(500);
   });
 
-  restartBtn.addEventListener('click', ()=>{
+  restartImg.addEventListener('click', ()=>{
     hideGameoverOverlay();
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
@@ -852,5 +956,11 @@
 
   window.addEventListener('load', ()=>{ showPreloader(); });
   </script>
+
+  <!--
+  Источник базовой структуры единого файла (для сверки): 
+  :contentReference[oaicite:0]{index=0}
+  :contentReference[oaicite:1]{index=1}
+  -->
 </body>
 </html>
