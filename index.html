@@ -49,6 +49,9 @@
     button:hover {
       transform: translateX(-50%) scale(1.05);
     }
+    canvas {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -58,9 +61,14 @@
     <button id="startBtn">▶ Начать игру</button>
   </div>
 
+  <!-- Phaser -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  <script src="main.js"></script>
+
   <script>
     const btn = document.getElementById('startBtn');
     const music = document.getElementById('menu-music');
+    const container = document.getElementById('game-container');
 
     btn.addEventListener('click', () => {
       try { 
@@ -68,7 +76,18 @@
         const clickSound = new Audio('assets/sound/klick.ogg');
         clickSound.play();
       } catch(e){}
-      window.location.href = 'main.html';
+
+      // Скрываем меню, показываем игру
+      btn.style.display = 'none';
+      document.getElementById('bg-video').style.display = 'none';
+      container.style.background = '#000';
+
+      // Показываем канвас Phaser
+      const canvas = document.querySelector('canvas');
+      if (canvas) canvas.style.display = 'block';
+      
+      // Запускаем игру
+      if (typeof startGame === 'function') startGame();
     });
   </script>
 </body>
