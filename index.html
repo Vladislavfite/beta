@@ -2,106 +2,211 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <!-- Фиксированный канвас под арт 720x1280 -->
-  <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
-  <title>Tower Defense — единый файл (preload / menu / game / gameover)</title>
+  <!--
+    ✅ АДАПТАЦИЯ ПОД ЛЮБОЙ ЭКРАН
+    Меняем meta viewport на device-width, чтобы браузер не "зажимал" страницу под 720px,
+    а мы сами делаем масштабирование через Phaser Scale Manager (FIT + CENTER_BOTH)
+    + синхронизацию размеров DOM-оверлеев под реальный CSS-размер канваса.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Tower Defense — адаптивный единый файл (preload / menu / game / gameover)</title>
 
-  <!-- ====== СТИЛИ ОБОЛОЧКИ И СЛОЁВ ====== -->
+  <!-- ====== СТИЛИ ОБОЛОЧКИ И СЛОЁВ (адаптив) ====== -->
   <style>
-    :root{--w:720px;--h:1280px}
-    html,body{height:100%;margin:0;background:#000;display:flex;align-items:center;justify-content:center}
-    #container{width:var(--w);height:var(--h);position:relative;overflow:hidden;background:#000}
-    canvas{position:absolute;left:0;top:0}
+    /* Базовые размеры логики игры (НЕ МЕНЯТЬ) */
+    :root{
+      --w:720px;            /* логическая ширина сцены */
+      --h:1280px;           /* логическая высота сцены */
+      --safe-pad: max(0px, env(safe-area-inset-top, 0px)); /* на iOS с вырезом */
+    }
 
-    /* Оверлеи поверх Phaser canvas */
-    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:60}
-    .hidden{display:none}
-    .panel{position:relative;z-index:2;display:flex;flex-direction:column;gap:22px;align-items:center;justify-content:center}
-    .title{color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0}
+    /* Весь вьюпорт — центрируем "сцену" */
+    html,body{
+      height:100%;
+      margin:0;
+      background:#000;
+      overflow:hidden;
+    }
 
-    /* Фоновые видео меню и gameover */
-    .bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+    /* Контейнер-вьюпорт. Центрует stage, даёт "letterbox" (чёрные поля) при несоответствии сторон */
+    #viewport{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#000; /* поля */
+      touch-action:none; /* меньше зума/скроллов на мобилках */
+    }
 
-    /* DOM-кнопки-изображения */
-    .imgbtn{width:280px;height:auto;cursor:pointer;image-rendering:crisp-edges;image-rendering:-webkit-optimize-contrast;filter:drop-shadow(0 0 16px rgba(0,0,0,.7))}
-    .imgbtn:active{transform:scale(.98)}
+    /* Stage — коробка, размер которой = фактический CSS-размер канваса Phaser.
+       ВНУТРИ — канвас и DOM-оверлеи (они «поверх» и повторяют размер/позицию канваса).
+    */
+    #stage{
+      position:relative;
+      width:var(--w);
+      height:var(--h);
+      overflow:hidden;
+      /* для чёткости масштабированных картинок */
+      image-rendering:crisp-edges;
+      image-rendering:-webkit-optimize-contrast;
+    }
+
+    /* Сам канвас Phaser создаётся внутри #game.
+       Мы ничего не трансформируем вручную — масштаб управляет Phaser Scale Manager (FIT). */
+    #game{
+      position:absolute;
+      left:0; top:0;
+      width:100%;
+      height:100%;
+    }
+
+    /* Общая база для всех оверлеев поверх канваса.
+       Важно: width/height = 100% от #stage, а #stage синхронизируется с фактическим размером канваса. */
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:60;
+      pointer-events:auto;
+    }
+    .hidden{ display:none; }
+
+    /* Панель-контент в оверлеях */
+    .panel{
+      position:relative;
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      gap:2.2vh;                /* масштабируется по высоте */
+      align-items:center;
+      justify-content:center;
+      padding-top: min(30vh, 380px); /* чтобы кнопки были ниже центра, похоже на твой отступ 300px */
+    }
+    .title{
+      color:#fff;
+      font-family:Arial,Helvetica,sans-serif;
+      margin:0;
+      font-size: clamp(16px, 2.6vh, 28px); /* адаптивный размер шрифта */
+      text-shadow: 0 0 12px rgba(0,0,0,.6);
+      z-index:2;
+    }
+
+    /* Фоновые видео меню и gameover (заливают всё поле игры) */
+    .bg-video{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      z-index:1;
+      pointer-events:none;
+      filter:brightness(0.9) contrast(1.05);
+    }
+
+    /* DOM-кнопки-изображения — размеры от процента ширины сцены (красиво масштабируется) */
+    .imgbtn{
+      width: 38%;
+      max-width: 340px;
+      height:auto;
+      cursor:pointer;
+      filter:drop-shadow(0 0 16px rgba(0,0,0,.7));
+      transition: transform .08s ease;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .imgbtn:active{ transform:scale(.98); }
 
     /* Прелоадер */
-    #preloaderOverlay{background:#000}
-    #prePanel{gap:14px}
-    #bar{width:420px;height:16px;background:#222;border-radius:8px;overflow:hidden}
-    #bar > div{height:100%;width:0;background:#1e90ff;transition:width .12s linear}
+    #preloaderOverlay{ background:#000; }
+    #prePanel{ gap:1.6vh; }
+    #bar{
+      width: 58%;
+      max-width: 520px;
+      height: 18px;
+      background:#222;
+      border-radius: 9px;
+      overflow:hidden;
+      box-shadow: inset 0 0 12px rgba(0,0,0,.6);
+    }
+    #bar > div{
+      height:100%;
+      width:0%;
+      background:#1e90ff;
+      transition:width .12s linear;
+    }
 
-    /* Лёгкая подмасштабировка на маленьких экранах */
-    @media (max-width:800px){#container{transform:scale(.9)}}
-
-    /* Старый текстовый HUD отключён намеренно (по требованиям) */
-    #hud{display:none}
+    /* Старый текстовый HUD (как и прежде — выключен) */
+    #hud{ display:none; }
   </style>
 
   <!-- Phaser 3 -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
-  <div id="container">
+  <!--
+    viewport центрирует stage; stage = «физический экран игры» (повторяет CSS-размер канваса),
+    в нём канвас (#game) и DOM-слои (оверлеи).
+  -->
+  <div id="viewport">
+    <div id="stage">
 
-    <!-- ====== ПРЕЛОАДЕР ====== -->
-    <div id="preloaderOverlay" class="overlay">
-      <div id="prePanel" class="panel">
-        <h2 class="title">Загрузка…</h2>
-        <div id="bar"><div id="barFill"></div></div>
-        <div id="pct" class="title">0%</div>
+      <!-- ====== ПРЕЛОАДЕР ====== -->
+      <div id="preloaderOverlay" class="overlay">
+        <div id="prePanel" class="panel">
+          <h2 class="title">Загрузка…</h2>
+          <div id="bar"><div id="barFill"></div></div>
+          <div id="pct" class="title">0%</div>
+        </div>
       </div>
+
+      <!-- ====== ГЛАВНОЕ МЕНЮ ====== -->
+      <div id="menuOverlay" class="overlay hidden">
+        <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
+        <div class="panel">
+          <!-- assets/elements/play.png — кнопка Start -->
+          <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
+        </div>
+      </div>
+
+      <!-- ====== GAME OVER ====== -->
+      <div id="gameoverOverlay" class="overlay hidden">
+        <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
+        <div class="panel">
+          <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
+        </div>
+      </div>
+
+      <!-- Канвас для Phaser -->
+      <div id="game"></div>
+
+      <!-- (Старый DOM-HUD скрыт по требованиям) -->
+      <div id="hud">
+        <div class="left">
+          <div id="goldText" class="text">Gold: 0</div>
+          <div id="waveText" class="text">Wave: 0</div>
+        </div>
+        <div class="right">
+          <div id="baseText" class="text">BASE HP 1000</div>
+        </div>
+      </div>
+
     </div>
-
-    <!-- ====== ГЛАВНОЕ МЕНЮ ====== -->
-    <div id="menuOverlay" class="overlay hidden">
-      <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
-      <div class="panel" style="margin-top: 300px;">
-        <!-- assets/elements/play.png — кнопка Start -->
-        <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
-      </div>
-    </div>
-
-    <!-- ====== GAME OVER ====== -->
-    <div id="gameoverOverlay" class="overlay hidden">
-      <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
-      <div class="panel" style="margin-top: 300px;">
-        <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
-      </div>
-    </div>
-
-    <!-- Канвас для Phaser -->
-    <div id="game" style="width:720px;height:1280px"></div>
-
-    <!-- (Старый DOM-HUD скрыт по требованиям) -->
-    <div id="hud">
-      <div class="left">
-        <div id="goldText" class="text">Gold: 0</div>
-        <div id="waveText" class="text">Wave: 0</div>
-      </div>
-      <div class="right">
-        <div id="baseText" class="text">BASE HP 1000</div>
-      </div>
-    </div>
-
   </div>
 
   <script>
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver.
-
-     ВАЖНЫЕ МОМЕНТЫ (обновлено):
-     • Плавный старт волн: волна 1 — 1 путь, 1 враг, HP ~30. Далее рост очень мягкий.
-     • Рост сложности: +1 враг на путь каждые 4 волны (до 4). Число активных путей
-       растёт ступенчато: с 1 → 2 → 3 путей по мере прогресса.
-     • HP врагов = 25 + 5*волна + небольшой джиттер.
-     • Межволновая пауза увеличена для комфортного строительства.
-     • Жёсткое обнуление возможных "висячих" таймеров волн (исключает дубли).
-     • Включён отладочный лог (можно отключить флагом window.__WAVE_DEBUG__ = false).
+     АДАПТАЦИЯ:
+       • Используем Phaser Scale Manager: FIT + CENTER_BOTH.
+       • Синхронизируем размеры DOM-оверлеев (preload/menu/gameover) со стилем канваса.
+       • Никаких CSS-трансформов на канвас — чтобы не ломать координаты инпута.
+       • Кнопки, шрифты и панели внутри оверлеев масштабируются через % и vh.
   ======================================================================== */
 
-  // Можно выключить логи: window.__WAVE_DEBUG__ = false;
+  // Можно выключить логи волн: window.__WAVE_DEBUG__ = false;
   window.__WAVE_DEBUG__ = true;
 
   // ---------- Константы уровня ----------
@@ -124,7 +229,7 @@
     ],
 
     START_GOLD: 600,
-    KILL_REWARD: 100,
+    KILL_REWARD: 100,       // ✅ по твоему запросу (раньше было 20/80)
     WAVE_BONUS: 80,
     TOWER_COST: 100,
     UPGRADE_COST_BASE: 120,
@@ -135,6 +240,9 @@
 
   // ---------- DOM ----------
   const $ = (id)=>document.getElementById(id);
+  const stageBox = $('stage');           // адаптивная коробка сцены (DOM)
+  const viewport = $('viewport');
+
   const preloaderOverlay = $('preloaderOverlay');
   const barFill = $('barFill');
   const pct = $('pct');
@@ -792,7 +900,7 @@
               try{ this.sndRush.play(); }catch(_){}
               try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
               try{ e.targetTower.destroy(); }catch(_){}
-              this.towers = this.towers.filter(t=>t && t.sprite && t.sprite.active);
+              this.towers = this.towers.filter(t => t && t.sprite && t.sprite.active);
               e.targetTower=null; e.state='returning';
               if(e._savedPathIndex!=null) e.pathIndex=e._savedPathIndex;
             }
@@ -961,16 +1069,76 @@
   }
 
   // ========================================================================
-  //                             PHASER СТАРТ
+  //                             PHASER СТАРТ (адаптив)
   // ========================================================================
   const config = {
     type: Phaser.AUTO,
-    width: CONST.WIDTH, height: CONST.HEIGHT,
     parent: 'game',
+    /* ✅ КЛЮЧЕВАЯ ЧАСТЬ: масшт. через Scale Manager */
+    scale: {
+      mode: Phaser.Scale.FIT,             // подгоняем внутри окна, сохраняя соотношение 720×1280
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: CONST.WIDTH,
+      height: CONST.HEIGHT
+    },
     physics:{ default:'arcade', arcade:{ debug:false } },
-    scene:[AppScene]
+    scene:[AppScene],
+    backgroundColor: '#000000'
   };
   const game = new Phaser.Game(config);
+
+  /* ========================================================================
+     СИНХРОН ИНТЕРФЕЙСА DOM ↔ РАЗМЕР КАНВАСА
+     — Phaser растягивает канвас до displaySize (FIT).
+     — Мы считываем текущую «витрину» (displaySize) и выставляем #stage (DOM) в те же размер/позицию.
+     Благодаря этому все оверлеи (меню/прелоадер/гоувер) идеально совпадают с канвасом.
+  ======================================================================== */
+
+  function _syncStageToCanvas(){
+    // если игра ещё не создалась
+    if(!game || !game.scale || !game.canvas) return;
+    const s = game.scale;
+
+    // displaySize = фактический CSS-размер канваса после FIT
+    const cssW = Math.floor(s.displaySize.width);
+    const cssH = Math.floor(s.displaySize.height);
+
+    // ставим stage в те же размеры
+    stageBox.style.width  = cssW + 'px';
+    stageBox.style.height = cssH + 'px';
+
+    // viewport у нас центрирует stage — значит центр совпадёт
+    // ничего дополнительно позиционировать не надо
+
+    // Дополнительно: ограничим "выделение" на iOS:
+    stageBox.style.paddingTop = 'var(--safe-pad)';
+  }
+
+  // Первый sync сразу после boot
+  window.addEventListener('load', ()=>{ showPreloader(); });
+
+  // На resize окна — говорим Phaser пересчитаться и синхронизируем DOM
+  window.addEventListener('resize', ()=>{
+    if(game && game.scale) game.scale.refresh();
+    _syncStageToCanvas();
+  });
+
+  // Когда Phaser изменил масштаб (например, при старте/ресайзе) — уравниваем stage
+  const onReady = ()=>{
+    try{
+      game.scale.on('resize', ()=>{
+        _syncStageToCanvas();
+      });
+    }catch(_){}
+    _syncStageToCanvas();
+  };
+
+  // Ждём, когда всё создастся
+  if (document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(onReady, 0);
+  }else{
+    document.addEventListener('DOMContentLoaded', onReady);
+  }
 
   // ========================================================================
   //                   DOM-ЛОГИКА ПЕРЕКЛЮЧЕНИЯ СЛОЁВ
@@ -989,8 +1157,7 @@
     if(!sc) return;
     sc.restartRound();
   });
-
-  window.addEventListener('load', ()=>{ showPreloader(); });
   </script>
 </body>
 </html>
+
