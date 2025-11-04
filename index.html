@@ -550,18 +550,17 @@
       }
 
       const hasDieAnim = this.anims.exists('e_die_anim');
-      if(hasDieAnim){
-        // Ждём именно окончание анимации смерти, прежде чем уничтожать спрайт
-        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim)=>{
-          if(anim && anim.key === 'e_die_anim'){
-            this.time.delayedCall(150, ()=>{ if(e && e.active) e.destroy(); });
-          }
-        });
-        e.play('e_die_anim');
-      } else {
-        console.warn('⚠ Анимация e_die_anim не найдена!');
-        this.time.delayedCall(200, ()=>{ if(e && e.active) e.destroy(); });
-      }
+      if (hasDieAnim) {
+  e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim) => {
+    if (anim && anim.key === 'e_die_anim') {
+      this.time.delayedCall(150, () => { if (e && e.active) e.destroy(); });
+    }
+  });
+  e.play('e_die_anim');
+} else {
+  console.warn('⚠ Анимация e_die_anim не найдена!');
+  this.time.delayedCall(200, () => { if (e && e.active) e.destroy(); });
+}
       State.gold += CONST.KILL_REWARD;
       this._syncHUD();
 
