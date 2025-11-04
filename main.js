@@ -595,3 +595,13 @@ function createAnimations(scene) {
 // --- Phaser config & start ---
 const config = { type: Phaser.AUTO, width: 720, height: 1280, parent: 'game', physics: { default: 'arcade', arcade: { debug: false } }, scene: { preload: create_preload, create: create, update: update } };
 const game = new Phaser.Game(config);
+function startGame() {
+  const config = {
+    type: Phaser.AUTO,
+    width: 720,
+    height: 1280,
+    physics: { default: 'arcade' },
+    scene: { preload: create_preload, create, update }
+  };
+  window.game = new Phaser.Game(config);
+}
