@@ -45,12 +45,17 @@
       cursor: pointer;
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
       transition: transform 0.1s;
+      z-index: 3;
     }
     button:hover {
       transform: translateX(-50%) scale(1.05);
     }
     canvas {
       display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
     }
   </style>
 </head>
@@ -69,23 +74,34 @@
     const btn = document.getElementById('startBtn');
     const music = document.getElementById('menu-music');
     const container = document.getElementById('game-container');
+    const bgVideo = document.getElementById('bg-video');
 
     btn.addEventListener('click', () => {
       try { 
         music.pause();
-        const clickSound = new Audio('assets/sound/klick.ogg');
-        clickSound.play();
+        new Audio('assets/sound/klick.ogg').play();
       } catch(e){}
 
-      // Скрываем меню, показываем игру
+      // Меню убираем
       btn.style.display = 'none';
-      document.getElementById('bg-video').style.display = 'none';
-      container.style.background = '#000';
+      bgVideo.style.display = 'none';
 
-      // Показываем канвас Phaser
+      // Сбрасываем стиль контейнера
+      container.style.display = 'block';
+      container.style.position = 'relative';
+      document.body.style.display = 'block';
+      document.body.style.justifyContent = 'unset';
+      document.body.style.alignItems = 'unset';
+
+      // Показываем канвас
       const canvas = document.querySelector('canvas');
-      if (canvas) canvas.style.display = 'block';
-      
+      if (canvas) {
+        canvas.style.display = 'block';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+      }
+
       // Запускаем игру
       if (typeof startGame === 'function') startGame();
     });
