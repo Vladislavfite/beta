@@ -508,11 +508,9 @@ function updateEnemy(e) {
       e._lastAttack = Date.now();
       baseHp -= 10;
       ui.baseText.setText(`BASE HP ${Math.max(0, baseHp)}`);
-      if (baseHp <= 0) {
-        baseHp = 0;
-        try { scene.sound.stopAll(); } catch(err){}
-        window.location.href = 'gameover.html';
-      }
+     if (baseHp <= 0) {
+  if (window.showGameOver) window.showGameOver();
+}
     }
     if (e.anims && e.anims.currentAnim && e.anims.currentAnim.key !== 'e_atk_anim') e.play('e_atk_anim');
     return;
