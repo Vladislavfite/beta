@@ -3,102 +3,75 @@
 <head>
   <meta charset="utf-8" />
   <!--
-    ✅ АДАПТАЦИЯ ПОД ЛЮБОЙ ЭКРАН (портрет 720×1280 как логика, масштаб — через Phaser)
-    - viewport без жёсткой ширины: даём браузеру реальную device-width
-    - сам масштаб делает Phaser Scale Manager (FIT + CENTER_BOTH)
-    - DOM-оверлеи (preloader/menu/gameover) синхронизируются по CSS-размеру канваса
+  ============================================================================
+   TOWER DEFENSE — ЕДИНЫЙ ФАЙЛ (index.html)
+   ----------------------------------------------------------------------------
+   ✔ Адаптив: 720×1280 логический размер, масштаб через Phaser Scale FIT + CENTER
+   ✔ Чистый рестарт при нажатии "Играть" и "Играть снова"
+   ✔ Исправлены дублирующиеся события resize/orientation и setInterval-вотчеры
+   ✔ Единичный таймер волн, без гонок; волны растут по сложности
+   ✔ Звук убийства врага: assets/sound/killenemy.mp3
+   ✔ Комментарии и секции, чтобы упростить поддержку и публикацию
+   ✔ Совместимо с python -m http.server / любым статическим сервером
+
+   Важно по ассетам (минимум):
+   - assets/map.png
+   - assets/menu.webm, assets/gameover.webm
+   - assets/elements/{play.png, playagain.png, menu.png, reload.png, sound.png, soundoff.png, fast.png, slow.png, pause.png, play2.png, gold.png, moloticon.png, up.png, noup.png}
+   - assets/money/money1..6.png
+   - assets/reklama/reklama1..6.png
+   - assets/base/base0,20,40,60,80,100.png
+   - assets/attacktower/statik/tower{1..12}/stower{1..4}.png
+   - assets/attacktower/attack/tower{1..12}/aatcktower{1..5}.png
+   - assets/enemy/walk/walk1..7.png
+   - assets/enemy/atack_enemy/atackenemy1..7.png
+   - assets/enemy/die_enemy/dead1..7.png
+   - assets/elements/arrow.png
+   - assets/sound/{lobby.mp3, battle.mp3, arrow.mp3, klick.ogg, gameover.mp3, towerup.mp3, towerrush.mp3, money.mp3, killenemy.mp3}
+  ============================================================================
   -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Tower Defense — адаптивный единый файл</title>
 
-  <!-- ====== СТИЛИ ОБОЛОЧКИ И СЛОЁВ ====== -->
+  <!-- =========================== СТИЛИ =========================== -->
   <style>
     :root{
-      --w:720px;            /* логическая ширина сцены */
-      --h:1280px;           /* логическая высота сцены */
-      --safe-pad: max(0px, env(safe-area-inset-top, 0px)); /* iOS вырез */
+      --w:720px;              /* логическая ширина сцены */
+      --h:1280px;             /* логическая высота сцены  */
+      --safe-pad:max(0px, env(safe-area-inset-top,0px));
     }
-
     html,body{
-      height:100%;
-      margin:0;
-      background:#000;
-      overflow:hidden;
-      -webkit-tap-highlight-color: transparent;
+      height:100%; margin:0; background:#000; overflow:hidden; -webkit-tap-highlight-color:transparent;
+      font-family: Arial, Helvetica, sans-serif;
     }
-
-    /* Центруем сцену, даём «letterbox» */
     #viewport{
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#000;
-      touch-action:none;
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+      background:#000; touch-action:none;
     }
-
-    /* Stage — «коробка» такого же CSS-размера, как канвас Phaser */
     #stage{
-      position:relative;
-      width:var(--w);
-      height:var(--h);
-      overflow:hidden;
-      image-rendering:crisp-edges;
-      image-rendering:-webkit-optimize-contrast;
-      -webkit-user-select: none;
-      user-select: none;
+      position:relative; width:var(--w); height:var(--h); overflow:hidden;
+      image-rendering:crisp-edges; -webkit-user-select:none; user-select:none;
     }
+    #game{ position:absolute; left:0; top:0; width:100%; height:100%; }
 
-    /* Контейнер для канваса Phaser (сам канвас добавит Phaser) */
-    #game{
-      position:absolute; left:0; top:0; width:100%; height:100%;
-    }
-
-    .overlay{
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      z-index:60; pointer-events:auto;
-    }
+    .overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; }
     .hidden{ display:none; }
 
-    .panel{
-      position:relative; z-index:2;
-      display:flex; flex-direction:column; gap:2.2vh;
-      align-items:center; justify-content:center;
-      padding-top: min(30vh, 380px);
-    }
-    .title{
-      color:#fff; margin:0; font-family:Arial,Helvetica,sans-serif;
-      font-size: clamp(16px, 2.6vh, 28px);
-      text-shadow: 0 0 12px rgba(0,0,0,.6);
-      z-index:2;
-    }
+    .panel{ position:relative; z-index:2; display:flex; flex-direction:column; gap:18px; align-items:center; justify-content:center; }
+    .title{ color:#fff; margin:0; text-shadow:0 0 10px rgba(0,0,0,.6); }
+    .bg-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; filter:brightness(.92) contrast(1.04); }
 
-    .bg-video{
-      position:absolute; inset:0; width:100%; height:100%;
-      object-fit:cover; z-index:1; pointer-events:none;
-      filter:brightness(0.9) contrast(1.05);
-    }
+    .imgbtn{ width:38%; max-width:340px; height:auto; cursor:pointer; user-select:none; -webkit-user-drag:none;
+      filter: drop-shadow(0 0 14px rgba(0,0,0,.75)); transition:transform .08s ease; }
+    .imgbtn:active{ transform:scale(.97); }
 
-    .imgbtn{
-      width:38%; max-width:340px; height:auto; cursor:pointer;
-      filter:drop-shadow(0 0 16px rgba(0,0,0,.7));
-      transition: transform .08s ease;
-      user-select:none; -webkit-user-drag:none;
-    }
-    .imgbtn:active{ transform:scale(.98); }
-
-    /* Прелоадер */
+    /* Прелоадер (минимал) */
     #preloaderOverlay{ background:#000; }
-    #prePanel{ gap:1.6vh; }
-    #bar{
-      width:58%; max-width:520px; height:18px; background:#222;
-      border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6);
-    }
+    #bar{ width:60%; max-width:520px; height:18px; background:#222; border-radius:9px; overflow:hidden;
+      box-shadow: inset 0 0 12px rgba(0,0,0,.6); }
     #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
 
-    /* Старый текстовый HUD (скрыт) */
+    /* HUD-текст (скрыт для DOM, используем канвасный, но оставлено на будущее) */
     #hud{ display:none; }
   </style>
 
@@ -109,60 +82,72 @@
   <div id="viewport">
     <div id="stage">
 
-      <!-- ====== ПРЕЛОАДЕР ====== -->
+      <!-- ======================== ПРЕЛОАДЕР ======================== -->
       <div id="preloaderOverlay" class="overlay">
-        <div id="prePanel" class="panel">
+        <div class="panel" style="gap:14px;">
           <h2 class="title">Загрузка…</h2>
           <div id="bar"><div id="barFill"></div></div>
           <div id="pct" class="title">0%</div>
         </div>
       </div>
 
-      <!-- ====== ГЛАВНОЕ МЕНЮ ====== -->
+      <!-- ======================== ГЛАВНОЕ МЕНЮ ===================== -->
       <div id="menuOverlay" class="overlay hidden">
         <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
-        <div class="panel">
+        <div class="panel" style="padding-top: min(32vh, 360px);">
           <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
         </div>
       </div>
 
-      <!-- ====== GAME OVER ====== -->
+      <!-- ======================== GAME OVER ========================= -->
       <div id="gameoverOverlay" class="overlay hidden">
         <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
-        <div class="panel">
+        <div class="panel" style="padding-top: min(32vh, 360px);">
           <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
         </div>
       </div>
 
-      <!-- Канвас для Phaser -->
+      <!-- Канвас Phaser -->
       <div id="game"></div>
 
-      <!-- (Старый DOM-HUD скрыт) -->
+      <!-- Старый DOM HUD (оставлен как заглушка) -->
       <div id="hud">
         <div class="left">
           <div id="goldText" class="text">Gold: 0</div>
           <div id="waveText" class="text">Wave: 0</div>
         </div>
         <div class="right">
-          <div id="baseText" class="text">BASE HP 1000</div>
+          <div id="baseText" class="text">BASE HP 100</div>
         </div>
       </div>
 
     </div>
   </div>
 
+  <!-- =========================== ИГРА ============================== -->
   <script>
-  /* ========================================================================
-     ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver.
-     АДАПТАЦИЯ: Phaser FIT + CENTER_BOTH; синхронизация DOM-оверлеев к displaySize.
-  ======================================================================== */
+  /* *********************************************************************
+     ЕДИНЫЙ СКРИПТ: Preloader → Menu → Game → GameOver
+     - Строго один resize/orientation listener (без дублей)
+     - Синхронизация DOM-оверлеев под реальный CSS-размер канваса
+     - Всегда чистый старт из меню / из GameOver
+  ********************************************************************* */
 
-  window.__WAVE_DEBUG__ = false; // можно включить true для логов волн
+  // ========= ВКЛЮЧИ ЛОГ ВОЛН (true/false) =========
+  window.__WAVE_DEBUG__ = false;
 
-  // ---------- Константы ----------
+  // ---------------- Константы геймплея ----------------
   const CONST = {
     WIDTH: 720, HEIGHT: 1280,
+    START_GOLD: 600,
+    KILL_REWARD: 100,
+    WAVE_BONUS: 80,
+    TOWER_COST: 100,
+    UPGRADE_COST_BASE: 120,
+    ENEMY_AGGRO: 150,
+    TOWER_RANGE: 200,
 
+    // Точки строительства (адаптировано из твоего набора)
     BUILD_SPOTS: [
       [484,95],[359,145],[435,235],[373,288],[218,310],[113,394],[316,417],[444,432],
       [589,550],[484,527],[351,539],[286,631],[162,630],[127,728],[416,706],[285,760],
@@ -170,25 +155,17 @@
       [532,1083],[458,1127],[329,1149],[174,1116]
     ],
 
+    // Пути врагов (адаптировано)
     PATHS: [
       [[377,50],[429,138],[410,189],[346,224],[311,257],[290,305],[331,354],[400,463],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
       [[81,335],[189,359],[331,354],[400,463],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
       [[636,490],[544,498],[413,491],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
       [[52,667],[168,691],[289,700],[347,736],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
       [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
-    ],
-
-    START_GOLD: 600,
-    KILL_REWARD: 100,
-    WAVE_BONUS: 80,
-    TOWER_COST: 100,
-    UPGRADE_COST_BASE: 120,
-
-    ENEMY_AGGRO: 150,
-    TOWER_RANGE: 200
+    ]
   };
 
-  // ---------- DOM ----------
+  // ---------------- Быстрые DOM-хелперы ----------------
   const $ = (id)=>document.getElementById(id);
   const stageBox = $('stage');
   const preloaderOverlay = $('preloaderOverlay');
@@ -201,81 +178,72 @@
   const menuVideo = $('menuVideo');
   const goVideo = $('goVideo');
 
-  // ---------- Глобальное состояние ----------
+  // ---------------- Глобальное состояние ----------------
   const State = {
     started: false,
+    paused: false,
+    soundEnabled: true,
     gold: CONST.START_GOLD,
     wave: 0,
-    baseHp: 100,        // %
-    soundEnabled: true,
-    paused: false
+    baseHp: 100
   };
 
-  // Слои
+  // ---------------- Оверлеи ----------------
   const showPreloader = ()=> preloaderOverlay.classList.remove('hidden');
   const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
-  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); };
+  const showMenuOverlay = ()=>{ menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); };
   const hideMenuOverlay = ()=> menuOverlay.classList.add('hidden');
-  const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
+  const showGameoverOverlay = ()=>{ gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
   const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
 
-  // ========================================================================
-  //                         PHASER: СЦЕНА
-  // ========================================================================
+  // ======================= СЦЕНА =======================
   class AppScene extends Phaser.Scene {
     constructor(){ super({ key:'AppScene' }); }
 
     preload(){
+      // DOM-прелоадер
       showPreloader();
       this.load.on('progress', (v)=>{
         const p = Math.floor(v*100);
-        barFill.style.width = p + '%';
-        pct.textContent = p + '%';
+        if (barFill) barFill.style.width = p+'%';
+        if (pct) pct.textContent = p+'%';
       });
 
-      // Карта
+      // БАЗОВЫЕ АСЕТЫ
       this.load.image('map','assets/map.png');
 
-      // UI / постройки
+      // КНОПКИ / UI
       this.load.image('molot','assets/elements/moloticon.png');
       this.load.image('up_icon','assets/elements/up.png');
       this.load.image('noup_icon','assets/elements/noup.png');
-
-      // Пуля
       this.load.image('arrow','assets/elements/arrow.png');
-
-      // Боковые кнопки
       this.load.image('menu','assets/elements/menu.png');
       this.load.image('reload','assets/elements/reload.png');
       this.load.image('sound_on','assets/elements/sound.png');
       this.load.image('sound_off','assets/elements/soundoff.png');
-
-      // TURBO / PAUSE / RESUME
       this.load.image('turbo_on','assets/elements/fast.png');
       this.load.image('turbo_off','assets/elements/slow.png');
       this.load.image('pause','assets/elements/pause.png');
       this.load.image('resume','assets/elements/play2.png');
-
-      // GOLD панель + монетка
       this.load.image('gold_panel','assets/elements/gold.png');
+
+      // Монетка анимация
       for(let i=1;i<=6;i++) this.load.image(`coin_${i}`, `assets/money/money${i}.png`);
 
       // HUD базы
-      [0,20,40,60,80,100].forEach(p=>{
-        this.load.image(`base_${p}`, `assets/base/base${p}.png`);
-      });
+      [0,20,40,60,80,100].forEach(p=> this.load.image(`base_${p}`, `assets/base/base${p}.png`));
 
-      // Кнопка «реклама»
+      // Реклама-иконка (мигание)
       for(let i=1;i<=6;i++) this.load.image(`ad_${i}`, `assets/reklama/reklama${i}.png`);
 
-      // Враги
+      // Враги (кадры)
       for(let i=0;i<7;i++){
         this.load.image(`e_walk_${i}`,`assets/enemy/walk/walk${i+1}.png`);
         this.load.image(`e_atk_${i}`,`assets/enemy/atack_enemy/atackenemy${i+1}.png`);
         this.load.image(`e_die_${i}`,`assets/enemy/die_enemy/dead${i+1}.png`);
       }
 
-      // Башни: 12 уровней
+      // Башни 1..12 уровней
       for(let i=1;i<=12;i++){
         for(let j=1;j<=4;j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
         for(let j=1;j<=5;j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
@@ -290,24 +258,24 @@
       this.load.audio('towerup','assets/sound/towerup.mp3');
       this.load.audio('towerrush','assets/sound/towerrush.mp3');
       this.load.audio('money','assets/sound/money.mp3');
-      this.load.audio('kill','assets/sound/killenemy.mp3');   // ✅ звук убийства врага
+      this.load.audio('kill','assets/sound/killenemy.mp3');   // ✓ звук убийства врага
     }
 
     create(){
       // Карта
       this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map').setDisplaySize(CONST.WIDTH, CONST.HEIGHT);
 
-      // Коллекции
+      // Группы
       this.enemies = this.add.group();
       this.bullets = this.add.group();
       this.towers = [];
       this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
 
-      // Скорость (TURBO)
+      // Скорости и timeScale
       this.speedScale = 1;
       this.time.timeScale = this.speedScale;
 
-      // Звук
+      // Звуки
       this.sndLobby   = this.sound.add('lobby',  { loop:true, volume:0.6 });
       this.sndBattle  = this.sound.add('battle', { loop:true, volume:0.6 });
       this.sndArrowLp = this.sound.add('arrow_s',{ loop:true, volume:0.35 });
@@ -317,7 +285,7 @@
       this.sndMoney   = this.sound.add('money',   { volume: 0.9 });
       this.sndKill    = this.sound.add('kill',    { volume: 0.8 });
 
-      // mute
+      // mute сохранённый
       try{
         const saved = localStorage.getItem('td_mute');
         if(saved!==null) State.soundEnabled = (saved!=='1');
@@ -334,7 +302,7 @@
       this.playBattle= ()=>{ if(State.paused)return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
       this.playGameOver=()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
-      // Прелоадер завершён → меню + lobby
+      // Прелоадер → меню
       hidePreloader();
       showMenuOverlay();
       this.playLobby();
@@ -345,17 +313,15 @@
       // Анимации
       this._createAnims();
 
-      // HUD/кнопки
+      // HUD и боковые кнопки
       this._buildSideButtons();
       this._buildHUD();
 
       // Тикер стрельбы
       this.shootTicker = this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
-
-      // Никакой паузы сцены — всё завязано на State.started/paused
     }
 
-    // ====== Update ======
+    // ---------------- Update ----------------
     update(){
       if(!State.started || State.paused) { this._syncHUD(); return; }
       this.enemies.getChildren().forEach(e => this._updateEnemy(e));
@@ -363,11 +329,10 @@
       this._syncHUD();
     }
 
-    // ====== HUD ======
+    // ---------------- HUD ----------------
     _buildHUD(){
       const yBottom = CONST.HEIGHT - 463;
-      this.goldPanel = this.add.image(80, yBottom, 'gold_panel')
-        .setOrigin(0,1).setScale(1/3).setDepth(91);
+      this.goldPanel = this.add.image(80, yBottom, 'gold_panel').setOrigin(0,1).setScale(1/3).setDepth(91);
 
       this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 36, 'coin_1')
         .setDepth(92).setScale(0.65);
@@ -375,9 +340,7 @@
 
       this.goldText = this.add.text(this.goldPanel.x + 95, this.goldPanel.y - 36, String(State.gold), {
         font:'26px Arial', fill:'#fff', stroke:'#000', strokeThickness:4
-      })
-      .setOrigin(0,0.5)
-      .setDepth(999);
+      }).setOrigin(0,0.5).setDepth(999);
 
       this.baseHud = this.add.image(CONST.WIDTH - 550, CONST.HEIGHT - 450, 'base_100');
       this._applyBaseHudTexture();
@@ -387,8 +350,7 @@
       if(this.anims.exists('ad_anim')) this.adBtn.play('ad_anim');
       this.adBtn.on('pointerdown', ()=>{
         if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-        State.gold += 1000;
-        this._syncHUD();
+        State.gold += 1000; this._syncHUD();
       });
     }
 
@@ -445,12 +407,10 @@
       this.btnPause = this.add.image(x, yTurbo + gap, 'pause').setDepth(60).setInteractive({useHandCursor:true});
       this.btnResume= this.add.image(x, yTurbo + gap, 'resume').setDepth(60).setInteractive({useHandCursor:true}).setVisible(false);
 
-      this.btnPause.on('pointerdown', ()=>{
-        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      this.btnPause.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
         this._setPaused(true);
       });
-      this.btnResume.on('pointerdown', ()=>{
-        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      this.btnResume.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
         this._setPaused(false);
       });
     }
@@ -478,22 +438,12 @@
       }
     }
 
-    // ====== Жизненный цикл / экраны ======
-    startGameFromMenu(){
-      // старый вариант — оставлен для совместимости, но теперь делаем чистый старт:
-      this.startGameFreshFromMenu();
-    }
-
+    // --------- Экраны/жизненный цикл ---------
     startGameFreshFromMenu(){
-      // Полный рестарт сцены с чистым состоянием
       hideMenuOverlay();
       try{ menuVideo.pause(); }catch(_){}
       this.stopAllLoops();
-
-      // ВАЖНО: удаляем таймер волны, если вдруг был создан в меню (на всякий)
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer=null; }
-
-      // Перезапуск и запуск боя в момент create
+      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer=null; }
       this.scene.restart();
       this.events.once('create', ()=>{
         this._hardResetState();
@@ -504,14 +454,11 @@
     }
 
     pauseToMenu(){
-      // Выходим в меню, останавливаем игру (без рестарта)
       State.started = false;
       this._setPaused(false);
       this.stopAllLoops();
       this.playLobby();
       showMenuOverlay();
-
-      // чистим таймеры волн, чтобы при возвращении не «догоняли»
       if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
     }
 
@@ -525,7 +472,6 @@
     }
 
     _hardResetState(){
-      // Полная инициализация новой сессии
       State.gold = CONST.START_GOLD;
       State.wave = 0;
       State.baseHp = 100;
@@ -534,7 +480,6 @@
       this.time.timeScale = 1;
       this.tweens.timeScale = 1;
 
-      // очистка групп/спрайтов
       try{ this.enemies.clear(true,true); }catch(_){}
       try{ this.bullets.clear(true,true); }catch(_){}
       try{
@@ -552,9 +497,8 @@
     }
 
     restartRound(){
-      // Перезапуск прямо из игры (кнопка reload)
       this.stopAllLoops();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer=null; }
+      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer=null; }
       this.scene.restart();
       this.events.once('create', ()=>{
         this._hardResetState();
@@ -565,19 +509,7 @@
       });
     }
 
-    restartToMenu(){
-      // Если захочешь использовать в будущем: полный рестарт → меню
-      this.stopAllLoops();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer=null; }
-      this.scene.restart();
-      this.events.once('create', ()=>{
-        this._hardResetState();
-        this.playLobby();
-        showMenuOverlay();
-      });
-    }
-
-    // ====== Строительство / улучшение ======
+    // --------- Строительство / апгрейды ---------
     _createHammer(pos, index){
       const img = this.add.image(pos[0],pos[1],'molot').setInteractive({useHandCursor:true}).setScale(0.6).setDepth(10);
       img.on('pointerdown', ()=> this._buildTower(index));
@@ -587,7 +519,6 @@
     _buildTower(index){
       if(State.gold < CONST.TOWER_COST){ alert('Not enough gold'); return; }
       const pos = CONST.BUILD_SPOTS[index];
-
       if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){}
         this.buildSprites[index] = null;
       }
@@ -641,7 +572,7 @@
       try{ this.sndUp.play(); }catch(_){}
     }
 
-    // ====== ПУЛ ПУЛЬ ======
+    // --------- ПУЛ ПУЛЬ ---------
     _getBullet(){
       const kids = this.bullets.getChildren();
       for(let i=0;i<kids.length;i++){
@@ -654,7 +585,7 @@
       return nb;
     }
 
-    // ====== Башни / стрельба ======
+    // --------- Стрельба ---------
     _towersTick(){
       if(!State.started || State.paused) return;
 
@@ -679,7 +610,7 @@
           continue;
         }
 
-        // поиск цели
+        // цель
         let target=null, dmin=1e9;
         this.enemies.getChildren().forEach(e=>{
           if(!e.active || e.state==='die') return;
@@ -717,15 +648,13 @@
       }catch(_){}
     }
 
-    // ====== Пули ======
+    // --------- Пуля ---------
     _updateBullet(b){
       if(!b || !b.active) return;
-
       if(!b.target || !b.target.active || b.target.state==='die'){
         try{ b.setActive(false).setVisible(false); }catch(_){}
         return;
       }
-
       const dx = b.target.x - b.x;
       const dy = b.target.y - b.y;
       const dist = Math.hypot(dx, dy);
@@ -779,14 +708,12 @@
         this.time.delayedCall(120, () => { if (e && e.active) e.destroy(); });
       }
 
-      // ✅ звук убийства
       try{ this.sndKill && this.sndKill.play(); }catch(_){}
-
       State.gold += CONST.KILL_REWARD;
       this._syncHUD();
     }
 
-    // ====== Враги ======
+    // --------- Враг ---------
     _spawnEnemy(path, hp){
       const spawn = path[0];
       const e = this.add.sprite(spawn[0],spawn[1],'e_walk_0').setScale(0.35);
@@ -800,10 +727,6 @@
       e.hpBar = this.add.graphics().setDepth(40);
       e.hpBar.__owner = e;
       this._drawHpBar(e);
-
-      if (window.__WAVE_DEBUG__) {
-        console.log(`Spawn: HP=${hp}, speed=${e.speed.toFixed(3)}`);
-      }
     }
 
     _drawHpBar(e){
@@ -820,7 +743,6 @@
 
     _updateEnemy(e){
       if(!e || !e.active || e.state==='die') return;
-
       if(e.hpBar){ this._drawHpBar(e); }
 
       // Агро башни
@@ -902,7 +824,7 @@
       obj.y += (dy/dist)*speed*2;
     }
 
-    // ====== Волны (строгий единичный таймер) ======
+    // --------- Волны (строгий единичный таймер) ---------
     _scheduleNextWave(delay = 1500) {
       if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
       this.waveTimer = this.time.addEvent({
@@ -951,9 +873,8 @@
       }
     }
 
-    // ====== Анимации ======
+    // --------- Анимации ---------
     _createAnims(){
-      // Башни
       for(let i=1;i<=12;i++){
         const idle=[], atk=[];
         for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
@@ -963,8 +884,6 @@
         if(!this.anims.exists(`tower${i}_atk_anim`))
           this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12,repeat:-1});
       }
-
-      // Враги
       const eWalk=[], eAtk=[], eDie=[];
       for(let i=0;i<7;i++){
         eWalk.push({key:`e_walk_${i}`});
@@ -978,26 +897,16 @@
       if(!this.anims.exists('e_die_anim'))
         this.anims.create({ key:'e_die_anim', frames:eDie.map(f=>({key:f.key})), frameRate:10, repeat:0, hideOnComplete:false });
 
-      // Монетка
       if(!this.anims.exists('coin_anim')){
-        this.anims.create({key:'coin_anim',
-          frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})),
-          frameRate: 10, repeat:-1
-        });
+        this.anims.create({key:'coin_anim', frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})), frameRate: 10, repeat:-1});
       }
-      // Реклама
       if(!this.anims.exists('ad_anim')){
-        this.anims.create({key:'ad_anim',
-          frames:[1,2,3,4,5,6].map(i=>({key:`ad_${i}`})),
-          frameRate: 8, repeat:-1
-        });
+        this.anims.create({key:'ad_anim', frames:[1,2,3,4,5,6].map(i=>({key:`ad_${i}`})), frameRate: 8, repeat:-1});
       }
     }
   }
 
-  // ========================================================================
-  //                       PHASER СТАРТ (адаптив)
-  // ========================================================================
+  // ======================= PHASER СТАРТ =======================
   const config = {
     type: Phaser.AUTO,
     parent: 'game',
@@ -1014,47 +923,40 @@
   };
   const game = new Phaser.Game(config);
 
-  /* ========================================================================
-     СИНХРОН DOM ↔ КАНВАС
-     - Читаем Phaser Scale.displaySize и выставляем #stage ровно в эти размеры.
-     - Один обработчик resize + один orientationchange, с безопасными проверками.
-  ======================================================================== */
-
+  // ============== СИНХРОН DOM ↔ КАНВАС ==============
   function _syncStageToCanvas(){
-    if(!game || !game.scale || !game.canvas) return;
+    if(!game || !game.scale) return;
     const s = game.scale;
-    const cssW = Math.floor(s.displaySize.width || s.gameSize.width || CONST.WIDTH);
-    const cssH = Math.floor(s.displaySize.height || s.gameSize.height || CONST.HEIGHT);
+    const cssW = Math.floor(s.displaySize?.width || s.gameSize?.width || CONST.WIDTH);
+    const cssH = Math.floor(s.displaySize?.height || s.gameSize?.height || CONST.HEIGHT);
     if (cssW > 0) stageBox.style.width  = cssW + 'px';
     if (cssH > 0) stageBox.style.height = cssH + 'px';
     stageBox.style.paddingTop = 'var(--safe-pad)';
   }
 
-  // Первый sync
+  // первый sync
   window.addEventListener('load', ()=>{
     showPreloader();
     if (game && game.isBooted && game.scale) {
       game.scale.refresh();
     }
     _syncStageToCanvas();
-  });
+  }, { passive:true });
 
-  // ЕДИНСТВЕННЫЙ обработчик resize (debounce через rAF)
+  // единичный resize (debounce через rAF)
   let __resizeRaf = 0;
   window.addEventListener('resize', ()=>{
     if (__resizeRaf) cancelAnimationFrame(__resizeRaf);
     __resizeRaf = requestAnimationFrame(()=>{
       if (game && game.isBooted && game.scale) {
-        try {
-          game.scale.refresh();
-        } catch(e) { /* безопасно пропускаем */ }
+        try { game.scale.refresh(); } catch(e) {}
       }
       _syncStageToCanvas();
       __resizeRaf = 0;
     });
   }, { passive:true });
 
-  // ЕДИНСТВЕННЫЙ orientationchange
+  // единичный orientationchange
   window.addEventListener('orientationchange', ()=>{
     setTimeout(()=>{
       if (game && game.isBooted && game.scale) {
@@ -1064,35 +966,30 @@
     }, 300);
   }, { passive:true });
 
-  // Событие Phaser resize → один listener
+  // событие Phaser resize
   const onReady = ()=>{
-    try{
-      game.scale.on('resize', ()=>{ _syncStageToCanvas(); });
-    }catch(_){}
+    try{ game.scale.on('resize', ()=>{ _syncStageToCanvas(); }); }catch(_){}
     _syncStageToCanvas();
   };
   if (document.readyState === 'complete' || document.readyState === 'interactive'){
     setTimeout(onReady, 0);
   }else{
-    document.addEventListener('DOMContentLoaded', onReady);
+    document.addEventListener('DOMContentLoaded', onReady, { once:true });
   }
 
-  // ========================================================================
-  //                   DOM-КНОПКИ (экраны)
-  // ========================================================================
+  // ======================= DOM-КНОПКИ =======================
   startImg.addEventListener('click', ()=>{
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
-    // всегда чистый старт из меню:
-    sc.startGameFreshFromMenu();
+    sc.startGameFreshFromMenu(); // всегда чистый старт
   });
-
   restartImg.addEventListener('click', ()=>{
     hideGameoverOverlay();
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
-    sc.restartRound();
+    sc.startGameFreshFromMenu();
   });
   </script>
 </body>
 </html>
+
