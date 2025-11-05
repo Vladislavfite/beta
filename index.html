@@ -1146,6 +1146,7 @@ window.addEventListener('resize', ()=>{
 
 // === Пересчёт при смене ориентации (мобильные) ===
 window.addEventListener('orientationchange', ()=>{
+  // Делаем задержку, чтобы браузер успел перестроить viewport
   setTimeout(()=>{
     if (game && game.isBooted && game.scale) {
       try {
@@ -1153,13 +1154,14 @@ window.addEventListener('orientationchange', ()=>{
         game.scale.refresh();
         _syncStageToCanvas();
       } catch(e) {
-        console.warn('⚠️ Orientation resize skipped:', e);
+        console.warn('⚠️ Orientation resize skipped (Phaser not ready yet):', e);
       }
     } else {
       _syncStageToCanvas();
     }
   }, 300);
 });
+
   // Когда Phaser изменил масштаб (например, при старте/ресайзе) — уравниваем stage
   const onReady = ()=>{
     try{
