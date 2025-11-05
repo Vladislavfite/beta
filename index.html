@@ -1001,13 +1001,32 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
   document.addEventListener('DOMContentLoaded', onReady, {once:true});
 }
 
-/* ======================================================================
-   DOM-КНОПКИ (экраны)
-   ====================================================================== */
+// === DOM-КНОПКИ (экраны) ===
 startImg.addEventListener('click', ()=>{
+  hideMenuOverlay();
+  try{ menuVideo.pause(); }catch(_){}
   const sc = game.scene.keys['AppScene'];
   if(!sc) return;
-  sc.startGameFreshFromMenu();
+
+  // если сцена ещё не создана — ждём create
+  if (!sc.scene.isActive()) {
+    sc.scene.start();
+    sc.events.once('create', ()=>{
+      sc._hardResetState();
+      sc.playBattle();
+      State.started = true;
+      sc._scheduleNextWave(1200);
+    });
+  } else {
+    // если уже активна — просто рестарт
+    sc.scene.restart();
+    sc.events.once('create', ()=>{
+      sc._hardResetState();
+      sc.playBattle();
+      State.started = true;
+      sc._scheduleNextWave(1200);
+    });
+  }
 }, {passive:true});
 
 restartImg.addEventListener('click', ()=>{
