@@ -1138,9 +1138,8 @@ window.addEventListener('resize', ()=>{
     _syncStageToCanvas();
   }
 });
-// Пересчёт при изменении размера окна
+// === Пересчёт при изменении размера окна ===
 window.addEventListener('resize', ()=>{
-  // Проверяем, что игра уже инициализирована и масштаб доступен
   if (game && game.isBooted && game.scale) {
     requestAnimationFrame(()=>{
       try {
@@ -1156,9 +1155,8 @@ window.addEventListener('resize', ()=>{
   }
 });
 
-// Пересчёт при смене ориентации
+// === Пересчёт при смене ориентации (мобильные) ===
 window.addEventListener('orientationchange', ()=>{
-  // Делаем задержку, чтобы устройство успело применить новый viewport
   setTimeout(()=>{
     if (game && game.isBooted && game.scale) {
       try {
@@ -1173,18 +1171,6 @@ window.addEventListener('orientationchange', ()=>{
     }
   }, 300);
 });
-// === Реакция на смену ориентации (мобильные) ===
-window.addEventListener('orientationchange', ()=>{
-  setTimeout(()=>{
-    if (game && game.scale) {
-      game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
-      game.scale.refresh();
-    }
-    _syncStageToCanvas();
-  }, 300);
-});
-
-
   // Когда Phaser изменил масштаб (например, при старте/ресайзе) — уравниваем stage
   const onReady = ()=>{
     try{
@@ -1222,3 +1208,5 @@ window.addEventListener('orientationchange', ()=>{
   </script>
 </body>
 </html>
+
+
