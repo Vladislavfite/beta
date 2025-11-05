@@ -1129,24 +1129,34 @@
   // ========================================================================
   // === Запуск игры из главного меню (финальный проверенный вариант) ===
 startImg.addEventListener('click', ()=>{
-  // ✅ Сразу убираем меню с экрана
   hideMenuOverlay();
   menuOverlay.style.display = 'none';
   try { menuVideo.pause(); } catch(_){}
 
   const sc = game.scene.keys['AppScene'];
-  if(!sc) {
-    console.warn('⚠️ Сцена AppScene не найдена, ждём READY...');
-    game.events.once(Phaser.Core.Events.READY, ()=>{
-      const s2 = game.scene.keys['AppScene'];
-      if(!s2) return;
-      s2.scene.start();
-      s2.events.once('create', ()=>{
-        _startGameSession(s2);
-      });
-    });
-    return;
-  }
+  if (!sc) return;
+
+  // Запуск сцены
+  if (!sc.scene.isActive()) sc.scene.start();
+  else sc.scene.restart();
+
+  sc.events.once('create', ()=>{
+    try {
+      sc._hardResetState();
+      sc.stopAllLoops(); // ✅ Остановить lobby
+      try { sc.sndLobby.stop(); }catch(_){}
+      sc.playBattle();   // ✅ Включить музыку боя
+      State.started = true;
+
+      if (sc.waveTimer?.hasDispatched) sc.waveTimer.remove();
+      if (sc.waveTimer) { sc.waveTimer.remove(); sc.waveTimer = null; }
+
+      sc._scheduleNextWave(1200);
+    } catch(e){
+      console.error('Ошибка запуска игры:', e);
+    }
+  });
+});
 
   // Если сцена не активна — запустить
   if (!sc.scene.isActive()) {
