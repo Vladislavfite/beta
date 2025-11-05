@@ -1135,8 +1135,7 @@
 
   // ========================================================================
   //                   DOM-КНОПКИ (экраны)
-  // ========================================================================
-  // === Запуск игры из главного меню (финальный проверенный вариант) ===
+// === Запуск игры из главного меню (исправленный финальный вариант) ===
 startImg.addEventListener('click', ()=>{
   hideMenuOverlay();
   menuOverlay.style.display = 'none';
@@ -1145,16 +1144,17 @@ startImg.addEventListener('click', ()=>{
   const sc = game.scene.keys['AppScene'];
   if (!sc) return;
 
-  // Запуск сцены
+  // Полный перезапуск сцены
   if (!sc.scene.isActive()) sc.scene.start();
   else sc.scene.restart();
 
+  // После создания сцены — начать бой
   sc.events.once('create', ()=>{
     try {
       sc._hardResetState();
-      sc.stopAllLoops(); // ✅ Остановить lobby
+      sc.stopAllLoops();
       try { sc.sndLobby.stop(); }catch(_){}
-      sc.playBattle();   // ✅ Включить музыку боя
+      sc.playBattle();
       State.started = true;
 
       if (sc.waveTimer?.hasDispatched) sc.waveTimer.remove();
@@ -1164,18 +1164,6 @@ startImg.addEventListener('click', ()=>{
     } catch(e){
       console.error('Ошибка запуска игры:', e);
     }
-  });
-});
-  // Если сцена не активна — запустить
-  if (!sc.scene.isActive()) {
-    sc.scene.start();
-  } else {
-    sc.scene.restart();
-  }
-
-  // После создания сцены — начать игру
-  sc.events.once('create', ()=>{
-    _startGameSession(sc);
   });
 }, {passive:true});
 
