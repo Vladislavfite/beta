@@ -536,15 +536,22 @@
     }
 
     pauseToMenu(){
-      State.started = false;
-      this._setPaused(false);
-      this.stopAllLoops();
-      this.playLobby();
-      showMenuOverlay();
+  // Возврат в меню
+  State.started = false;
+  this._setPaused(false);
+  this.stopAllLoops();
+  try { this.sndBattle.stop(); }catch(_){}
+  try { this.sndArrowLp.stop(); }catch(_){}
+  this.playLobby();          // ✅ вернуть музыку меню
+  showMenuOverlay();         // ✅ показать меню
+  menuOverlay.style.display = 'flex';
 
-      if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
-    }
+  // чистим таймеры
+  if (this.waveTimer) {
+    try { this.waveTimer.remove(); }catch(_){}
+    this.waveTimer = null;
+  }
+}
 
     showGameOver(){
       State.started = false;
@@ -1157,7 +1164,6 @@ startImg.addEventListener('click', ()=>{
     }
   });
 });
-
   // Если сцена не активна — запустить
   if (!sc.scene.isActive()) {
     sc.scene.start();
