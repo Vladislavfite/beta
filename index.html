@@ -2,22 +2,15 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <!-- ===== Touch / PWA оптимизация (запрошено) ===== -->
+  <!-- ===== Touch / PWA оптимизация ===== -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-  <!--
-    ✅ АДАПТАЦИЯ ПОД ЛЮБОЙ ЭКРАН (портрет 720×1280 как логика, масштаб — через Phaser)
-    - viewport без жёсткой ширины: даём браузеру реальную device-width
-    - сам масштаб делает Phaser Scale Manager (FIT + CENTER_BOTH)
-    - DOM-оверлеи (preloader/menu/gameover) синхронизируются по CSS-размеру канваса
-    - убрано двойное масштабирование: никаких CSS transform для канваса, только Phaser FIT
-  -->
+  <!-- Масштабирование: только Phaser FIT (никаких CSS transform у канваса) -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Tower Defense — единый файл (preload / menu / game / gameover)</title>
 
-  <!-- ====== СТИЛИ ОБОЛОЧКИ И СЛОЁВ ====== -->
+  <title>Tower Defense — полный index.html (исправленный)</title>
+
   <style>
     :root{
       --w:720px;            /* логическая ширина сцены */
@@ -33,7 +26,7 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Центруем сцену, даём «letterbox» */
+    /* Центруем сцену, даём letterbox */
     #viewport{
       position:fixed;
       inset:0;
@@ -105,7 +98,7 @@
     }
     #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
 
-    /* Старый текстовый HUD (скрыт) */
+    /* (Старый DOM-HUD скрыт — используется канвасный HUD) */
     #hud{ display:none; }
   </style>
 
@@ -162,12 +155,9 @@
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver.
      АДАПТАЦИЯ: Phaser FIT + CENTER_BOTH; синхронизация DOM-оверлеев к displaySize.
-     УБРАНЫ: дублирующиеся resize-обработчики, двойное масштабирование, отладка.
-     ДОБАВЛЕНО: звук убийства врага, полноценный рестарт с Play, object pooling.
+     УБРАНО: двойное масштабирование, дублирующиеся resize-обработчики.
+     ДОБАВЛЕНО: звук убийства врага, безопасный рестарт, object pooling.
   ======================================================================== */
-
-  // Отладочные логи отключены по требованию:
-  // window.__WAVE_DEBUG__ = false;
 
   // ---------- Константы ----------
   const CONST = {
@@ -225,15 +215,11 @@
     paused: false
   };
 
-  // Слои
+  // Простые помощники для оверлеев
   const showPreloader = ()=> preloaderOverlay.classList.remove('hidden');
   const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
-  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); menuOverlay.style.display = 'flex';
-};
-  const hideMenuOverlay = ()=> {
-  menuOverlay.classList.add('hidden');
-  menuOverlay.style.display = 'none';
-};
+  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); menuOverlay.style.display = 'flex'; };
+  const hideMenuOverlay = ()=> { menuOverlay.classList.add('hidden'); menuOverlay.style.display = 'none'; };
   const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
   const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
 
@@ -308,7 +294,6 @@
       this.load.audio('towerup','assets/sound/towerup.mp3');
       this.load.audio('towerrush','assets/sound/towerrush.mp3');
       this.load.audio('money','assets/sound/money.mp3');
-
       /* ✅ Добавлен звук смерти врага */
       this.load.audio('kill','assets/sound/killenemy.mp3');
     }
@@ -368,9 +353,9 @@
         try{ this.sndBattle.stop(); }catch(_){}
         try{ this.sndLobby.stop(); }catch(_){}
       };
-      this.playLobby = ()=>{ if(State.paused)return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying && this.sndLobby.play(); }catch(_){} };
-      this.playBattle= ()=>{ if(State.paused)return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
-      this.playGameOver=()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
+      this.playLobby   = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying  && this.sndLobby.play(); }catch(_){} };
+      this.playBattle  = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
+      this.playGameOver= ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
       // Прелоадер завершён → меню + lobby
       hidePreloader();
@@ -468,7 +453,7 @@
         this.sound.setMute(!State.soundEnabled);
         try{ localStorage.setItem('td_mute', State.soundEnabled ? '0':'1'); }catch(_){}
         applyMuteIcon();
-        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ }
       });
 
       this.btnTurbo = this.add.image(x, yTurbo, 'turbo_off').setInteractive().setDepth(60);
@@ -522,7 +507,7 @@
       try{ menuVideo.pause(); }catch(_){}
       this.stopAllLoops();
 
-      // Сброс всего через перезапуск сцены (гарантировано чисто)
+      // Перезапуск сцены (гарантированно чисто)
       this.scene.restart();
 
       this.events.once('create', ()=>{
@@ -540,34 +525,35 @@
     }
 
     pauseToMenu(){
-  // Возврат в меню
-  State.started = false;
-  this._setPaused(false);
-  this.stopAllLoops();
-  try { this.sndBattle.stop(); }catch(_){}
-  try { this.sndArrowLp.stop(); }catch(_){}
-  this.playLobby();          // ✅ вернуть музыку меню
-  showMenuOverlay();         // ✅ показать меню
-  menuOverlay.style.display = 'flex';
+      // Возврат в меню
+      State.started = false;
+      this._setPaused(false);
+      this.stopAllLoops();
+      try { this.sndBattle.stop(); }catch(_){}
+      try { this.sndArrowLp.stop(); }catch(_){}
+      this.playLobby();          // вернуть музыку меню
+      showMenuOverlay();         // показать меню
+      menuOverlay.style.display = 'flex';
 
-  // чистим таймеры
-  if (this.waveTimer) {
-    try { this.waveTimer.remove(); }catch(_){}
-    this.waveTimer = null;
-  }
-}
+      // чистим таймеры
+      if (this.waveTimer) {
+        try { this.waveTimer.remove(); }catch(_){}
+        this.waveTimer = null;
+      }
+    }
 
     showGameOver(){
-  State.started = false;
-  this._setPaused(false);
-  this.stopAllLoops();       // ✅ Остановить все звуки
-  try{ this.sndBattle.stop(); }catch(_){}
-  try{ this.sndArrowLp.stop(); }catch(_){}
-  this.playGameOver();
-  showGameoverOverlay();
-  try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
-  if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
-}
+      State.started = false;
+      this._setPaused(false);
+      this.stopAllLoops();       // Остановить все звуки
+      try{ this.sndBattle.stop(); }catch(_){}
+      try{ this.sndArrowLp.stop(); }catch(_){}
+      this.playGameOver();
+      showGameoverOverlay();
+      try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
+      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
+    }
+
     _hardResetState(){
       // Полная инициализация новой сессии (включая очистку пулов)
       State.gold = CONST.START_GOLD;
@@ -636,7 +622,7 @@
       if(State.gold < CONST.TOWER_COST){ alert('Not enough gold'); return; }
       const pos = CONST.BUILD_SPOTS[index];
 
-      if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){}
+      if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){ }
         this.buildSprites[index] = null;
       }
       State.gold -= CONST.TOWER_COST; this._syncHUD();
@@ -833,16 +819,14 @@
       e.state = 'die';
       if(e.anims) e.anims.stop();
 
-      // анимация смерти (поверх walk/atk)
+      // анимация смерти
       const hasDieAnim = this.anims.exists('e_die_anim');
       if (hasDieAnim) {
-        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim) => {
-          // по окончании — выключаем и возвращаем в пул
+        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
           this._deactivateEnemy(e);
         });
         e.play('e_die_anim');
       } else {
-        // без анимации — сразу выключим
         this._deactivateEnemy(e);
       }
 
@@ -975,7 +959,7 @@
 
     // ====== Волны (строгий единичный таймер) ======
     _scheduleNextWave(delay = 1500) {
-      // ✅ защита от наложения таймеров
+      // защита от наложения таймеров
       if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
       if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
 
@@ -1090,10 +1074,10 @@
   ======================================================================== */
 
   function syncStageToCanvas(){
-    if(!game || !game.scale || !game.canvas) return;
+    if(!game || !game.scale) return;
     const s = game.scale;
-    const cssW = Math.floor(s.displaySize?.width || s.gameSize?.width || CONST.WIDTH);
-    const cssH = Math.floor(s.displaySize?.height || s.gameSize?.height || CONST.HEIGHT);
+    const cssW = Math.floor((s.displaySize && s.displaySize.width) || (s.gameSize && s.gameSize.width) || CONST.WIDTH);
+    const cssH = Math.floor((s.displaySize && s.displaySize.height) || (s.gameSize && s.gameSize.height) || CONST.HEIGHT);
     if (cssW > 0) stageBox.style.width  = cssW + 'px';
     if (cssH > 0) stageBox.style.height = cssH + 'px';
   }
@@ -1101,9 +1085,7 @@
   // ЕДИНСТВЕННЫЕ обработчики
   window.addEventListener('load', ()=>{
     showPreloader();
-    if (game && game.isBooted && game.scale) {
-      game.scale.refresh();
-    }
+    try { if (game.isBooted && game.scale) game.scale.refresh(); } catch(e){}
     syncStageToCanvas();
   }, { passive:true });
 
@@ -1138,66 +1120,36 @@
 
   // ========================================================================
   //                   DOM-КНОПКИ (экраны)
-// === Запуск игры из главного меню (исправленный финальный вариант) ===
-startImg.addEventListener('click', ()=>{
-  hideMenuOverlay();
-  menuOverlay.style.display = 'none';
-  try { menuVideo.pause(); } catch(_){}
+  // ========================================================================
 
-  const sc = game.scene.keys['AppScene'];
-  if (!sc) return;
+  // === Запуск игры из главного меню (без дублей, без лишних кусков) ===
+  startImg.addEventListener('click', ()=>{
+    // Спрятать меню и остановить музыку лобби
+    hideMenuOverlay();
+    try { menuVideo.pause(); } catch(_){}
+    const sc = game.scene.keys['AppScene'];
+    if (!sc) return;
 
-  // Полный перезапуск сцены
-  if (!sc.scene.isActive()) sc.scene.start();
-  else sc.scene.restart();
-
-  // После создания сцены — начать бой
-  sc.events.once('create', ()=>{
-    try {
-      sc._hardResetState();
-      sc.stopAllLoops();
-      try { sc.sndLobby.stop(); }catch(_){}
-      sc.playBattle();
-      State.started = true;
-
-      if (sc.waveTimer?.hasDispatched) sc.waveTimer.remove();
-      if (sc.waveTimer) { sc.waveTimer.remove(); sc.waveTimer = null; }
-
-      sc._scheduleNextWave(1200);
-    } catch(e){
-      console.error('Ошибка запуска игры:', e);
+    // Если сцена уже активна — перезапускаем, чтобы гарантированно очистить состояние
+    if (sc.scene.isActive()) {
+      sc.startGameFromMenu();
+    } else {
+      // Запустить сцену, затем чисто стартовать
+      sc.scene.start();
+      sc.events.once('create', ()=> sc.startGameFromMenu());
     }
-  });
-}, {passive:true});
+  }, {passive:true});
 
-// === Функция безопасного старта боя ===
-function _startGameSession(scene) {
-  try {
-    scene._hardResetState();
-    scene.playBattle();
-    State.started = true;
+  // === Перезапуск из экрана GameOver ===
+  restartImg.addEventListener('click', ()=>{
+    hideGameoverOverlay();
+    const sc = game.scene.keys['AppScene'];
+    if(!sc) return;
+    sc.restartRound();
+    // на всякий случай убедимся, что меню скрыто
+    hideMenuOverlay();
+  }, {passive:true});
 
-    if (scene.waveTimer?.hasDispatched) scene.waveTimer.remove();
-    if (scene.waveTimer) { scene.waveTimer.remove(); scene.waveTimer = null; }
-
-    scene._scheduleNextWave(1200);
-
-    // гарантированно скрываем меню DOM и возвращаем display обратно
-    menuOverlay.classList.add('hidden');
-    menuOverlay.style.display = 'none';
-  } catch(e){
-    console.error('Ошибка запуска боя:', e);
-  }
-}
-
-// === Перезапуск из экрана GameOver ===
-restartImg.addEventListener('click', ()=>{
-  hideGameoverOverlay();
-  const sc = game.scene.keys['AppScene'];
-  if(!sc) return;
-  sc.restartRound();
-  menuOverlay.style.display = 'none';
-}, {passive:true});
   </script>
 </body>
 </html>
