@@ -1127,9 +1127,11 @@
   // ========================================================================
   //                   DOM-КНОПКИ (экраны)
   // ========================================================================
-  // === Запуск игры из главного меню (финальный исправленный вариант) ===
+  // === Запуск игры из главного меню (финальный проверенный вариант) ===
 startImg.addEventListener('click', ()=>{
+  // ✅ Сразу убираем меню с экрана
   hideMenuOverlay();
+  menuOverlay.style.display = 'none';
   try { menuVideo.pause(); } catch(_){}
 
   const sc = game.scene.keys['AppScene'];
@@ -1140,32 +1142,44 @@ startImg.addEventListener('click', ()=>{
       if(!s2) return;
       s2.scene.start();
       s2.events.once('create', ()=>{
-        s2._hardResetState();
-        s2.playBattle();
-        State.started = true;
-        if (s2.waveTimer?.hasDispatched) s2.waveTimer.remove();
-        if (s2.waveTimer) { s2.waveTimer.remove(); s2.waveTimer = null; }
-        s2._scheduleNextWave(1200);
+        _startGameSession(s2);
       });
     });
     return;
   }
 
+  // Если сцена не активна — запустить
   if (!sc.scene.isActive()) {
     sc.scene.start();
   } else {
     sc.scene.restart();
   }
 
+  // После создания сцены — начать игру
   sc.events.once('create', ()=>{
-    sc._hardResetState();
-    sc.playBattle();
-    State.started = true;
-    if (sc.waveTimer?.hasDispatched) sc.waveTimer.remove();
-    if (sc.waveTimer) { sc.waveTimer.remove(); sc.waveTimer = null; }
-    sc._scheduleNextWave(1200);
+    _startGameSession(sc);
   });
 }, {passive:true});
+
+// === Функция безопасного старта боя ===
+function _startGameSession(scene) {
+  try {
+    scene._hardResetState();
+    scene.playBattle();
+    State.started = true;
+
+    if (scene.waveTimer?.hasDispatched) scene.waveTimer.remove();
+    if (scene.waveTimer) { scene.waveTimer.remove(); scene.waveTimer = null; }
+
+    scene._scheduleNextWave(1200);
+
+    // гарантированно скрываем меню DOM и возвращаем display обратно
+    menuOverlay.classList.add('hidden');
+    menuOverlay.style.display = 'none';
+  } catch(e){
+    console.error('Ошибка запуска боя:', e);
+  }
+}
 
 // === Перезапуск из экрана GameOver ===
 restartImg.addEventListener('click', ()=>{
@@ -1173,6 +1187,7 @@ restartImg.addEventListener('click', ()=>{
   const sc = game.scene.keys['AppScene'];
   if(!sc) return;
   sc.restartRound();
+  menuOverlay.style.display = 'none';
 }, {passive:true});
   </script>
 </body>
