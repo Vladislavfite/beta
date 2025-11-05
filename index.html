@@ -2,90 +2,120 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <!-- ===== Touch / PWA оптимизация ===== -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <!-- Масштабирование: только Phaser FIT (никаких CSS transform у канваса) -->
+  <!--
+    ✅ АДАПТАЦИЯ ПОД ЛЮБОЙ ЭКРАН
+    Меняем meta viewport на device-width, чтобы браузер не "зажимал" страницу под 720px,
+    а мы сами делаем масштабирование через Phaser Scale Manager (FIT + CENTER_BOTH)
+    + синхронизацию размеров DOM-оверлеев под реальный CSS-размер канваса.
+  -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Tower Defense — адаптивный единый файл (preload / menu / game / gameover)</title>
 
-  <title>Tower Defense — полный index.html (исправленный)</title>
-
+  <!-- ====== СТИЛИ ОБОЛОЧКИ И СЛОЁВ (адаптив) ====== -->
   <style>
+    /* Базовые размеры логики игры (НЕ МЕНЯТЬ) */
     :root{
       --w:720px;            /* логическая ширина сцены */
       --h:1280px;           /* логическая высота сцены */
-      --safe-pad: max(0px, env(safe-area-inset-top, 0px)); /* iOS вырез */
+      --safe-pad: max(0px, env(safe-area-inset-top, 0px)); /* на iOS с вырезом */
     }
 
+    /* Весь вьюпорт — центрируем "сцену" */
     html,body{
       height:100%;
       margin:0;
       background:#000;
       overflow:hidden;
-      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Центруем сцену, даём letterbox */
+    /* Контейнер-вьюпорт. Центрует stage, даёт "letterbox" (чёрные поля) при несоответствии сторон */
     #viewport{
       position:fixed;
       inset:0;
       display:flex;
       align-items:center;
       justify-content:center;
-      background:#000;
-      touch-action:none;
+      background:#000; /* поля */
+      touch-action:none; /* меньше зума/скроллов на мобилках */
     }
 
-    /* Stage — «коробка» такого же CSS-размера, как канвас Phaser */
+    /* Stage — коробка, размер которой = фактический CSS-размер канваса Phaser.
+       ВНУТРИ — канвас и DOM-оверлеи (они «поверх» и повторяют размер/позицию канваса).
+    */
     #stage{
       position:relative;
       width:var(--w);
       height:var(--h);
       overflow:hidden;
+      /* для чёткости масштабированных картинок */
       image-rendering:crisp-edges;
       image-rendering:-webkit-optimize-contrast;
-      -webkit-user-select: none;
-      user-select: none;
-      padding-top: var(--safe-pad);
     }
 
-    /* Контейнер для канваса Phaser (сам канвас добавит Phaser) */
+    /* Сам канвас Phaser создаётся внутри #game.
+       Мы ничего не трансформируем вручную — масштаб управляет Phaser Scale Manager (FIT). */
     #game{
-      position:absolute; left:0; top:0; width:100%; height:100%;
+      position:absolute;
+      left:0; top:0;
+      width:100%;
+      height:100%;
     }
 
+    /* Общая база для всех оверлеев поверх канваса.
+       Важно: width/height = 100% от #stage, а #stage синхронизируется с фактическим размером канваса. */
     .overlay{
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      z-index:60; pointer-events:auto;
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:60;
+      pointer-events:auto;
     }
     .hidden{ display:none; }
 
+    /* Панель-контент в оверлеях */
     .panel{
-      position:relative; z-index:2;
-      display:flex; flex-direction:column; gap:2.2vh;
-      align-items:center; justify-content:center;
-      padding-top: min(30vh, 380px);
+      position:relative;
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      gap:2.2vh;                /* масштабируется по высоте */
+      align-items:center;
+      justify-content:center;
+      padding-top: min(30vh, 380px); /* чтобы кнопки были ниже центра, похоже на твой отступ 300px */
     }
     .title{
-      color:#fff; margin:0; font-family:Arial,Helvetica,sans-serif;
-      font-size: clamp(16px, 2.6vh, 28px);
+      color:#fff;
+      font-family:Arial,Helvetica,sans-serif;
+      margin:0;
+      font-size: clamp(16px, 2.6vh, 28px); /* адаптивный размер шрифта */
       text-shadow: 0 0 12px rgba(0,0,0,.6);
       z-index:2;
     }
 
+    /* Фоновые видео меню и gameover (заливают всё поле игры) */
     .bg-video{
-      position:absolute; inset:0; width:100%; height:100%;
-      object-fit:cover; z-index:1; pointer-events:none;
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      z-index:1;
+      pointer-events:none;
       filter:brightness(0.9) contrast(1.05);
     }
 
+    /* DOM-кнопки-изображения — размеры от процента ширины сцены (красиво масштабируется) */
     .imgbtn{
-      width:38%; max-width:340px; height:auto; cursor:pointer;
+      width: 38%;
+      max-width: 340px;
+      height:auto;
+      cursor:pointer;
       filter:drop-shadow(0 0 16px rgba(0,0,0,.7));
       transition: transform .08s ease;
-      user-select:none; -webkit-user-drag:none;
+      user-select:none;
+      -webkit-user-drag:none;
     }
     .imgbtn:active{ transform:scale(.98); }
 
@@ -93,12 +123,22 @@
     #preloaderOverlay{ background:#000; }
     #prePanel{ gap:1.6vh; }
     #bar{
-      width:58%; max-width:520px; height:18px; background:#222;
-      border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6);
+      width: 58%;
+      max-width: 520px;
+      height: 18px;
+      background:#222;
+      border-radius: 9px;
+      overflow:hidden;
+      box-shadow: inset 0 0 12px rgba(0,0,0,.6);
     }
-    #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
+    #bar > div{
+      height:100%;
+      width:0%;
+      background:#1e90ff;
+      transition:width .12s linear;
+    }
 
-    /* (Старый DOM-HUD скрыт — используется канвасный HUD) */
+    /* Старый текстовый HUD (как и прежде — выключен) */
     #hud{ display:none; }
   </style>
 
@@ -106,6 +146,10 @@
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
+  <!--
+    viewport центрирует stage; stage = «физический экран игры» (повторяет CSS-размер канваса),
+    в нём канвас (#game) и DOM-слои (оверлеи).
+  -->
   <div id="viewport">
     <div id="stage">
 
@@ -122,6 +166,7 @@
       <div id="menuOverlay" class="overlay hidden">
         <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
         <div class="panel">
+          <!-- assets/elements/play.png — кнопка Start -->
           <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
         </div>
       </div>
@@ -137,7 +182,7 @@
       <!-- Канвас для Phaser -->
       <div id="game"></div>
 
-      <!-- (Старый DOM-HUD скрыт) -->
+      <!-- (Старый DOM-HUD скрыт по требованиям) -->
       <div id="hud">
         <div class="left">
           <div id="goldText" class="text">Gold: 0</div>
@@ -154,12 +199,17 @@
   <script>
   /* ========================================================================
      ЕДИНЫЙ ФАЙЛ: Preloader → Menu → Game → GameOver.
-     АДАПТАЦИЯ: Phaser FIT + CENTER_BOTH; синхронизация DOM-оверлеев к displaySize.
-     УБРАНО: двойное масштабирование, дублирующиеся resize-обработчики.
-     ДОБАВЛЕНО: звук убийства врага, безопасный рестарт, object pooling.
+     АДАПТАЦИЯ:
+       • Используем Phaser Scale Manager: FIT + CENTER_BOTH.
+       • Синхронизируем размеры DOM-оверлеев (preload/menu/gameover) со стилем канваса.
+       • Никаких CSS-трансформов на канвас — чтобы не ломать координаты инпута.
+       • Кнопки, шрифты и панели внутри оверлеев масштабируются через % и vh.
   ======================================================================== */
 
-  // ---------- Константы ----------
+  // Можно выключить логи волн: window.__WAVE_DEBUG__ = false;
+  window.__WAVE_DEBUG__ = true;
+
+  // ---------- Константы уровня ----------
   const CONST = {
     WIDTH: 720, HEIGHT: 1280,
 
@@ -179,25 +229,24 @@
     ],
 
     START_GOLD: 600,
-    KILL_REWARD: 100,
+    KILL_REWARD: 100,       // ✅ по твоему запросу (раньше было 20/80)
     WAVE_BONUS: 80,
     TOWER_COST: 100,
     UPGRADE_COST_BASE: 120,
 
     ENEMY_AGGRO: 150,
-    TOWER_RANGE: 200,
-
-    // Преднагрев пулов (object pooling)
-    PREWARM_ENEMIES: 40,
-    PREWARM_BULLETS: 60
+    TOWER_RANGE: 200
   };
 
   // ---------- DOM ----------
   const $ = (id)=>document.getElementById(id);
-  const stageBox = $('stage');
+  const stageBox = $('stage');           // адаптивная коробка сцены (DOM)
+  const viewport = $('viewport');
+
   const preloaderOverlay = $('preloaderOverlay');
   const barFill = $('barFill');
   const pct = $('pct');
+
   const menuOverlay = $('menuOverlay');
   const gameoverOverlay = $('gameoverOverlay');
   const startImg = $('startImg');
@@ -210,21 +259,21 @@
     started: false,
     gold: CONST.START_GOLD,
     wave: 0,
-    baseHp: 100,        // % 0..100
-    soundEnabled: true,
+    baseHp: 100,          // проценты 0..100 (для HUD базы)
+    soundEnabled: true,   // настоящий флаг звука
     paused: false
   };
 
-  // Простые помощники для оверлеев
-  const showPreloader = ()=> preloaderOverlay.classList.remove('hidden');
-  const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
-  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); menuOverlay.style.display = 'flex'; };
-  const hideMenuOverlay = ()=> { menuOverlay.classList.add('hidden'); menuOverlay.style.display = 'none'; };
-  const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
-  const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
+  // Служебные функции управления слоями
+  function showPreloader(){ preloaderOverlay.classList.remove('hidden'); }
+  function hidePreloader(){ preloaderOverlay.classList.add('hidden'); }
+  function showMenuOverlay(){ menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); }
+  function hideMenuOverlay(){ menuOverlay.classList.add('hidden'); }
+  function showGameoverOverlay(){ gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); }
+  function hideGameoverOverlay(){ gameoverOverlay.classList.add('hidden'); }
 
   // ========================================================================
-  //                         PHASER: СЦЕНА
+  //                         PHASER: ЕДИНАЯ СЦЕНА
   // ========================================================================
   class AppScene extends Phaser.Scene {
     constructor(){ super({ key:'AppScene' }); }
@@ -240,12 +289,12 @@
       // Карта
       this.load.image('map','assets/map.png');
 
-      // UI / постройки
+      // Постройки / UI
       this.load.image('molot','assets/elements/moloticon.png');
       this.load.image('up_icon','assets/elements/up.png');
       this.load.image('noup_icon','assets/elements/noup.png');
 
-      // Пуля
+      // ПУЛЯ/СТРЕЛА
       this.load.image('arrow','assets/elements/arrow.png');
 
       // Боковые кнопки
@@ -260,77 +309,57 @@
       this.load.image('pause','assets/elements/pause.png');
       this.load.image('resume','assets/elements/play2.png');
 
-      // GOLD панель + монетка
+      // GOLD панель + монетка-анимация
       this.load.image('gold_panel','assets/elements/gold.png');
       for(let i=1;i<=6;i++) this.load.image(`coin_${i}`, `assets/money/money${i}.png`);
 
-      // HUD базы
+      // HUD БАЗЫ (0..100 шаг 20)
       [0,20,40,60,80,100].forEach(p=>{
         this.load.image(`base_${p}`, `assets/base/base${p}.png`);
       });
 
-      // Кнопка «реклама»
+      // Кнопка «реклама» (анимация)
       for(let i=1;i<=6;i++) this.load.image(`ad_${i}`, `assets/reklama/reklama${i}.png`);
 
-      // Враги
+      // ВРАГИ: walk/attack/die
       for(let i=0;i<7;i++){
         this.load.image(`e_walk_${i}`,`assets/enemy/walk/walk${i+1}.png`);
         this.load.image(`e_atk_${i}`,`assets/enemy/atack_enemy/atackenemy${i+1}.png`);
         this.load.image(`e_die_${i}`,`assets/enemy/die_enemy/dead${i+1}.png`);
       }
 
-      // Башни: 12 уровней
+      // БАШНИ: 12 уровней, idle/atk
       for(let i=1;i<=12;i++){
         for(let j=1;j<=4;j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
         for(let j=1;j<=5;j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
       }
 
       // Звуки
-      this.load.audio('lobby','assets/sound/lobby.mp3');
-      this.load.audio('battle','assets/sound/battle.mp3');
-      this.load.audio('arrow_s','assets/sound/arrow.mp3');
-      this.load.audio('klick','assets/sound/klick.ogg');
-      this.load.audio('gameover_s','assets/sound/gameover.mp3');
-      this.load.audio('towerup','assets/sound/towerup.mp3');
-      this.load.audio('towerrush','assets/sound/towerrush.mp3');
-      this.load.audio('money','assets/sound/money.mp3');
-      /* ✅ Добавлен звук смерти врага */
-      this.load.audio('kill','assets/sound/killenemy.mp3');
+      this.load.audio('lobby','assets/sound/lobby.mp3');        // меню
+      this.load.audio('battle','assets/sound/battle.mp3');      // игра
+      this.load.audio('arrow_s','assets/sound/arrow.mp3');      // петля стрел
+      this.load.audio('klick','assets/sound/klick.ogg');        // клик
+      this.load.audio('gameover_s','assets/sound/gameover.mp3');// конец
+      this.load.audio('towerup','assets/sound/towerup.mp3');    // апгрейд
+      this.load.audio('towerrush','assets/sound/towerrush.mp3');// слом башни
+      this.load.audio('money','assets/sound/money.mp3');        // строительство
     }
 
     create(){
       // Карта
       this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map').setDisplaySize(CONST.WIDTH, CONST.HEIGHT);
 
-      // Коллекции + пулы
+      // Коллекции
       this.enemies = this.add.group();
       this.bullets = this.add.group();
       this.towers = [];
       this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
 
-      /* ========== OBJECT POOLING (преднагрев) ========== */
-      this.enemyPool = [];
-      this.bulletPool = [];
-      // Предсоздаём врагов (невидимых) и графику их HP
-      for(let i=0;i<CONST.PREWARM_ENEMIES;i++){
-        const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false);
-        e.hpBar = this.add.graphics().setDepth(40).setVisible(false);
-        e.hpBar.__owner = e;
-        this.enemies.add(e);
-        this.enemyPool.push(e);
-      }
-      // Предсоздаём пули
-      for(let i=0;i<CONST.PREWARM_BULLETS;i++){
-        const b = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false);
-        this.bullets.add(b);
-        this.bulletPool.push(b);
-      }
-
       // Скорость (TURBO)
       this.speedScale = 1;
       this.time.timeScale = this.speedScale;
 
-      // Звук
+      // Звуки
       this.sndLobby   = this.sound.add('lobby',  { loop:true, volume:0.6 });
       this.sndBattle  = this.sound.add('battle', { loop:true, volume:0.6 });
       this.sndArrowLp = this.sound.add('arrow_s',{ loop:true, volume:0.35 });
@@ -338,7 +367,6 @@
       this.sndUp      = this.sound.add('towerup', { volume: 0.9 });
       this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
       this.sndMoney   = this.sound.add('money',   { volume: 0.9 });
-      this.sndKill    = this.sound.add('kill',    { volume: 0.8 }); // ← звук смерти
 
       // mute
       try{
@@ -347,41 +375,42 @@
       }catch(_){}
       this.sound.setMute(!State.soundEnabled);
 
-      // Хелперы звука
+      // Помощники по звуку
       this.stopAllLoops = ()=>{
         try{ this.sndArrowLp.stop(); }catch(_){}
         try{ this.sndBattle.stop(); }catch(_){}
         try{ this.sndLobby.stop(); }catch(_){}
       };
-      this.playLobby   = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying  && this.sndLobby.play(); }catch(_){} };
-      this.playBattle  = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
-      this.playGameOver= ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
+      this.playLobby = ()=>{ if(State.paused)return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying && this.sndLobby.play(); }catch(_){} };
+      this.playBattle= ()=>{ if(State.paused)return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
+      this.playGameOver=()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
       // Прелоадер завершён → меню + lobby
       hidePreloader();
       showMenuOverlay();
       this.playLobby();
 
-      // Строительные споты
+      // Споты строительства (молоты)
       CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
 
       // Анимации
       this._createAnims();
 
-      // HUD/кнопки
+      // Боковые кнопки и HUD
       this._buildSideButtons();
       this._buildHUD();
 
-      // Тикер стрельбы
+      // Тикер стрельбы (не зависит от Update, идёт таймером)
       this.shootTicker = this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
+
+      // ВАЖНО: НЕ паузим сцену! Она остаётся активной,
+      // но логика (update/_towersTick/_startWave) завязана на State.started и State.paused.
     }
 
-    // ====== Update ======
     update(){
       if(!State.started || State.paused) { this._syncHUD(); return; }
-      // только активные
-      this.enemies.getChildren().forEach(e => { if(e.active && e.visible) this._updateEnemy(e); });
-      this.bullets.getChildren().forEach(b => { if(b.active && b.visible) this._updateBullet(b); });
+      this.enemies.getChildren().forEach(e => this._updateEnemy(e));
+      this.bullets.getChildren().forEach(b => this._updateBullet(b));
       this._syncHUD();
     }
 
@@ -391,19 +420,25 @@
       this.goldPanel = this.add.image(80, yBottom, 'gold_panel')
         .setOrigin(0,1).setScale(1/3).setDepth(91);
 
+      // Монетка и текст (только один раз!)
       this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 36, 'coin_1')
         .setDepth(92).setScale(0.65);
       if (this.anims.exists('coin_anim')) this.coin.play('coin_anim');
 
       this.goldText = this.add.text(this.goldPanel.x + 95, this.goldPanel.y - 36, String(State.gold), {
-        font:'26px Arial', fill:'#fff', stroke:'#000', strokeThickness:4
+        font:'26px Arial',
+        fill:'#fff',
+        stroke:'#000',
+        strokeThickness:4
       })
       .setOrigin(0,0.5)
-      .setDepth(999);
+      .setDepth(999); // поверх всего HUD
 
+      // HUD базы
       this.baseHud = this.add.image(CONST.WIDTH - 550, CONST.HEIGHT - 450, 'base_100');
       this._applyBaseHudTexture();
 
+      // Кнопка рекламы
       this.adBtn = this.add.sprite(CONST.WIDTH - 76, CONST.HEIGHT - 96, 'ad_1')
         .setDepth(95).setInteractive({useHandCursor:true});
       if(this.anims.exists('ad_anim')) this.adBtn.play('ad_anim');
@@ -415,6 +450,7 @@
     }
 
     _applyBaseHudTexture(){
+      // Выбор ближайшего спрайта: 0,20,40,60,80,100
       const p = Math.max(0, Math.min(100, Math.round(State.baseHp/20)*20));
       const key = `base_${p}`;
       if(this.textures.exists(key)) this.baseHud.setTexture(key);
@@ -426,25 +462,29 @@
     }
 
     _buildSideButtons(){
+      // Вертикально справа, снизу вверх: TURBO -> PAUSE/RESUME -> (выше) SOUND/RELOAD/MENU
       const x = 576;
       const yMenu   = 629;
       const yReload = 709;
       const ySound  = 789;
-      const yTurbo  = 869;
-      const gap     = 80;
+      const yTurbo  = 869;   // турбо
+      const gap     = 80;    // вертикальный шаг
 
+      // MENU
       const btnMenu = this.add.image(x, yMenu, 'menu').setInteractive().setDepth(60);
       btnMenu.on('pointerdown', ()=>{
         if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
         this.pauseToMenu();
       });
 
+      // RELOAD
       const btnReload = this.add.image(x, yReload, 'reload').setInteractive().setDepth(60);
       btnReload.on('pointerdown', ()=>{
         if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
         this.restartRound();
       });
 
+      // SOUND (фикс с первого клика)
       const btnSound = this.add.image(x, ySound, State.soundEnabled ? 'sound_on' : 'sound_off')
         .setInteractive().setDepth(60);
       const applyMuteIcon = ()=> btnSound.setTexture(State.soundEnabled ? 'sound_on' : 'sound_off');
@@ -453,17 +493,20 @@
         this.sound.setMute(!State.soundEnabled);
         try{ localStorage.setItem('td_mute', State.soundEnabled ? '0':'1'); }catch(_){}
         applyMuteIcon();
-        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ }
+        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
       });
 
+      // TURBO — только по кнопке
       this.btnTurbo = this.add.image(x, yTurbo, 'turbo_off').setInteractive().setDepth(60);
       const applyTurboIcon = ()=> this.btnTurbo.setTexture(this.speedScale>1?'turbo_on':'turbo_off');
       this.btnTurbo.on('pointerdown', ()=>{
         if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-        this._toggleTurbo(); applyTurboIcon();
+        this._toggleTurbo();
+        applyTurboIcon();
       });
       applyTurboIcon();
 
+      // PAUSE/RESUME — вертикально, ниже TURBO
       this.btnPause = this.add.image(x, yTurbo + gap, 'pause').setDepth(60).setInteractive({useHandCursor:true});
       this.btnResume= this.add.image(x, yTurbo + gap, 'resume').setDepth(60).setInteractive({useHandCursor:true}).setVisible(false);
 
@@ -477,137 +520,100 @@
       });
     }
 
+    // --- Управление TURBO ---
     _toggleTurbo(){
       this.speedScale = this.speedScale>1 ? 1 : 2;
       if(!State.paused){
-        this.time.timeScale = this.speedScale;
-        this.tweens.timeScale = this.speedScale;
+        this.time.timeScale = this.speedScale;   // влияет на таймеры/волны/шут-тикер
+        this.tweens.timeScale = this.speedScale; // влияет на твины
       }
     }
 
+    // --- Пауза без блокировки инпута ---
     _setPaused(flag){
       State.paused = !!flag;
+
       if(this.btnPause && this.btnResume){
         this.btnPause.setVisible(!State.paused);
         this.btnResume.setVisible(State.paused);
       }
+
       if(State.paused){
+        // Останавливаем время и твины, но сцена остаётся активной (инпут работает)
         this.time.timeScale = 0;
         this.tweens.pauseAll();
+        // Фоновая музыка по требованию НЕ останавливается
       } else {
+        // Возвращаемся к текущей скорости игры (1 или 2)
         this.time.timeScale = this.speedScale;
         this.tweens.resumeAll();
       }
     }
 
-    // ====== Жизненный цикл / экраны ======
+    // ====== Жизненный цикл ======
     startGameFromMenu(){
-      // Полный «чистый» старт боя по нажатию Play:
       hideMenuOverlay();
       try{ menuVideo.pause(); }catch(_){}
-      this.stopAllLoops();
+      this.playBattle();
 
-      // Перезапуск сцены (гарантированно чисто)
-      this.scene.restart();
+      State.started = true;
+      this._setPaused(false);
 
-      this.events.once('create', ()=>{
-        // Полный reset core-состояния
-        this._hardResetState();
-        this.playBattle();
-        State.started = true;
+      // УБИВАЕМ возможный старый таймер волн
+      if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
 
-        // Чистим возможный старый таймер (без наложений)
-        if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-        if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer=null; }
-
-        this._scheduleNextWave(1200);
-      });
+      // Старт первой волны через 1.8с
+      this._scheduleNextWave(1800);
     }
 
     pauseToMenu(){
-      // Возврат в меню
       State.started = false;
-      this._setPaused(false);
-      this.stopAllLoops();
-      try { this.sndBattle.stop(); }catch(_){}
-      try { this.sndArrowLp.stop(); }catch(_){}
-      this.playLobby();          // вернуть музыку меню
-      showMenuOverlay();         // показать меню
-      menuOverlay.style.display = 'flex';
-
-      // чистим таймеры
-      if (this.waveTimer) {
-        try { this.waveTimer.remove(); }catch(_){}
-        this.waveTimer = null;
-      }
+      this._setPaused(false);  // чтобы время не оставалось замороженным
+      this.playLobby();
+      showMenuOverlay();
+      try{ menuVideo.currentTime = 0; menuVideo.play().catch(()=>{}); }catch(_){}
     }
 
     showGameOver(){
       State.started = false;
       this._setPaused(false);
-      this.stopAllLoops();       // Остановить все звуки
-      try{ this.sndBattle.stop(); }catch(_){}
-      try{ this.sndArrowLp.stop(); }catch(_){}
       this.playGameOver();
       showGameoverOverlay();
       try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
     }
 
-    _hardResetState(){
-      // Полная инициализация новой сессии (включая очистку пулов)
+    _resetCoreState(){
       State.gold = CONST.START_GOLD;
       State.wave = 0;
-      State.baseHp = 100;
-      State.paused = false;
+      State.baseHp = 100; // %
       this.speedScale = 1;
-      this.time.timeScale = 1;
-      this.tweens.timeScale = 1;
-
-      // деактивация всех врагов и пуль (НЕ destroy!)
-      this.enemies.getChildren().forEach(e=>{
-        if(e.hpBar){ e.hpBar.clear().setVisible(false); }
-        e.setActive(false).setVisible(false).setPosition(-9999,-9999);
-        e.state='idle'; e.targetTower=null; e.path=null; e.pathIndex=0;
-      });
-      this.bullets.getChildren().forEach(b=>{
-        b.setActive(false).setVisible(false).setPosition(-9999,-9999);
-        b.target=null;
-      });
-
-      // Сброс башен
-      try{
-        this.towers.forEach(t=>{
-          if(t && t.sprite && t.sprite.active){ t.sprite.destroy(); }
-          if(t && t.sprite?.upIcon){ try{ t.sprite.upIcon.destroy(); }catch(_){ } }
-        });
-        this.towers = [];
-      }catch(_){}
-
-      // Восстановить молоты
-      try{
-        this.buildSprites.forEach((spr, i)=>{
-          if(spr && spr.active) spr.destroy();
-          const pos = CONST.BUILD_SPOTS[i];
-          this._createHammer(pos, i);
-        });
-      }catch(_){}
+      this._setPaused(false);
       this._syncHUD();
     }
 
     restartRound(){
-      // Перезапуск из игры
       this.stopAllLoops();
-      if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer=null; }
-
       this.scene.restart();
       this.events.once('create', ()=>{
-        this._hardResetState();
+        this._resetCoreState();
         hidePreloader(); hideMenuOverlay(); hideGameoverOverlay();
         this.playBattle();
         State.started = true;
-        this._scheduleNextWave(1200);
+
+        // УБИВАЕМ возможный старый таймер волн после рестарта
+        if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
+
+        this._scheduleNextWave(1800);
+      });
+    }
+
+    restartToMenu(){
+      this.stopAllLoops();
+      this.scene.restart();
+      this.events.once('create', ()=>{
+        this._resetCoreState();
+        this.playLobby();
+        showMenuOverlay();
       });
     }
 
@@ -621,11 +627,11 @@
     _buildTower(index){
       if(State.gold < CONST.TOWER_COST){ alert('Not enough gold'); return; }
       const pos = CONST.BUILD_SPOTS[index];
-
-      if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){ }
+      if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){}
         this.buildSprites[index] = null;
       }
       State.gold -= CONST.TOWER_COST; this._syncHUD();
+
       try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
 
       const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1').setInteractive().setDepth(5);
@@ -677,31 +683,15 @@
 
     // ====== ПУЛ ПУЛЬ ======
     _getBullet(){
-      // найти неактивную пулю
-      for(let i=0;i<this.bulletPool.length;i++){
-        const b = this.bulletPool[i];
-        if(!b.active && !b.visible) return b;
+      const kids = this.bullets.getChildren();
+      for(let i=0;i<kids.length;i++){
+        const b = kids[i];
+        if(!b.active){ return b; }
       }
-      // нет — докинем
-      const nb = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false);
+      const nb = this.add.image(0,0,'arrow');
+      nb.setActive(false).setVisible(false);
       this.bullets.add(nb);
-      this.bulletPool.push(nb);
       return nb;
-    }
-
-    // ====== ПУЛ ВРАГОВ ======
-    _getEnemy(){
-      for(let i=0;i<this.enemyPool.length;i++){
-        const e = this.enemyPool[i];
-        if(!e.active && !e.visible) return e;
-      }
-      // докинем (редко)
-      const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false);
-      e.hpBar = this.add.graphics().setDepth(40).setVisible(false);
-      e.hpBar.__owner = e;
-      this.enemies.add(e);
-      this.enemyPool.push(e);
-      return e;
     }
 
     // ====== Башни / стрельба ======
@@ -732,7 +722,7 @@
         // поиск цели
         let target=null, dmin=1e9;
         this.enemies.getChildren().forEach(e=>{
-          if(!e.active || !e.visible || e.state==='die') return;
+          if(!e.active || e.state==='die') return;
           const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
           if(d < ts._range && d < dmin){ dmin=d; target=e; }
         });
@@ -747,7 +737,7 @@
           b.target = target;
           b.speed = ts._bulletSpeed || 9;
           b.damage = ts._damage || (5*ts.level);
-          b.hitRadius = 16;
+          b.hitRadius = 16; // радиус попадания
           b.setDepth(30);
 
           const atkKey = `${ts._typeKey}_atk_anim`; if(this.anims.exists(atkKey)) ts.play(atkKey,true);
@@ -767,44 +757,49 @@
       }catch(_){}
     }
 
-    // ====== Пули ======
+    // ====== Коллизия пули (ручная) ======
     _updateBullet(b){
-      if(!b || !b.active || !b.visible) return;
+      if(!b || !b.active) return;
 
-      if(!b.target || !b.target.active || !b.target.visible || b.target.state==='die'){
-        b.setActive(false).setVisible(false).setPosition(-9999,-9999);
-        b.target=null;
+      // Нет цели — выключаем пулю
+      if(!b.target || !b.target.active || b.target.state==='die'){
+        try{ b.setActive(false).setVisible(false); }catch(_){}
         return;
       }
 
+      // Вектор до цели
       const dx = b.target.x - b.x;
       const dy = b.target.y - b.y;
       const dist = Math.hypot(dx, dy);
       const sp = b.speed || 8;
       const hitR = b.hitRadius || 16;
 
+      // Если уже в радиусе попадания — урон и деактивация
       if(dist <= hitR){
         const dmg = (b.damage || 5);
         b.target.hp -= dmg;
         this._floatText(b.target.x, b.target.y-28, '-' + dmg);
         if(b.target.hp <= 0){ this._killEnemy(b.target); }
-        b.setActive(false).setVisible(false).setPosition(-9999,-9999);
-        b.target=null;
+        try{ b.setActive(false).setVisible(false); }catch(_){}
         return;
       }
 
+      // Движение к цели
       const nx = dx / dist;
       const ny = dy / dist;
       b.x += nx * sp;
       b.y += ny * sp;
+
+      // Поворот стрелы
       b.rotation = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
 
+      // Улетела за экран — выключаем
       if(b.x < -50 || b.x > CONST.WIDTH+50 || b.y < -50 || b.y > CONST.HEIGHT+50){
-        b.setActive(false).setVisible(false).setPosition(-9999,-9999);
-        b.target=null;
+        try{ b.setActive(false).setVisible(false); }catch(_){}
       }
     }
 
+    // Всплывающий текст урона
     _floatText(x,y,text){
       const t = this.add.text(x, y, text, {font:'20px Arial', fill:'#ffec8b', stroke:'#000', strokeThickness:3}).setDepth(100);
       t.setOrigin(0.5,1);
@@ -818,51 +813,54 @@
       if(!e || e.state==='die') return;
       e.state = 'die';
       if(e.anims) e.anims.stop();
+      if(e.hpBar){ e.hpBar.destroy(); e.hpBar = null; }
 
-      // анимация смерти
       const hasDieAnim = this.anims.exists('e_die_anim');
       if (hasDieAnim) {
-        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-          this._deactivateEnemy(e);
+        e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim) => {
+          if (anim && anim.key === 'e_die_anim') {
+            this.time.delayedCall(150, () => { if (e && e.active) e.destroy(); });
+          }
         });
         e.play('e_die_anim');
       } else {
-        this._deactivateEnemy(e);
+        this.time.delayedCall(200, () => { if (e && e.active) e.destroy(); });
       }
-
-      // ✅ звук убийства
-      try{ this.sndKill && this.sndKill.play(); }catch(_){}
 
       State.gold += CONST.KILL_REWARD;
       this._syncHUD();
-    }
-
-    _deactivateEnemy(e){
-      if(e.hpBar){ e.hpBar.clear().setVisible(false); }
-      e.setActive(false).setVisible(false).setPosition(-9999,-9999);
-      e.targetTower=null; e.path=null; e.pathIndex=0; e.state='idle';
+      this.time.delayedCall(1500, ()=>{ if(e && e.active){ e.destroy(); }});
     }
 
     // ====== Враги ======
     _spawnEnemy(path, hp){
       const spawn = path[0];
-      const e = this._getEnemy();
 
-      e.maxHp = hp; e.hp = hp;
+      // ВАЖНО: hp задаётся исключительно из аргумента (никаких «100 по умолчанию»)
+      const e = this.add.sprite(spawn[0],spawn[1],'e_walk_0').setScale(0.35);
+      e.maxHp = hp;
+      e.hp = hp;
+
+      // Медленная база скорости + мягкий рост
       e.speed = 0.12 + Math.min(0.018 * State.wave, 0.32);
+
       e.path = path; e.pathIndex = 1;
       e.state='walk'; e._savedPathIndex=null; e._lastAttack=0;
-
-      e.setPosition(spawn[0],spawn[1]).setVisible(true).setActive(true);
       if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
+      this.enemies.add(e);
 
-      // HP-бар
-      e.hpBar.setVisible(true);
+      // Полоска HP
+      e.hpBar = this.add.graphics().setDepth(40);
+      e.hpBar.__owner = e;
       this._drawHpBar(e);
+
+      if (window.__WAVE_DEBUG__) {
+        console.log(`🐍 Спавн: HP=${hp}, speed=${e.speed.toFixed(3)}`);
+      }
     }
 
     _drawHpBar(e){
-      if(!e || !e.hpBar || !e.visible) return;
+      if(!e || !e.hpBar) return;
       const w = 40, h = 6;
       const x = e.x - w/2;
       const y = e.y - 40;
@@ -874,21 +872,19 @@
     }
 
     _updateEnemy(e){
-      if(!e || !e.active || !e.visible || e.state==='die') return;
+      if(!e || !e.active || e.state==='die') return;
 
+      // HP бар следует
       if(e.hpBar){ this._drawHpBar(e); }
 
-      // Агро башни
+      // Агро ближайшей башни
       let nearest=null, nd=1e9;
       for(const tObj of this.towers){
         const ts=tObj.sprite; if(!ts||!ts.active) continue;
         const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);
         if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=ts; }
       }
-      if(nearest){
-        e.targetTower=nearest; e._savedPathIndex=e.pathIndex;
-        if(this.anims.exists('e_atk_anim') && e.anims?.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim');
-      }
+      if(nearest){ e.targetTower=nearest; e._savedPathIndex=e.pathIndex; if(this.anims.exists('e_atk_anim') && e.anims?.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim'); }
 
       // Атака башни
       if(e.targetTower && e.targetTower.active){
@@ -899,13 +895,10 @@
           e._lastAttack = Date.now();
           if(e.targetTower.hp != null){
             e.targetTower.hp -= 10;
-            try{
-              e.targetTower.setTint && e.targetTower.setTint(0xff9999);
-              this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){} });
-            }catch(_){}
+            try{ e.targetTower.setTint && e.targetTower.setTint(0xff9999); this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){}});}catch(_){}
             if(e.targetTower.hp <= 0){
               try{ this.sndRush.play(); }catch(_){}
-              try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){ }
+              try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
               try{ e.targetTower.destroy(); }catch(_){}
               this.towers = this.towers.filter(t => t && t.sprite && t.sprite.active);
               e.targetTower=null; e.state='returning';
@@ -932,7 +925,7 @@
       if(e.pathIndex >= e.path.length){
         if(!e._lastAttack || Date.now()-e._lastAttack > 900){
           e._lastAttack = Date.now();
-          State.baseHp -= 5; if(State.baseHp < 0) State.baseHp = 0;
+          State.baseHp -= 5; if(State.baseHp < 0) State.baseHp = 0; // урон базе в процентах
           this._syncHUD();
           if(State.baseHp<=0){ this.showGameOver(); }
         }
@@ -940,7 +933,7 @@
         return;
       }
 
-      // Движение по точкам
+      // Движение по путевым точкам
       const wp = e.path[e.pathIndex];
       if(wp){
         this._moveTowards(e, wp[0], wp[1], e.speed);
@@ -952,17 +945,13 @@
 
     _moveTowards(obj, tx, ty, speed){
       const dx=tx-obj.x, dy=ty-obj.y, dist=Math.hypot(dx,dy);
-      if(dist<0.1) return;
-      obj.x += (dx/dist)*speed*2;
-      obj.y += (dy/dist)*speed*2;
+      if(dist<0.1) return; obj.x += (dx/dist)*speed*2; obj.y += (dy/dist)*speed*2;
     }
 
-    // ====== Волны (строгий единичный таймер) ======
+    // ====== Волны (плавный старт и рост сложности) ======
     _scheduleNextWave(delay = 1500) {
-      // защита от наложения таймеров
-      if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
+      // всегда удаляем прежний таймер, чтобы НЕ было дублей
       if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
-
       this.waveTimer = this.time.addEvent({
         delay,
         callback: () => this._startWave(),
@@ -975,34 +964,56 @@
       State.wave++;
       this._syncHUD();
 
+      // === Настройки роста сложности (мягко) ===
+      // HP: начинается ~30 и растёт нежно
       const enemyHpBase = 25 + State.wave * 5;
       const hpJitter = Phaser.Math.Between(-2, 4);
+
+      // Врагов на путь: +1 каждые 4 волны (макс. 4)
       const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave - 1) / 4), 4);
 
+      // Активные пути:
+      // Волны 1–2: 1 путь, 3–6: 1-2 пути, с 7-й: 2-3 пути
       let spawnCount;
-      if (State.wave <= 2) spawnCount = 1;
-      else if (State.wave <= 6) spawnCount = Phaser.Math.Between(1, 2);
-      else spawnCount = Phaser.Math.Between(2, 3);
+      if (State.wave <= 2) {
+        spawnCount = 1;
+      } else if (State.wave <= 6) {
+        spawnCount = Phaser.Math.Between(1, 2);
+      } else {
+        spawnCount = Phaser.Math.Between(2, 3);
+      }
       spawnCount = Math.min(spawnCount, CONST.PATHS.length);
 
       const chosenIndexes = Phaser.Utils.Array.Shuffle(
         [...Array(CONST.PATHS.length).keys()]
       ).slice(0, spawnCount);
 
+      // === Постепенный выход врагов с большими интервалами в начале ===
       chosenIndexes.forEach((pathIndex, idx) => {
         const path = CONST.PATHS[pathIndex];
         for (let j = 0; j < enemiesPerSpawn; j++) {
+          // большие задержки = «растягиваем» волну
           const base = (State.wave <= 3) ? Phaser.Math.Between(2400, 3000)
                                          : Phaser.Math.Between(2000, 2600);
           const delay = j * base + idx * 1000;
           const hp = Math.max(10, enemyHpBase + hpJitter);
-          this.time.addEvent({ delay, callback: () => this._spawnEnemy(path, hp) });
+          this.time.addEvent({
+            delay,
+            callback: () => this._spawnEnemy(path, hp),
+          });
         }
       });
 
-      const nextDelayBase = (State.wave <= 3) ? 12000 : 10000;
-      const nextDelay = nextDelayBase + enemiesPerSpawn * 3200 + Phaser.Math.Between(0, 1800);
+      // === Следующая волна — пауза тоже мягко растёт ===
+      const nextDelayBase =
+        (State.wave <= 3) ? 12000 : 10000; // подольше на ранних волнах
+      const nextDelay =
+        nextDelayBase + enemiesPerSpawn * 3200 + Phaser.Math.Between(0, 1800);
       this._scheduleNextWave(nextDelay);
+
+      if (window.__WAVE_DEBUG__) {
+        console.log(`🌊 Волна ${State.wave}: пути=${spawnCount}, врагов/путь=${enemiesPerSpawn}, HP≈${enemyHpBase}, nextDelay=${nextDelay}мс`);
+      }
     }
 
     // ====== Анимации ======
@@ -1021,16 +1032,24 @@
       // Враги
       const eWalk=[], eAtk=[], eDie=[];
       for(let i=0;i<7;i++){
-        eWalk.push({key:`e_walk_${i}`});
-        eAtk.push({key:`e_atk_${i}`});
-        eDie.push({key:`e_die_${i}`});
+        eWalk.push({key:`e_walk_${i}`, frame:null});
+        eAtk.push({key:`e_atk_${i}`, frame:null});
+        eDie.push({key:`e_die_${i}`, frame:null});
       }
+
       if(!this.anims.exists('e_walk_anim'))
         this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
       if(!this.anims.exists('e_atk_anim'))
         this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8, repeat:-1});
+
       if(!this.anims.exists('e_die_anim'))
-        this.anims.create({ key:'e_die_anim', frames:eDie.map(f=>({key:f.key})), frameRate:10, repeat:0, hideOnComplete:false });
+        this.anims.create({
+          key: 'e_die_anim',
+          frames: eDie.map(f=>({key:f.key, frame:null})),
+          frameRate: 10,
+          repeat: 0,
+          hideOnComplete: false
+        });
 
       // Монетка
       if(!this.anims.exists('coin_anim')){
@@ -1050,18 +1069,19 @@
   }
 
   // ========================================================================
-  //                       PHASER СТАРТ (адаптив, без двойного масштаба)
+  //                             PHASER СТАРТ (адаптив)
   // ========================================================================
   const config = {
     type: Phaser.AUTO,
     parent: 'game',
+    /* ✅ КЛЮЧЕВАЯ ЧАСТЬ: масшт. через Scale Manager */
     scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: CONST.WIDTH,
-      height: CONST.HEIGHT,
-      autoRound: true
-    },
+  mode: Phaser.Scale.FIT,
+  autoCenter: Phaser.Scale.CENTER_BOTH,
+  width: CONST.WIDTH,
+  height: CONST.HEIGHT,      // ← добавляем запятую!
+  autoRound: true
+},
     physics:{ default:'arcade', arcade:{ debug:false } },
     scene:[AppScene],
     backgroundColor: '#000000'
@@ -1069,49 +1089,90 @@
   const game = new Phaser.Game(config);
 
   /* ========================================================================
-     СИНХРОН DOM ↔ КАНВАС (один набор обработчиков, без дублей)
-     - Читаем Phaser Scale.displaySize и выставляем #stage ровно в эти размеры.
+     СИНХРОН ИНТЕРФЕЙСА DOM ↔ РАЗМЕР КАНВАСА
+     — Phaser растягивает канвас до displaySize (FIT).
+     — Мы считываем текущую «витрину» (displaySize) и выставляем #stage (DOM) в те же размер/позицию.
+     Благодаря этому все оверлеи (меню/прелоадер/гоувер) идеально совпадают с канвасом.
   ======================================================================== */
 
-  function syncStageToCanvas(){
-    if(!game || !game.scale) return;
+  function _syncStageToCanvas(){
+    // если игра ещё не создалась
+    if(!game || !game.scale || !game.canvas) return;
     const s = game.scale;
-    const cssW = Math.floor((s.displaySize && s.displaySize.width) || (s.gameSize && s.gameSize.width) || CONST.WIDTH);
-    const cssH = Math.floor((s.displaySize && s.displaySize.height) || (s.gameSize && s.gameSize.height) || CONST.HEIGHT);
-    if (cssW > 0) stageBox.style.width  = cssW + 'px';
-    if (cssH > 0) stageBox.style.height = cssH + 'px';
+
+    // displaySize = фактический CSS-размер канваса после FIT
+    const cssW = Math.floor(s.displaySize.width);
+    const cssH = Math.floor(s.displaySize.height);
+
+    // ставим stage в те же размеры
+    stageBox.style.width  = cssW + 'px';
+    stageBox.style.height = cssH + 'px';
+
+    // viewport у нас центрирует stage — значит центр совпадёт
+    // ничего дополнительно позиционировать не надо
+
+    // Дополнительно: ограничим "выделение" на iOS:
+    stageBox.style.paddingTop = 'var(--safe-pad)';
   }
 
-  // ЕДИНСТВЕННЫЕ обработчики
-  window.addEventListener('load', ()=>{
-    showPreloader();
-    try { if (game.isBooted && game.scale) game.scale.refresh(); } catch(e){}
-    syncStageToCanvas();
-  }, { passive:true });
+  // Первый sync сразу после boot
+window.addEventListener('load', ()=>{
+  showPreloader();
+  if (game && game.scale) {
+    game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+    game.scale.refresh();
+  }
+  _syncStageToCanvas();
+});
 
-  window.addEventListener('resize', ()=>{
-    // debounce через rAF
-    if (syncStageToCanvas.__raf) cancelAnimationFrame(syncStageToCanvas.__raf);
-    syncStageToCanvas.__raf = requestAnimationFrame(()=>{
-      try { game.scale.refresh(); } catch(e){}
-      syncStageToCanvas();
-      syncStageToCanvas.__raf = 0;
+// === Пересчёт при изменении размера окна ===
+window.addEventListener('resize', ()=>{
+  // Проверяем, что Phaser уже инициализирован и есть scale
+  if (game && game.isBooted && game.scale) {
+    requestAnimationFrame(()=>{
+      try {
+        game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+        game.scale.refresh();
+        _syncStageToCanvas();
+      } catch(e) {
+        console.warn('⚠️ Resize skipped (Phaser not ready yet):', e);
+      }
     });
-  }, { passive:true });
+  } else {
+    // Если игра ещё не создана — просто синхронизируем DOM
+    _syncStageToCanvas();
+  }
+});
 
-  window.addEventListener('orientationchange', ()=>{
-    // небольшая задержка, чтобы обновился viewport
-    setTimeout(()=>{
-      try { game.scale.refresh(); } catch(e){}
-      syncStageToCanvas();
-    }, 300);
-  }, { passive:true });
+// === Пересчёт при смене ориентации (мобильные) ===
+window.addEventListener('orientationchange', ()=>{
+  // Делаем задержку, чтобы браузер успел перестроить viewport
+  setTimeout(()=>{
+    if (game && game.isBooted && game.scale) {
+      try {
+        game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+        game.scale.refresh();
+        _syncStageToCanvas();
+      } catch(e) {
+        console.warn('⚠️ Orientation resize skipped (Phaser not ready yet):', e);
+      }
+    } else {
+      _syncStageToCanvas();
+    }
+  }, 300);
+});
 
-  // Phaser resize → один listener
+  // Когда Phaser изменил масштаб (например, при старте/ресайзе) — уравниваем stage
   const onReady = ()=>{
-    try{ game.scale.on('resize', ()=>{ syncStageToCanvas(); }); }catch(_){}
-    syncStageToCanvas();
+    try{
+      game.scale.on('resize', ()=>{
+        _syncStageToCanvas();
+      });
+    }catch(_){}
+    _syncStageToCanvas();
   };
+
+  // Ждём, когда всё создастся
   if (document.readyState === 'complete' || document.readyState === 'interactive'){
     setTimeout(onReady, 0);
   }else{
@@ -1119,37 +1180,25 @@
   }
 
   // ========================================================================
-  //                   DOM-КНОПКИ (экраны)
+  //                   DOM-ЛОГИКА ПЕРЕКЛЮЧЕНИЯ СЛОЁВ
   // ========================================================================
-
-  // === Запуск игры из главного меню (без дублей, без лишних кусков) ===
   startImg.addEventListener('click', ()=>{
-    // Спрятать меню и остановить музыку лобби
-    hideMenuOverlay();
-    try { menuVideo.pause(); } catch(_){}
     const sc = game.scene.keys['AppScene'];
-    if (!sc) return;
+    if(!sc) return;
+    hideMenuOverlay();
+    try{ menuVideo.pause(); }catch(_){}
+    sc.startGameFromMenu();
+  });
 
-    // Если сцена уже активна — перезапускаем, чтобы гарантированно очистить состояние
-    if (sc.scene.isActive()) {
-      sc.startGameFromMenu();
-    } else {
-      // Запустить сцену, затем чисто стартовать
-      sc.scene.start();
-      sc.events.once('create', ()=> sc.startGameFromMenu());
-    }
-  }, {passive:true});
-
-  // === Перезапуск из экрана GameOver ===
   restartImg.addEventListener('click', ()=>{
     hideGameoverOverlay();
     const sc = game.scene.keys['AppScene'];
     if(!sc) return;
     sc.restartRound();
-    // на всякий случай убедимся, что меню скрыто
-    hideMenuOverlay();
-  }, {passive:true});
-
+  });
   </script>
 </body>
 </html>
+
+
+
