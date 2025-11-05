@@ -1125,21 +1125,9 @@ window.addEventListener('load', ()=>{
   _syncStageToCanvas();
 });
 
-// При изменении размера или ориентации окна — пересчёт сцены и DOM
-window.addEventListener('resize', ()=>{
-  if (game && game.scale) {
-    // Делаем пересчёт через следующий кадр — браузер уже применит новый viewport
-    requestAnimationFrame(()=>{
-      game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
-      game.scale.refresh();
-      _syncStageToCanvas();
-    });
-  } else {
-    _syncStageToCanvas();
-  }
-});
 // === Пересчёт при изменении размера окна ===
 window.addEventListener('resize', ()=>{
+  // Проверяем, что Phaser уже инициализирован и есть scale
   if (game && game.isBooted && game.scale) {
     requestAnimationFrame(()=>{
       try {
@@ -1151,6 +1139,7 @@ window.addEventListener('resize', ()=>{
       }
     });
   } else {
+    // Если игра ещё не создана — просто синхронизируем DOM
     _syncStageToCanvas();
   }
 });
