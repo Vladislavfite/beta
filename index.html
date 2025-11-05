@@ -1076,11 +1076,12 @@
     parent: 'game',
     /* ✅ КЛЮЧЕВАЯ ЧАСТЬ: масшт. через Scale Manager */
     scale: {
-      mode: Phaser.Scale.FIT,             // подгоняем внутри окна, сохраняя соотношение 720×1280
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: CONST.WIDTH,
-      height: CONST.HEIGHT
-    },
+  mode: Phaser.Scale.FIT,
+  autoCenter: Phaser.Scale.CENTER_BOTH,
+  width: CONST.WIDTH,
+  height: CONST.HEIGHT,      // ← добавляем запятую!
+  autoRound: true
+},
     physics:{ default:'arcade', arcade:{ debug:false } },
     scene:[AppScene],
     backgroundColor: '#000000'
@@ -1127,11 +1128,60 @@ window.addEventListener('load', ()=>{
 // При изменении размера или ориентации окна — пересчёт сцены и DOM
 window.addEventListener('resize', ()=>{
   if (game && game.scale) {
-    // Полный пересчёт размеров логической сцены и canvas
-    game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
-    game.scale.refresh();
+    // Делаем пересчёт через следующий кадр — браузер уже применит новый viewport
+    requestAnimationFrame(()=>{
+      game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+      game.scale.refresh();
+      _syncStageToCanvas();
+    });
+  } else {
+    _syncStageToCanvas();
   }
-  _syncStageToCanvas();
+});
+// Пересчёт при изменении размера окна
+window.addEventListener('resize', ()=>{
+  // Проверяем, что игра уже инициализирована и масштаб доступен
+  if (game && game.isBooted && game.scale) {
+    requestAnimationFrame(()=>{
+      try {
+        game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+        game.scale.refresh();
+        _syncStageToCanvas();
+      } catch(e) {
+        console.warn('⚠️ Resize skipped (Phaser not ready yet):', e);
+      }
+    });
+  } else {
+    _syncStageToCanvas();
+  }
+});
+
+// Пересчёт при смене ориентации
+window.addEventListener('orientationchange', ()=>{
+  // Делаем задержку, чтобы устройство успело применить новый viewport
+  setTimeout(()=>{
+    if (game && game.isBooted && game.scale) {
+      try {
+        game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+        game.scale.refresh();
+        _syncStageToCanvas();
+      } catch(e) {
+        console.warn('⚠️ Orientation resize skipped:', e);
+      }
+    } else {
+      _syncStageToCanvas();
+    }
+  }, 300);
+});
+// === Реакция на смену ориентации (мобильные) ===
+window.addEventListener('orientationchange', ()=>{
+  setTimeout(()=>{
+    if (game && game.scale) {
+      game.scale.resize(CONST.WIDTH, CONST.HEIGHT);
+      game.scale.refresh();
+    }
+    _syncStageToCanvas();
+  }, 300);
 });
 
 
@@ -1172,4 +1222,3 @@ window.addEventListener('resize', ()=>{
   </script>
 </body>
 </html>
-
