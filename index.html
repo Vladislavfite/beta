@@ -228,8 +228,9 @@
   // Слои
   const showPreloader = ()=> preloaderOverlay.classList.remove('hidden');
   const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
-  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); };
-  const hideMenuOverlay = ()=> menuOverlay.classList.add('hidden');
+  const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); menuOverlay.style.display = 'flex';
+};
+  const hideMenuOverlay = ()=> menuOverlay.classList.add('hidden') menuOverlay.style.display = 'none';
   const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
   const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
 
@@ -554,15 +555,16 @@
 }
 
     showGameOver(){
-      State.started = false;
-      this._setPaused(false);
-      this.playGameOver();
-      showGameoverOverlay();
-      try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
-      if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
-    }
-
+  State.started = false;
+  this._setPaused(false);
+  this.stopAllLoops();       // ✅ Остановить все звуки
+  try{ this.sndBattle.stop(); }catch(_){}
+  try{ this.sndArrowLp.stop(); }catch(_){}
+  this.playGameOver();
+  showGameoverOverlay();
+  try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
+  if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
+}
     _hardResetState(){
       // Полная инициализация новой сессии (включая очистку пулов)
       State.gold = CONST.START_GOLD;
