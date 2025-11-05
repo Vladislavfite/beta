@@ -1127,20 +1127,53 @@
   // ========================================================================
   //                   DOM-КНОПКИ (экраны)
   // ========================================================================
-  startImg.addEventListener('click', ()=>{
-    const sc = game.scene.keys['AppScene'];
-    if(!sc) return;
+  // === Запуск игры из главного меню (финальный исправленный вариант) ===
+startImg.addEventListener('click', ()=>{
+  hideMenuOverlay();
+  try { menuVideo.pause(); } catch(_){}
 
-    // Полный рестарт боя по кнопке Play (по требованию)
-    sc.startGameFromMenu();
-  });
+  const sc = game.scene.keys['AppScene'];
+  if(!sc) {
+    console.warn('⚠️ Сцена AppScene не найдена, ждём READY...');
+    game.events.once(Phaser.Core.Events.READY, ()=>{
+      const s2 = game.scene.keys['AppScene'];
+      if(!s2) return;
+      s2.scene.start();
+      s2.events.once('create', ()=>{
+        s2._hardResetState();
+        s2.playBattle();
+        State.started = true;
+        if (s2.waveTimer?.hasDispatched) s2.waveTimer.remove();
+        if (s2.waveTimer) { s2.waveTimer.remove(); s2.waveTimer = null; }
+        s2._scheduleNextWave(1200);
+      });
+    });
+    return;
+  }
 
-  restartImg.addEventListener('click', ()=>{
-    hideGameoverOverlay();
-    const sc = game.scene.keys['AppScene'];
-    if(!sc) return;
-    sc.restartRound();
+  if (!sc.scene.isActive()) {
+    sc.scene.start();
+  } else {
+    sc.scene.restart();
+  }
+
+  sc.events.once('create', ()=>{
+    sc._hardResetState();
+    sc.playBattle();
+    State.started = true;
+    if (sc.waveTimer?.hasDispatched) sc.waveTimer.remove();
+    if (sc.waveTimer) { sc.waveTimer.remove(); sc.waveTimer = null; }
+    sc._scheduleNextWave(1200);
   });
+}, {passive:true});
+
+// === Перезапуск из экрана GameOver ===
+restartImg.addEventListener('click', ()=>{
+  hideGameoverOverlay();
+  const sc = game.scene.keys['AppScene'];
+  if(!sc) return;
+  sc.restartRound();
+}, {passive:true});
   </script>
 </body>
 </html>
