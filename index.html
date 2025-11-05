@@ -230,7 +230,10 @@
   const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
   const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); gameoverOverlay.classList.add('hidden'); menuOverlay.style.display = 'flex';
 };
-  const hideMenuOverlay = ()=> menuOverlay.classList.add('hidden') menuOverlay.style.display = 'none';
+  const hideMenuOverlay = ()=> {
+  menuOverlay.classList.add('hidden');
+  menuOverlay.style.display = 'none';
+};
   const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
   const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
 
