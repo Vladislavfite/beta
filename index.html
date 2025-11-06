@@ -527,17 +527,23 @@
 
     // Возврат в меню из игры
     returnToMenu(){
-      State.started = false;
-      this._setPaused(false);
-      this.stopAllLoops();
-      try { this.sndBattle.stop(); }catch(_){}
-      try { this.sndArrowLp.stop(); }catch(_){}
-      this.playLobby();
-      showMenuOverlay();
+  State.started = false;
+  this._setPaused(false);
+  this.stopAllLoops();
+  try { this.sndBattle.stop(); }catch(_){}
+  try { this.sndArrowLp.stop(); }catch(_){}
+  this.playLobby();
+  showMenuOverlay();
 
-      if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-      if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer = null; }
-    }
+  // 🔥 ВОЗОБНОВЛЕНИЕ ФОНА МЕНЮ
+  try {
+    menuVideo.currentTime = 0;
+    menuVideo.play().catch(()=>{});
+  } catch(_) {}
+
+  if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
+  if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer = null; }
+}
 
     // Экран GameOver
     showGameOver(){
