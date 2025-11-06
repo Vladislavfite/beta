@@ -23,9 +23,11 @@
       add('image','assets/map.png','image/png');
 
  // База (сам объект): basehp20/40/60/80/100
-[20,40,60,80,100].forEach(p=> this.load.image(`basehp_${p}`,`assets/base/basehp${p}.png`));
-// Иконка HP над базой: base0/20/40/60/100
-[0,20,40,60,100].forEach(p=> this.load.image(`baseicon_${p}`,`assets/base/base${p}.png`));
+[20,40,60,80,100].forEach(p=> add('image', `assets/base/basehp${p}.png`, 'image/png'));
+
+// Иконка HP над базой (надпись/плашка хп): base0/20/40/60/100
+[0,20,40,60,100].forEach(p=> add('image', `assets/base/base${p}.png`, 'image/png'));
+
 
       // UI
       ['moloticon','up','noup','arrow','menu','reload','sound','soundoff','fast','slow','pause','play2','gold','play','playagain','bluecoin','hero1','hero2','hero3','star1','star2','star3']
@@ -287,7 +289,11 @@ class AppScene extends Phaser.Scene{
     this.enemyPool = []; this.bulletPool = [];
 
     for(let i=0;i<CONST.PREWARM_ENEMIES;i++){
-      const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false).setDepth(10);
+      const e = this.add.sprite(-9999, -9999, 'e_walk_0')
+  .setScale(0.35)
+  .setVisible(false)
+  .setActive(false)
+  .setDepth(Z.ENEMY);
       e.hpBar = this.add.graphics().setDepth(Z.ENEMY_HP).setVisible(false); e.hpBar.__owner = e;
       this.enemies.add(e); this.enemyPool.push(e);
     }
@@ -495,14 +501,48 @@ this.children.list.sort((a, b) => a.depth - b.depth);
     for(const u of this.heroPanel.ups){ if(u.visible) u.setTexture(canUp?'up_icon':'noup_icon'); }
     for(const b of this.heroPanel.btns){ const cost = CONST.HERO_COSTS[b.type-1]||0; b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777); } }
 
- _buyHero(type){
-  const cost = CONST.HERO_COSTS[type-1]||0;
+   _buyHero(type){
+    const cost = CONST.HERO_COSTS[type-1] || 0;
 
-  // если не хватает валюты
-  if(State.heroCoins < cost){
-    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${cost}`, '#9fd6ff');
-    if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-    return;
+    // нет валюты — просто подсказка
+    if (State.heroCoins < cost) {
+      this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${cost}`, '#9fd6ff');
+      if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
+      return;
+    }
+
+    // списываем и создаём РОВНО одного героя
+    State.heroCoins -= cost;
+    this._spawnHero(type);
+    this._syncHUD();
+
+    // лёгкий антидвоеклик (микродебаунс 200мс по типу)
+    this._heroBuyLock = this._heroBuyLock || {};
+    this._heroBuyLock[type] = true;
+    this.time.delayedCall(200, ()=>{ this._heroBuyLock[type] = false; });
+  }
+
+  _upgradeHeroesOfType(type){
+    if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
+      this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff');
+      if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
+      return;
+    }
+
+    State.heroCoins -= CONST.HERO_UPGRADE_COST;
+
+    for (const h of State.heroes) {
+      if (!h || !h.spr?.active || h.type !== type) continue;
+      h.level = (h.level || 1) + 1;
+      h.hpMax = Math.round(h.hpMax * 1.25);
+      h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax * 0.25));
+      h.dmg = Math.round(h.dmg * 1.2);
+      h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
+      this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
+    }
+
+    try { this.sndUplevel.play(); } catch(_) {}
+    this._syncHUD();
   }
 
   _upgradeHeroesOfType(type){
