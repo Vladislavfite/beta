@@ -939,13 +939,19 @@ if (e.isBoss) this._floatText(e.x, e.y - 50, 'БОСС ПОБЕЖДЁН!');
       e.setActive(false).setVisible(false).setPosition(-9999,-9999);
       e.targetTower=null; e.path=null; e.pathIndex=0; e.state='idle';
       e.isBoss = false;
+      e.setScale(0.35);
+      e.clearTint && e.clearTint();
+
     }
 
     // ====== Враги ======
     _spawnEnemy(path, hp){
       const spawn = path[0];
       const e = this._getEnemy();
-
+      // 🔄 Сброс свойств от босса
+      e.isBoss = false;
+      e.setScale(0.35);  // вернуть стандартный размер
+      e.clearTint && e.clearTint(); // убрать эффект, если был
       e.maxHp = hp; e.hp = hp;
       e.speed = 0.12 + Math.min(0.018 * State.wave, 0.32);
       e.path = path; e.pathIndex = 1;
