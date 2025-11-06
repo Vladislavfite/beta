@@ -209,8 +209,14 @@ class AppScene extends Phaser.Scene{
       this.load.image(`ad_${i}`,`assets/reklama/reklama${i}.png`);
     }
 
-    // База (base0..100)
-    [0,20,40,60,80,100].forEach(p=> this.load.image(`basehp_${p}`,`assets/base/base${p}.png`));
+    // База (спрайт и HP-индикатор)
+[0,20,40,60,80,100].forEach(p=>{
+  this.load.image(`basehpbar_${p}`,`assets/base/base${p}.png`); // HP-индикатор над базой
+});
+[20,40,60,80,100].forEach(p=>{
+  this.load.image(`basehp_${p}`,`assets/base/basehp${p}.png`); // основной спрайт базы
+});
+
 
     // Враги
     for(let i=0;i<7;i++){
@@ -381,37 +387,46 @@ class AppScene extends Phaser.Scene{
 
   /* ============ БАЗА ============ */
   _createBase(){
-    // Спрайт базы
-    this.base = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y, 'basehp_100').setDepth(Z.BASE).setInteractive({useHandCursor:true});
-    // Бар HP над базой
-    this.baseHpBar = this.add.graphics().setDepth(Z.UI+3);
-    this.baseHpText = this.add.text(CONST.BASE_POS.x, CONST.BASE_POS.y-86, '', {font:'18px Arial', fill:'#fff', stroke:'#000', strokeThickness:3}).setOrigin(.5,1).setDepth(Z.UI+4);
+  this.base = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y, 'basehp_100')
+    .setDepth(Z.BASE)
+    .setInteractive({useHandCursor:true});
 
-    this.base.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){} if(!State.started || State.paused) return; this._toggleHeroPanel(); });
-    this._applyBaseTexture(true);
-  }
+  // добавляем иконку HP (спрайт сверху)
+  this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, 'basehpbar_100').setDepth(Z.UI+5);
 
-  _drawBaseHpBar(){
-    const w=96, h=10, x=CONST.BASE_POS.x - w/2, y=CONST.BASE_POS.y - 78;
-    const p = Math.max(0, Math.min(1, State.baseHp/100));
-    this.baseHpBar.clear();
-    this.baseHpBar.fillStyle(0x000000,.55).fillRect(x-1,y-1,w+2,h+2);
-    this.baseHpBar.fillStyle(0x330000,.7).fillRect(x,y,w,h);
-    this.baseHpBar.fillStyle(0x00ff44,.95).fillRect(x,y,w*p,h);
-    this.baseHpText.setText(`${State.baseHp|0}%`);
-  }
+  this.base.on('pointerdown', ()=>{
+    if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+    if(!State.started || State.paused) return;
+    this._toggleHeroPanel();
+  });
+
+  this._applyBaseTexture(true);
+}
 
   _applyBaseTexture(forceSound=false){
-    // Выбор текстуры
-    const hp = Math.max(0, Math.min(100, State.baseHp));
-    let step = 100;
-    if(hp<=0) step=0; else if(hp<=20) step=20; else if(hp<=40) step=40; else if(hp<=60) step=60; else if(hp<=80) step=80; else step=100;
-    const key = `basehp_${step}`;
-    if(this.base && this.textures.exists(key)) this.base.setTexture(key);
-    this._drawBaseHpBar();
-    // Звук урона по базе
-    if(forceSound && this.sndBaseHit && !this.sound.mute) { try{ this.sndBaseHit.play(); }catch(_){ } }
+  const hp = Math.max(0, Math.min(100, State.baseHp));
+  let step = 100;
+  if(hp<=0) step=20;
+  else if(hp<=20) step=20;
+  else if(hp<=40) step=40;
+  else if(hp<=60) step=60;
+  else if(hp<=80) step=80;
+  else step=100;
+
+  // спрайт базы
+  const key = `basehp_${step}`;
+  if(this.base && this.textures.exists(key)) this.base.setTexture(key);
+
+  // индикатор HP над базой
+  if(this.baseHpIcon){
+    this.baseHpIcon.destroy();
   }
+  this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, `basehpbar_${step}`).setDepth(Z.UI+5);
+
+  if(forceSound && this.sndBaseHit && !this.sound.mute){
+    try{ this.sndBaseHit.play(); }catch(_){}
+  }
+}
 
   /* ============ ГЕРОИ: ПАНЕЛЬ/ПОКУПКА/УЛУЧШЕНИЕ ============ */
   _createHeroPanel(){
@@ -444,10 +459,24 @@ class AppScene extends Phaser.Scene{
     for(const b of this.heroPanel.btns){ const cost = CONST.HERO_COSTS[b.type-1]||0; b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777); } }
 
   _buyHero(type){
-    const cost = CONST.HERO_COSTS[type-1]||0;
-    if(State.heroCoins < cost){ this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${cost}`, '#9fd6ff'); if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } return; }
-    State.heroCoins -= cost; this._spawnHero(type); this._syncHUD();
+  const cost = CONST.HERO_COSTS[type-1]||0;
+  if(State.heroCoins < cost){
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${cost}`, '#9fd6ff');
+    if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+    return;
   }
+
+  // проверяем — есть ли уже герой такого типа
+  const already = State.heroes.some(h=>h.type===type);
+  if(already){
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, 'Уже нанят', '#9fd6ff');
+    return;
+  }
+
+  State.heroCoins -= cost;
+  this._spawnHero(type);
+  this._syncHUD();
+}
 
   _upgradeHeroesOfType(type){
     if(State.heroCoins < CONST.HERO_UPGRADE_COST){ this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff'); if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } return; }
@@ -508,39 +537,43 @@ class AppScene extends Phaser.Scene{
     h.hpBar.fillStyle(0x66ccff,.95).fillRect(x,y,w*p,hh);
   }
 
-  _updateHero(h){
-    if(!h?.spr?.active) return;
-    this._drawHeroHp(h);
+ _updateHero(h){
+  if(!h?.spr?.active) return;
+  this._drawHeroHp(h);
 
-    if(!h.target || !h.target.active || h.target.state==='die'){
-      h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
-    }
+  if(!h.target || !h.target.active || h.target.state==='die'){
+    h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
+  }
 
-    if(h.target){
-      const e=h.target, d=Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
-      if(d>h.range){
-        this._moveTowards(h.spr,e.x,e.y,h.speed);
-        this.playIfExists(h.spr,h.walkKey,true);
-        h.spr.setFlipX(e.x < h.spr.x);
-      }else{
-        const now=Date.now();
-        if(now-(h._lastHit||0)>=h.cooldown){
-          h._lastHit=now;
-          this.playIfExists(h.spr,h.atkKey,false);
-          e.hp -= h.dmg;
-          this._floatText(e.x, e.y-22, '-'+h.dmg, '#9fd6ff');
-          if(e.hp<=0) this._killEnemy(e);
-          this.time.delayedCall(300, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr,h.walkKey,true); });
-        }
+  if(h.target){
+    const e=h.target, d=Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
+    if(d>h.range){
+      this._moveTowards(h.spr,e.x,e.y,h.speed);
+      this.playIfExists(h.spr,h.walkKey,true);
+      h.spr.setFlipX(e.x < h.spr.x);
+    }else{
+      const now=Date.now();
+      if(now-(h._lastHit||0)>=h.cooldown){
+        h._lastHit=now;
+        this.playIfExists(h.spr,h.atkKey,false);
+        e.hp -= h.dmg;
+        this._floatText(e.x, e.y-22, '-'+h.dmg, '#9fd6ff');
+        if(e.hp<=0) this._killEnemy(e);
+        this.time.delayedCall(300, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr,h.walkKey,true); });
       }
-    } else {
-      const wp = h.path[h.pIndex] || h.path[h.path.length-1];
-      this._moveTowards(h.spr, wp[0], wp[1], h.speed);
-      if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1])<8 && h.pIndex < h.path.length-1){ h.pIndex++; }
-      this.playIfExists(h.spr, h.walkKey, true);
-      h.spr.setFlipX(wp[0] < h.spr.x);
+    }
+  } else {
+    // === Нет цели — герой идёт по своему маршруту ===
+    if(!h.path || !h.path.length) return;
+    const wp = h.path[h.pIndex] || h.path[h.path.length-1];
+    this._moveTowards(h.spr, wp[0], wp[1], h.speed);
+    this.playIfExists(h.spr, h.walkKey, true);
+    h.spr.setFlipX(wp[0] < h.spr.x);
+    if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
+      h.pIndex++;
     }
   }
+}
 
   _killHero(h){
     if(!h||!h.spr?.active) return;
