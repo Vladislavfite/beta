@@ -659,25 +659,43 @@ _buildTower(index){
   this.towers.push({ sprite: ts });
 }
 
-    _upgradeTower(ts){
-      const cost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE*(ts.level+1)));
-      if(ts.level >= 12) return;
-      if(State.gold < cost){ alert('Need ' + cost + ' gold'); return; }
+_upgradeTower(ts){
+  const cost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE * (ts.level + 1)));
 
-      State.gold -= cost; this._syncHUD();
-      ts.level += 1;
-      ts._typeKey = 'tower' + ts.level;
-      ts._range = Math.min(300, ts._range + 30);
-      ts._shootRate = Math.max(300, ts._shootRate - 120);
-      ts._damage = 5 * ts.level;
-      ts.hp += 50;
-      ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
+  // Если башня уже максимального уровня
+  if(ts.level >= 12) return;
 
-      const idle = `${ts._typeKey}_idle_anim`; if(this.anims.exists(idle)) ts.play(idle);
-      if(ts.level>=12 && ts.upIcon) ts.upIcon.setVisible(false);
+  // Если золота не хватает — всплывающее сообщение
+  if(State.gold < cost){
+    this._floatText(ts.x, ts.y - 70, 'Недостаточно золота');
+    if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+    return;
+  }
 
-      try{ this.sndUp.play(); }catch(_){}
-    }
+  // Снимаем золото и обновляем HUD
+  State.gold -= cost;
+  this._syncHUD();
+
+  // Повышаем уровень
+  ts.level += 1;
+  ts._typeKey = 'tower' + ts.level;
+  ts._range = Math.min(300, ts._range + 30);
+  ts._shootRate = Math.max(300, ts._shootRate - 120);
+  ts._damage = 5 * ts.level;
+  ts.hp += 50;
+  ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
+
+  // Анимация новой башни
+  const idle = `${ts._typeKey}_idle_anim`;
+  if(this.anims.exists(idle)) ts.play(idle);
+
+  // Скрываем иконку, если башня достигла максимума
+  if(ts.level >= 12 && ts.upIcon) ts.upIcon.setVisible(false);
+
+  // Эффект звука апгрейда
+  try{ this.sndUp.play(); }catch(_){}
+}
+
 
     // ====== ПУЛ ПУЛЬ ======
     _getBullet(){
