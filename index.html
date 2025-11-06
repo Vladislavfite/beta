@@ -2,74 +2,138 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=720, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <!-- ===== Touch / PWA оптимизация ===== -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="icon" href="assets/elements/bluecoin.png" type="image/png">
-  <title>Tower Defense — hero & helpers build</title>
+
+  <!-- ====== ПОЛНАЯ ДИНАМИЧЕСКАЯ ПРЕДЗАГРУЗКА АССЕТОВ ====== -->
+  <script>
+  const preloadAssets = () => {
+    const add = (type, path, mime) => {
+      const l = document.createElement('link');
+      l.rel = 'preload';
+      l.as = type;
+      l.href = path;
+      if (mime) l.type = mime;
+      document.head.appendChild(l);
+    };
+
+    // ===== ВИДЕО =====
+    add('video', 'assets/menu.webm', 'video/webm');
+    add('video', 'assets/gameover.webm', 'video/webm');
+
+    // ===== КАРТА =====
+    add('image', 'assets/map.png', 'image/png');
+
+    // ===== ЭЛЕМЕНТЫ UI (твои + новые) =====
+    const ui = [
+      'moloticon','up','noup','arrow','menu','reload','sound','soundoff',
+      'fast','slow','pause','play2','gold','play','playagain',
+      'bluecoin','hero1','hero2','hero3','helper1','helper2','helper3','heroup',
+      'star1','star2','star3'
+    ];
+    ui.forEach(n => add('image', `assets/elements/${n}.png`, 'image/png'));
+
+    // ===== БАЗА =====
+    [0,20,40,60,80,100].forEach(v => add('image', `assets/base/base${v}.png`, 'image/png'));
+
+    // ===== МОНЕТКИ =====
+    for(let i=1;i<=6;i++) add('image', `assets/money/money${i}.png`, 'image/png');
+
+    // ===== РЕКЛАМА =====
+    for(let i=1;i<=6;i++) add('image', `assets/reklama/reklama${i}.png`, 'image/png');
+
+    // ===== ВРАГИ =====
+    for(let i=1;i<=7;i++) add('image', `assets/enemy/walk/walk${i}.png`, 'image/png');
+    for(let i=1;i<=7;i++) add('image', `assets/enemy/atack_enemy/atackenemy${i}.png`, 'image/png');
+    for(let i=1;i<=7;i++) add('image', `assets/enemy/die_enemy/dead${i}.png`, 'image/png');
+
+    // ===== БАШНИ (12 уровней) =====
+    for(let t=1;t<=12;t++){
+      for(let j=1;j<=4;j++) add('image', `assets/attacktower/statik/tower${t}/stower${j}.png`, 'image/png');
+      for(let j=1;j<=5;j++) add('image', `assets/attacktower/attack/tower${t}/aatcktower${j}.png`, 'image/png');
+    }
+
+    // ===== ГЕРОЙ (3 типа) =====
+    for(let h=1;h<=3;h++){
+      for(let j=1;j<=4;j++) add('image', `assets/hero/h${h}_idle${j}.png`, 'image/png');
+      for(let j=1;j<=4;j++) add('image', `assets/hero/h${h}_atk${j}.png`, 'image/png');
+    }
+
+    // ===== ПОМОЩНИКИ (3 типа) =====
+    for(let t=1;t<=3;t++){
+      for(let j=1;j<=4;j++) add('image', `assets/helpers/t${t}/walk${j}.png`, 'image/png');
+      for(let j=1;j<=4;j++) add('image', `assets/helpers/t${t}/atk${j}.png`, 'image/png');
+    }
+
+    // ===== ЗВУКИ =====
+    const mp3s = [
+      'lobby','battle','arrow','gameover','towerup','towerrush','money','killenemy'
+    ];
+    mp3s.forEach(n => add('audio', `assets/sound/${n}.mp3`, 'audio/mpeg'));
+    add('audio', 'assets/sound/klick.ogg', 'audio/ogg');
+  };
+  preloadAssets();
+  </script>
+
+  <!-- Статическая подстраховка предзагрузки звуков -->
+  <link rel="preload" as="audio" href="assets/sound/lobby.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/battle.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/arrow.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/gameover.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/towerup.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/towerrush.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/money.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/killenemy.mp3" type="audio/mpeg">
+  <link rel="preload" as="audio" href="assets/sound/klick.ogg" type="audio/ogg">
+
+  <!-- Масштабирование: только Phaser FIT -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <title>Tower Defense — герой, помощники, 2-я валюта</title>
 
   <style>
-    :root{ --w:720px; --h:1280px; }
-    html,body{height:100%; margin:0; background:#000; overflow:hidden;}
-    #viewport{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#000;}
-    #stage{position:relative; width:var(--w); height:var(--h); overflow:hidden; image-rendering:crisp-edges; user-select:none;}
-    #game{position:absolute; inset:0;}
-    .overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:60}
-    .hidden{display:none}
-    .panel{position:relative; display:flex; flex-direction:column; gap:18px; align-items:center; justify-content:center; z-index:2}
-    .title{color:#fff; font:600 20px/1 Arial,Helvetica,sans-serif; text-shadow:0 0 10px #000}
-    .bg-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; filter:brightness(.95) contrast(1.05)}
-    .imgbtn{width:44%; max-width:320px; cursor:pointer; filter:drop-shadow(0 0 16px rgba(0,0,0,.7));}
-    #bar{width:60%; height:16px; background:#222; border-radius:8px; overflow:hidden; box-shadow:inset 0 0 10px #000}
-    #bar>div{height:100%; width:0%; background:#1e90ff}
-    /* мини-кнопки выбора героя в меню */
-    .hero-row{display:flex; gap:14px; z-index:3}
-    .hero-pick{width:92px; height:92px; border-radius:12px; background:#1b1b1b; display:flex; align-items:center; justify-content:center; border:2px solid #444; cursor:pointer}
-    .hero-pick img{max-width:84px; max-height:84px}
-    .hero-cost{color:#9dd1ff; font:600 14px Arial; margin-top:4px; text-shadow:0 0 6px #000}
-    .badge{position:absolute; top:6px; right:10px; background:#0a0a0a; color:#fff; padding:4px 8px; border-radius:10px; font:12px Arial; opacity:.9}
+    :root{ --w:720px; --h:1280px; --safe-pad:max(0px, env(safe-area-inset-top, 0px)); }
+    html,body{ height:100%; margin:0; background:#000; overflow:hidden; -webkit-tap-highlight-color:transparent; }
+    #viewport{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#000; touch-action:none; }
+    #stage{ position:relative; width:var(--w); height:var(--h); overflow:hidden; image-rendering:crisp-edges; image-rendering:-webkit-optimize-contrast; user-select:none; padding-top:var(--safe-pad); }
+    #game{ position:absolute; inset:0; }
+    .overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; pointer-events:auto; }
+    .hidden{ display:none; }
+    .panel{ position:relative; z-index:2; display:flex; flex-direction:column; gap:2.2vh; align-items:center; justify-content:center; padding-top:min(30vh,380px); }
+    .title{ color:#fff; margin:0; font-family:Arial,Helvetica,sans-serif; font-size: clamp(16px,2.6vh,28px); text-shadow:0 0 12px rgba(0,0,0,.6); z-index:2; }
+    .bg-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; filter:brightness(.9) contrast(1.05); }
+    .imgbtn{ width:38%; max-width:340px; height:auto; cursor:pointer; filter:drop-shadow(0 0 16px rgba(0,0,0,.7)); transition:transform .08s ease; user-select:none; -webkit-user-drag:none; }
+    .imgbtn:active{ transform:scale(.98); }
+    #preloaderOverlay{ background:#000; }
+    #prePanel{ gap:1.6vh; }
+    #bar{ width:58%; max-width:520px; height:18px; background:#222; border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6); }
+    #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
+    #hud{ display:none; }
   </style>
 
-  <!-- Phaser -->
+  <!-- Phaser 3 -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
   <div id="viewport">
     <div id="stage">
-      <!-- ====== PRELOADER ====== -->
+
+      <!-- ====== ПРЕЛОАДЕР ====== -->
       <div id="preloaderOverlay" class="overlay">
-        <div class="panel">
-          <div class="title">Загрузка…</div>
+        <div id="prePanel" class="panel">
+          <h2 class="title">Загрузка…</h2>
           <div id="bar"><div id="barFill"></div></div>
           <div id="pct" class="title">0%</div>
         </div>
       </div>
 
-      <!-- ====== MENU ====== -->
+      <!-- ====== ГЛАВНОЕ МЕНЮ ====== -->
       <div id="menuOverlay" class="overlay hidden">
         <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
         <div class="panel">
-          <div class="badge">Синие монеты: <span id="blueMenuText">0</span></div>
-          <div class="title">Выбери героя (покупка в синей валюте)</div>
-          <div class="hero-row">
-            <div class="hero-pick" data-hero="1" title="Герой 1 (бесплатно)">
-              <img src="assets/elements/hero1.png" alt="hero1">
-            </div>
-            <div class="hero-pick" data-hero="2" title="Герой 2 (5000)">
-              <img src="assets/elements/hero2.png" alt="hero2">
-            </div>
-            <div class="hero-pick" data-hero="3" title="Герой 3 (10000)">
-              <img src="assets/elements/hero3.png" alt="hero3">
-            </div>
-          </div>
-          <div class="hero-row">
-            <div class="hero-cost">1: 0</div>
-            <div class="hero-cost">2: 5000</div>
-            <div class="hero-cost">3: 10000</div>
-          </div>
           <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
-          <div class="title" style="opacity:.8">Клик по базе в игре — нанимает помощника (50 золота)</div>
         </div>
       </div>
 
@@ -81,23 +145,25 @@
         </div>
       </div>
 
-      <!-- Phaser canvas target -->
+      <!-- Канвас для Phaser -->
       <div id="game"></div>
+
+      <!-- (Старый DOM-HUD скрыт) -->
+      <div id="hud"></div>
+
     </div>
   </div>
 
 <script>
-/* ===========================================================================
-   SINGLE-FILE BUILD with: Preloader → Menu (hero purchase) → Game → GameOver
-   WHAT'S NEW:
-   - Hero is purchased in MENU (1=free, 2=5000 blue coins, 3=10000)
-   - Hero spawns at BASE (226,1059), auto-attacks nearest enemy, upgradable on click
-   - Helpers are bought by clicking BASE (50 gold), run along same paths as enemies
-   - Enemies attack towers, helpers and hero
-   - Bosses every 5th wave, 3×HP, slow, 2×damage
-   - Two currencies: gold + blue coins (blue from every kill)
-=========================================================================== */
+/* ========================================================================
+   ЕДИНАЯ СЦЕНА: Preloader → Menu → Game → GameOver.
+   + Герой (3 типа, выбор/анлок), апгрейды героя за 2-ю валюту
+   + 2-я валюта (героические монеты): +10 за каждого убитого врага
+   + Помощники (3 типа), спавнятся по клику на базу, цена 50 золота/шт
+   + Босс (как ты уже сделал), object pooling, без scene.restart()
+========================================================================= */
 
+// ---------- Константы ----------
 const CONST = {
   WIDTH: 720, HEIGHT: 1280,
 
@@ -113,12 +179,13 @@ const CONST = {
     [[81,335],[189,359],[331,354],[400,463],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
     [[636,490],[544,498],[413,491],[425,542],[397,608],[349,663],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
     [[52,667],[168,691],[289,700],[347,736],[365,808],[375,901],[446,1024],[441,1069],[312,1082],[226,1059]],
-    [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]  // ближайшая к базе
+    [[646,963],[565,1029],[441,1069],[312,1082],[226,1059]]
   ],
 
   START_GOLD: 600,
-  KILL_REWARD_GOLD: 100,
-  KILL_REWARD_BLUE: 10,
+  KILL_REWARD: 100,
+  HERO_REWARD: 10,   // вторая валюта за убийство
+
   WAVE_BONUS: 80,
   TOWER_COST: 100,
   UPGRADE_COST_BASE: 120,
@@ -126,110 +193,142 @@ const CONST = {
   ENEMY_AGGRO: 150,
   TOWER_RANGE: 200,
 
-  PREWARM_ENEMIES: 50,
-  PREWARM_BULLETS: 80,
+  PREWARM_ENEMIES: 40,
+  PREWARM_BULLETS: 60,
 
-  // Hero & helpers
-  HERO_POS: [226,1059],
-  HERO_UPGRADE_COST: [2000,10000,20000], // lvl1->2, 2->3, 3->max
-  HELPER_COST: 50,
-  HELPER_TYPES: [
-    { speed:0.22, hp:30,  dmg:8,  key:'helper1' }, // быстрый
-    { speed:0.16, hp:60,  dmg:5,  key:'helper2' }, // средний
-    { speed:0.12, hp:100, dmg:3,  key:'helper3' }  // танк
-  ]
+  HELPER_COST: 50,              // цена помощника (золото)
+  HERO_UNLOCK_COSTS: [0, 5000, 10000], // стоимость анлока героев 1..3 (героические монеты)
+  HERO_UPGRADE_COSTS: [2000, 10000, 20000], // 1→2, 2→3, 3→4 (но у нас максимум 3), берём по индексу (уровень-1)
 };
 
-// DOM refs
-const $ = id => document.getElementById(id);
+// ---------- DOM ----------
+const $ = (id)=>document.getElementById(id);
+const stageBox = $('stage');
 const preloaderOverlay = $('preloaderOverlay');
 const barFill = $('barFill');
 const pct = $('pct');
 const menuOverlay = $('menuOverlay');
-const startImg = $('startImg');
-const blueMenuText = $('blueMenuText');
 const gameoverOverlay = $('gameoverOverlay');
+const startImg = $('startImg');
 const restartImg = $('restartImg');
 const menuVideo = $('menuVideo');
 const goVideo = $('goVideo');
 
-// persistent state
+// ---------- Глобальное состояние ----------
 const State = {
-  soundEnabled: true,
   started: false,
   paused: false,
-  gold: CONST.START_GOLD,
-  blue: 0,             // синяя валюта (на героев)
+  soundEnabled: true,
+
+  gold: CONST.START_GOLD,   // обычное золото
+  heroCoins: 0,             // вторая валюта
   wave: 0,
-  baseHp: 100,         // %
-  heroType: 1,         // выбранный в меню
+  baseHp: 100,              // % 0..100
+
+  // Герой
+  heroType: 1,              // 1..3
+  heroUnlocked: {1:true, 2:false, 3:false},
+  heroLevel: 1,             // 1..3
 };
 
-// overlay helpers
+// Оверлеи
 const showPreloader = ()=> preloaderOverlay.classList.remove('hidden');
 const hidePreloader = ()=> preloaderOverlay.classList.add('hidden');
-const showMenuOverlay = ()=> menuOverlay.classList.remove('hidden');
-const hideMenuOverlay = ()=> menuOverlay.classList.add('hidden');
-const showGameoverOverlay = ()=> gameoverOverlay.classList.remove('hidden');
+const showMenuOverlay = ()=> { menuOverlay.classList.remove('hidden'); menuOverlay.style.display = 'flex'; gameoverOverlay.classList.add('hidden'); };
+const hideMenuOverlay = ()=> { menuOverlay.classList.add('hidden'); menuOverlay.style.display = 'none'; };
+const showGameoverOverlay = ()=> { gameoverOverlay.classList.remove('hidden'); menuOverlay.classList.add('hidden'); };
 const hideGameoverOverlay = ()=> gameoverOverlay.classList.add('hidden');
 
-// Phaser scene
-class AppScene extends Phaser.Scene{
+// ========================================================================
+//                         PHASER: СЦЕНА
+// ========================================================================
+class AppScene extends Phaser.Scene {
   constructor(){ super({ key:'AppScene' }); }
 
   preload(){
     showPreloader();
     this.load.on('progress', (v)=>{
-      barFill.style.width = (v*100|0)+'%';
-      pct.textContent = (v*100|0)+'%';
+      const p = Math.floor(v*100);
+      barFill.style.width = p + '%';
+      pct.textContent = p + '%';
     });
 
-    // карта
+    // Карта
     this.load.image('map','assets/map.png');
 
-    // UI
-    const ui = ['moloticon','up','noup','arrow','menu','reload','sound','soundoff',
-                'fast','slow','pause','play2','gold','play','playagain','heroup','bluecoin',
-                'hero1','hero2','hero3','helper1','helper2','helper3','star1','star2','star3'];
-    ui.forEach(k=> this.load.image(k, `assets/elements/${k}.png`).catch(()=>{}));
+    // UI / постройки
+    this.load.image('molot','assets/elements/moloticon.png');
+    this.load.image('up_icon','assets/elements/up.png');
+    this.load.image('noup_icon','assets/elements/noup.png');
 
-    // база
-    [0,20,40,60,80,100].forEach(p=> this.load.image('base_'+p, `assets/base/base${p}.png`));
+    // Пуля
+    this.load.image('arrow','assets/elements/arrow.png');
 
-    // монетки, реклама
-    for(let i=1;i<=6;i++){ this.load.image('coin_'+i, `assets/money/money${i}.png`); }
-    for(let i=1;i<=6;i++){ this.load.image('ad_'+i,   `assets/reklama/reklama${i}.png`); }
+    // Боковые кнопки
+    this.load.image('menu','assets/elements/menu.png');
+    this.load.image('reload','assets/elements/reload.png');
+    this.load.image('sound_on','assets/elements/sound.png');
+    this.load.image('sound_off','assets/elements/soundoff.png');
 
-    // враги
-    for(let i=1;i<=7;i++){
-      this.load.image('e_walk_'+(i-1),   `assets/enemy/walk/walk${i}.png`);
-      this.load.image('e_atk_'+(i-1),    `assets/enemy/atack_enemy/atackenemy${i}.png`);
-      this.load.image('e_die_'+(i-1),    `assets/enemy/die_enemy/dead${i}.png`);
+    // TURBO / PAUSE / RESUME
+    this.load.image('turbo_on','assets/elements/fast.png');
+    this.load.image('turbo_off','assets/elements/slow.png');
+    this.load.image('pause','assets/elements/pause.png');
+    this.load.image('resume','assets/elements/play2.png');
+
+    // GOLD панель + монетка
+    this.load.image('gold_panel','assets/elements/gold.png');
+    for(let i=1;i<=6;i++) this.load.image(`coin_${i}`, `assets/money/money${i}.png`);
+
+    // Вторая валюта (иконка)
+    this.load.image('bluecoin','assets/elements/bluecoin.png');
+
+    // HUD базы
+    [0,20,40,60,80,100].forEach(p=>{
+      this.load.image(`base_${p}`, `assets/base/base${p}.png`);
+    });
+
+    // Кнопка «реклама»
+    for(let i=1;i<=6;i++) this.load.image(`ad_${i}`, `assets/reklama/reklama${i}.png`);
+
+    // Враги
+    for(let i=0;i<7;i++){
+      this.load.image(`e_walk_${i}`,`assets/enemy/walk/walk${i+1}.png`);
+      this.load.image(`e_atk_${i}`,`assets/enemy/atack_enemy/atackenemy${i+1}.png`);
+      this.load.image(`e_die_${i}`,`assets/enemy/die_enemy/dead${i+1}.png`);
     }
 
-    // башни 12 уровней
-    for(let t=1;t<=12;t++){
-      for(let j=1;j<=4;j++) this.load.image(`tower${t}_idle_${j}`, `assets/attacktower/statik/tower${t}/stower${j}.png`);
-      for(let j=1;j<=5;j++) this.load.image(`tower${t}_atk_${j-1}`, `assets/attacktower/attack/tower${t}/aatcktower${j}.png`);
+    // Башни: 12 уровней
+    for(let i=1;i<=12;i++){
+      for(let j=1;j<=4;j++) this.load.image(`tower${i}_idle_${j}`, `assets/attacktower/statik/tower${i}/stower${j}.png`);
+      for(let j=1;j<=5;j++) this.load.image(`tower${i}_atk_${j-1}`, `assets/attacktower/attack/tower${i}/aatcktower${j}.png`);
     }
 
-    // герой (3 комплекта)
-    for(let h=1; h<=3; h++){
-      for(let i=1;i<=4;i++){
-        this.load.image(`h${h}_idle_${i}`, `assets/hero/h${h}_idle${i}.png`);
-        this.load.image(`h${h}_atk_${i}`,  `assets/hero/h${h}_atk${i}.png`);
-      }
+    // Герои (3 типа)
+    for(let h=1;h<=3;h++){
+      for(let j=1;j<=4;j++) this.load.image(`h${h}_idle_${j}`, `assets/hero/h${h}_idle${j}.png`);
+      for(let j=1;j<=4;j++) this.load.image(`h${h}_atk_${j}`,  `assets/hero/h${h}_atk${j}.png`);
     }
+    this.load.image('star1','assets/elements/star1.png');
+    this.load.image('star2','assets/elements/star2.png');
+    this.load.image('star3','assets/elements/star3.png');
 
-    // помощники (3 типа по 4 кадра walk/atk)
+    // Кнопки выбора героя и помощников
+    this.load.image('btn_hero1','assets/elements/hero1.png');
+    this.load.image('btn_hero2','assets/elements/hero2.png');
+    this.load.image('btn_hero3','assets/elements/hero3.png');
+    this.load.image('btn_helper1','assets/elements/helper1.png');
+    this.load.image('btn_helper2','assets/elements/helper2.png');
+    this.load.image('btn_helper3','assets/elements/helper3.png');
+    this.load.image('btn_heroup','assets/elements/heroup.png');
+
+    // Помощники (3 типа)
     for(let t=1;t<=3;t++){
-      for(let i=1;i<=4;i++){
-        this.load.image(`hp_t${t}_w${i}`, `assets/helpers/t${t}/walk${i}.png`);
-        this.load.image(`hp_t${t}_a${i}`, `assets/helpers/t${t}/atk${i}.png`);
-      }
+      for(let j=1;j<=4;j++) this.load.image(`hp_t${t}_w${j}`, `assets/helpers/t${t}/walk${j}.png`);
+      for(let j=1;j<=4;j++) this.load.image(`hp_t${t}_a${j}`, `assets/helpers/t${t}/atk${j}.png`);
     }
 
-    // звуки
+    // Звуки
     this.load.audio('lobby','assets/sound/lobby.mp3');
     this.load.audio('battle','assets/sound/battle.mp3');
     this.load.audio('arrow_s','assets/sound/arrow.mp3');
@@ -242,138 +341,143 @@ class AppScene extends Phaser.Scene{
   }
 
   create(){
-    // фон карта
+    // Карта
     this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map').setDisplaySize(CONST.WIDTH, CONST.HEIGHT);
 
-    // группы и пулы
+    // Группы/пулы
     this.enemies = this.add.group();
     this.bullets = this.add.group();
+    this.helpers = this.add.group(); // помощники
     this.towers = [];
-    this.helpers = [];
+    this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
+
+    // Преднагрев
     this.enemyPool = [];
     this.bulletPool = [];
-    this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
+    this.helperPool = [];
+
     for(let i=0;i<CONST.PREWARM_ENEMIES;i++){
-      const e = this.add.sprite(-9999,-9999,'e_walk_0').setVisible(false).setActive(false).setScale(0.35);
-      e.hpBar = this.add.graphics().setVisible(false).setDepth(40);
+      const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false);
+      e.hpBar = this.add.graphics().setDepth(40).setVisible(false);
       e.hpBar.__owner = e;
-      this.enemies.add(e); this.enemyPool.push(e);
+      this.enemies.add(e);
+      this.enemyPool.push(e);
     }
     for(let i=0;i<CONST.PREWARM_BULLETS;i++){
       const b = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false);
-      this.bullets.add(b); this.bulletPool.push(b);
+      this.bullets.add(b);
+      this.bulletPool.push(b);
+    }
+    // помощников сделаем поменьше заранее
+    for(let i=0;i<20;i++){
+      const h = this.add.sprite(-9999,-9999,'hp_t1_w1').setScale(0.45).setVisible(false).setActive(false).setDepth(35);
+      h.hpBar = this.add.graphics().setDepth(40).setVisible(false);
+      h.hpBar.__owner = h;
+      this.helpers.add(h);
+      this.helperPool.push(h);
     }
 
-    // звук
+    // Скорость
+    this.speedScale = 1;
+    this.time.timeScale = this.speedScale;
+
+    // Звук
     this.sndLobby   = this.sound.add('lobby',  { loop:true, volume:0.6 });
     this.sndBattle  = this.sound.add('battle', { loop:true, volume:0.6 });
     this.sndArrowLp = this.sound.add('arrow_s',{ loop:true, volume:0.35 });
-    this.sndOver    = this.sound.add('gameover_s', { volume:0.9 });
-    this.sndUp      = this.sound.add('towerup', { volume:0.9 });
-    this.sndRush    = this.sound.add('towerrush', { volume:0.9 });
-    this.sndMoney   = this.sound.add('money',   { volume:0.9 });
-    this.sndKill    = this.sound.add('kill',    { volume:0.8 });
+    this.sndOver    = this.sound.add('gameover_s', { volume: 0.9 });
+    this.sndUp      = this.sound.add('towerup', { volume: 0.9 });
+    this.sndRush    = this.sound.add('towerrush', { volume: 0.9 });
+    this.sndMoney   = this.sound.add('money',   { volume: 0.9 });
+    this.sndKill    = this.sound.add('kill',    { volume: 0.8 });
 
+    // mute
+    try{
+      const saved = localStorage.getItem('td_mute');
+      if(saved!==null) State.soundEnabled = (saved!=='1');
+    }catch(_){}
     this.sound.setMute(!State.soundEnabled);
 
-    // анимации
-    this._createAnims();
+    // Хелперы звука
+    this.stopAllLoops = ()=>{
+      try{ this.sndArrowLp.stop(); }catch(_){}
+      try{ this.sndBattle.stop(); }catch(_){}
+      try{ this.sndLobby.stop(); }catch(_){}
+    };
+    this.playLobby   = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying  && this.sndLobby.play(); }catch(_){} };
+    this.playBattle  = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
+    this.playGameOver= ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
-    // молоты-споты
+    // Прелоадер завершён → меню + lobby
+    hidePreloader();
+    showMenuOverlay();
+    this.playLobby();
+
+    // Строительные споты
     CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
 
-    // HUD + боковые кнопки
+    // Анимации
+    this._createAnims();
+
+    // HUD/кнопки
     this._buildSideButtons();
     this._buildHUD();
 
-    // завершение прелоадера → меню
-    hidePreloader();
-    blueMenuText.textContent = State.blue|0;
-    showMenuOverlay();
-    try{ this.sndLobby.play(); }catch(_){}
+    // Герой
+    this._spawnHero();        // создаём и ставим героя у базы
+    this._buildHeroUI();      // кнопки выбора/апгрейда героя
+    this._buildHelperUI();    // кнопки выбора типа помощника
 
-    // стрельба башен
-    this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback: ()=> this._towersTick() });
+    // Клик по базе = спавн помощника
+    this._enableBaseClickForHelper();
+
+    // Тикеры
+    this.shootTicker = this.time.addEvent({ delay: 120, loop: true, callback: ()=> this._towersTick() });
+    this.heroTicker  = this.time.addEvent({ delay: 80,  loop: true, callback: ()=> this._heroTick()   });
   }
 
+  // ====== Update ======
   update(){
-    if(!State.started || State.paused){ this._syncHUD(); return; }
-
-    // enemies & bullets
-    this.enemies.getChildren().forEach(e=>{ if(e.active && e.visible) this._updateEnemy(e); });
-    this.bullets.getChildren().forEach(b=>{ if(b.active && b.visible) this._updateBullet(b); });
-
-    // helpers move + fight
-    if(this.helpers && this.helpers.length){
-      for(const h of this.helpers){
-        if(!h.active || !h.visible) continue;
-        // движение по path
-        const wp = h.path[h.pathIndex];
-        if(wp){
-          this._moveTowards(h, wp[0], wp[1], h.speed);
-          if(Phaser.Math.Distance.Between(h.x,h.y,wp[0],wp[1])<6) h.pathIndex++;
-        }
-        // атака ближайшего врага
-        const e = this._findNearestEnemy(h.x,h.y,32);
-        if(e){
-          e.hp -= h.dmg;
-          if(e.hp<=0) this._killEnemy(e);
-        }
-      }
-    }
-
-    // hero logic
-    if(this.hero && this.hero.active){
-      const now = Date.now();
-      const e = this._findNearestEnemy(this.hero.x, this.hero.y, 140);
-      if(e && now - (this.hero.lastAttack||0) > this.hero.attackDelay){
-        e.hp = 0;
-        this._killEnemy(e);
-        this.hero.lastAttack = now;
-      }
-      // HP-бар героя
-      const p = Math.max(0, Math.min(1, this.hero.hp / this.hero.maxHp));
-      this.hero.hpBar.clear();
-      this.hero.hpBar.fillStyle(0x000000,0.5).fillRect(this.hero.x-32, this.hero.y-58, 66, 8);
-      this.hero.hpBar.fillStyle(0x32cd32,0.9).fillRect(this.hero.x-32, this.hero.y-58, 66*p, 8);
-    }
-
+    if(!State.started || State.paused) { this._syncHUD(); return; }
+    this.enemies.getChildren().forEach(e => { if(e.active && e.visible) this._updateEnemy(e); });
+    this.helpers.getChildren().forEach(h => { if(h.active && h.visible) this._updateHelper(h); });
+    this.bullets.getChildren().forEach(b => { if(b.active && b.visible) this._updateBullet(b); });
     this._syncHUD();
   }
 
-  // ---------- HUD ----------
+  // ====== HUD ======
   _buildHUD(){
     const yBottom = CONST.HEIGHT - 463;
 
-    // золото (левая панель)
-    this.goldPanel = this.add.image(80, yBottom, 'gold').setOrigin(0,1).setScale(1/3).setDepth(91);
-    this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 36, 'coin_1').setDepth(92).setScale(.65);
-    if(this.anims.exists('coin_anim')) this.coin.play('coin_anim');
+    // Золото
+    this.goldPanel = this.add.image(80, yBottom, 'gold_panel')
+      .setOrigin(0,1).setScale(1/3).setDepth(91);
+
+    this.coin = this.add.sprite(this.goldPanel.x + 58, this.goldPanel.y - 36, 'coin_1')
+      .setDepth(92).setScale(0.65);
+    if (this.anims.exists('coin_anim')) this.coin.play('coin_anim');
 
     this.goldText = this.add.text(this.goldPanel.x + 95, this.goldPanel.y - 36, String(State.gold), {
       font:'26px Arial', fill:'#fff', stroke:'#000', strokeThickness:4
     }).setOrigin(0,0.5).setDepth(999);
 
-    // синяя валюта (справа сверху)
-    this.blueIcon = this.add.image(CONST.WIDTH-130, 60, 'bluecoin').setScale(.9).setDepth(95);
-    this.blueText = this.add.text(CONST.WIDTH-100, 60, String(State.blue), {
-      font:'26px Arial', fill:'#9dd1ff', stroke:'#000', strokeThickness:4
-    }).setOrigin(0,0.5).setDepth(999);
-
-    // HUD базы + интерактив (клик = нанять помощника)
-    this.baseHud = this.add.image(CONST.WIDTH - 550, CONST.HEIGHT - 450, 'base_100').setDepth(50);
+    // База HUD
+    this.baseHud = this.add.image(CONST.WIDTH - 550, CONST.HEIGHT - 450, 'base_100').setDepth(20);
     this._applyBaseHudTexture();
-    this.baseHud.setInteractive({useHandCursor:true});
-    this.baseHud.on('pointerdown', ()=>{
-      if(State.gold < CONST.HELPER_COST){
-        this._floatText(this.baseHud.x, this.baseHud.y-40, 'Недостаточно золота');
-        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-        return;
-      }
-      State.gold -= CONST.HELPER_COST;
-      const path = CONST.PATHS[Phaser.Math.Between(0, CONST.PATHS.length-1)];
-      const typeIdx = Phaser.Math.Between(0, CONST.HELPER_TYPES.length-1);
-      this._spawnHelper(path, typeIdx);
+
+    // Вторая валюта (верхняя панель)
+    this.blueCoinIcon = this.add.image(CONST.WIDTH/2 - 40, 46, 'bluecoin').setDepth(95).setScale(0.9);
+    this.blueCoinText = this.add.text(CONST.WIDTH/2 + 0, 46, String(State.heroCoins), {
+      font:'26px Arial', fill:'#9fd6ff', stroke:'#002', strokeThickness:4
+    }).setOrigin(0,0.5).setDepth(95);
+
+    // «Реклама» (оставил как было)
+    this.adBtn = this.add.sprite(CONST.WIDTH - 76, CONST.HEIGHT - 96, 'ad_1')
+      .setDepth(95).setInteractive({useHandCursor:true});
+    if(this.anims.exists('ad_anim')) this.adBtn.play('ad_anim');
+    this.adBtn.on('pointerdown', ()=>{
+      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      State.gold += 1000;
       this._syncHUD();
     });
   }
@@ -386,47 +490,54 @@ class AppScene extends Phaser.Scene{
 
   _syncHUD(){
     if(this.goldText) this.goldText.setText(String(State.gold|0));
-    if(this.blueText) this.blueText.setText(String(State.blue|0));
+    if(this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins|0));
     if(this.baseHud) this._applyBaseHudTexture();
+    this._syncHeroStars();
+    this._refreshHeroButtons();
+    this._refreshHelperButtons();
   }
 
   _buildSideButtons(){
-    const x = 576, gap = 80;
-    const btnMenu   = this.add.image(x, 629, 'menu').setInteractive().setDepth(60);
-    const btnReload = this.add.image(x, 709, 'reload').setInteractive().setDepth(60);
-    const btnSound  = this.add.image(x, 789, State.soundEnabled ? 'sound' : 'soundoff').setInteractive().setDepth(60);
-    this.btnTurbo   = this.add.image(x, 869, 'slow').setInteractive().setDepth(60);
-    this.btnPause   = this.add.image(x, 869+gap, 'pause').setInteractive().setDepth(60);
-    this.btnResume  = this.add.image(x, 869+gap, 'play2').setInteractive().setDepth(60).setVisible(false);
+    const x = 576;
+    const yMenu   = 629;
+    const yReload = 709;
+    const ySound  = 789;
+    const yTurbo  = 869;
+    const gap     = 80;
 
-    btnMenu.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+    const btnMenu = this.add.image(x, yMenu, 'menu').setInteractive().setDepth(60);
+    btnMenu.on('pointerdown', ()=>{
+      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
       this.returnToMenu();
     });
-    btnReload.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-      this.beginNewGame();
+
+    const btnReload = this.add.image(x, yReload, 'reload').setInteractive().setDepth(60);
+    btnReload.on('pointerdown', ()=>{
+      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      this.beginNewGame(); // жёсткий рестарт без перезагрузки сцены
     });
-    const applyMuteIcon = ()=> btnSound.setTexture(State.soundEnabled?'sound':'soundoff');
+
+    const btnSound = this.add.image(x, ySound, State.soundEnabled ? 'sound_on' : 'sound_off')
+      .setInteractive().setDepth(60);
+    const applyMuteIcon = ()=> btnSound.setTexture(State.soundEnabled ? 'sound_on' : 'sound_off');
     btnSound.on('pointerdown', ()=>{
       State.soundEnabled = !State.soundEnabled;
       this.sound.setMute(!State.soundEnabled);
+      try{ localStorage.setItem('td_mute', State.soundEnabled ? '0':'1'); }catch(_){}
       applyMuteIcon();
-      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ }
     });
 
-    const applyTurboIcon = ()=> this.btnTurbo.setTexture( this.speedScale>1 ? 'fast' : 'slow' );
-    this.speedScale = 1;
-    this.time.timeScale = 1;
-    this.tweens.timeScale = 1;
+    this.btnTurbo = this.add.image(x, yTurbo, 'turbo_off').setInteractive().setDepth(60);
+    const applyTurboIcon = ()=> this.btnTurbo.setTexture(this.speedScale>1?'turbo_on':'turbo_off');
     this.btnTurbo.on('pointerdown', ()=>{
       if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
-      this.speedScale = this.speedScale>1 ? 1 : 2;
-      if(!State.paused){
-        this.time.timeScale = this.speedScale;
-        this.tweens.timeScale = this.speedScale;
-      }
-      applyTurboIcon();
+      this._toggleTurbo(); applyTurboIcon();
     });
     applyTurboIcon();
+
+    this.btnPause = this.add.image(x, yTurbo + gap, 'pause').setDepth(60).setInteractive({useHandCursor:true});
+    this.btnResume= this.add.image(x, yTurbo + gap, 'resume').setDepth(60).setInteractive({useHandCursor:true}).setVisible(false);
 
     this.btnPause.on('pointerdown', ()=>{
       if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
@@ -438,84 +549,135 @@ class AppScene extends Phaser.Scene{
     });
   }
 
+  _toggleTurbo(){
+    this.speedScale = this.speedScale>1 ? 1 : 2;
+    if(!State.paused){
+      this.time.timeScale = this.speedScale;
+      this.tweens.timeScale = this.speedScale;
+    }
+  }
+
   _setPaused(flag){
     State.paused = !!flag;
-    this.btnPause.setVisible(!State.paused);
-    this.btnResume.setVisible(State.paused);
+    if(this.btnPause && this.btnResume){
+      this.btnPause.setVisible(!State.paused);
+      this.btnResume.setVisible(State.paused);
+    }
     if(State.paused){
       this.time.timeScale = 0;
       this.tweens.pauseAll();
-    }else{
+    } else {
       this.time.timeScale = this.speedScale;
       this.tweens.resumeAll();
     }
   }
 
-  // ---------- lifecycle ----------
+  // ====== Чистый старт ======
   beginNewGame(){
-    hideMenuOverlay(); try{ menuVideo.pause(); }catch(_){}
+    hideMenuOverlay();
+    try{ menuVideo.pause(); }catch(_){}
+    this.stopAllLoops();
     try{ this.sndLobby.stop(); }catch(_){}
-    try{ this.sndBattle.play(); }catch(_){}
-    State.started = true;
 
-    // hard reset
-    State.gold = CONST.START_GOLD;
-    State.wave = 0;
-    State.baseHp = 100;
-    this.speedScale = 1;
-    this.time.timeScale = 1;
-    this.tweens.timeScale = 1;
-
-    // deactivate all entities
-    this.enemies.getChildren().forEach(e=> this._deactivateEnemy(e));
-    this.bullets.getChildren().forEach(b=> b.setActive(false).setVisible(false).setPosition(-9999,-9999));
-    this.helpers.forEach(h=> { try{ h.destroy(); }catch(_){} });
-    this.helpers = [];
-    this.towers.forEach(t=>{ try{ t.sprite.upIcon?.destroy(); t.sprite.destroy(); }catch(_){} });
-    this.towers = [];
-    // restore hammers
-    this.buildSprites.forEach((spr,i)=>{ try{ spr?.destroy(); }catch(_){}
-      this._createHammer(CONST.BUILD_SPOTS[i], i);
-    });
-
-    // spawn hero
-    this._spawnHero(State.heroType || 1);
-
-    // schedule waves
     if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-    if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer = null; }
+    if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
+
+    this._hardResetState();
+
+    this.playBattle();
+
+    State.started = true;
     this._scheduleNextWave(1200);
-    this._syncHUD();
   }
 
   returnToMenu(){
     State.started = false;
     this._setPaused(false);
-    try{ this.sndBattle.stop(); }catch(_){}
-    try{ this.sndArrowLp.stop(); }catch(_){}
-    try{ this.sndLobby.play(); }catch(_){}
+    this.stopAllLoops();
+    try { this.sndBattle.stop(); }catch(_){}
+    try { this.sndArrowLp.stop(); }catch(_){}
+    this.playLobby();
     showMenuOverlay();
-    try{ menuVideo.currentTime=0; menuVideo.play().catch(()=>{});}catch(_){}
+
+    try {
+      menuVideo.currentTime = 0;
+      menuVideo.play().catch(()=>{});
+    } catch(_) {}
+
     if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
     if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer = null; }
-    blueMenuText.textContent = State.blue|0;
   }
 
   showGameOver(){
     State.started = false;
     this._setPaused(false);
+    this.stopAllLoops();
     try{ this.sndBattle.stop(); }catch(_){}
     try{ this.sndArrowLp.stop(); }catch(_){}
-    try{ this.sndOver.play(); }catch(_){}
+    this.playGameOver();
     showGameoverOverlay();
-    try{ goVideo.currentTime=0; goVideo.play().catch(()=>{});}catch(_){}
+    try{ goVideo.currentTime = 0; goVideo.play().catch(()=>{}); }catch(_){}
     if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-    if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){} this.waveTimer = null; }
+    if (this.waveTimer) { try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer = null; }
   }
 
-  // ---------- build/upgrade towers ----------
+  _hardResetState(){
+    State.gold = CONST.START_GOLD;
+    State.heroCoins = 0;
+    State.wave = 0;
+    State.baseHp = 100;
+    State.paused = false;
+    this.speedScale = 1;
+    this.time.timeScale = 1;
+    this.tweens.timeScale = 1;
+
+    // враги
+    this.enemies.getChildren().forEach(e=>{
+      if(e.hpBar){ e.hpBar.clear().setVisible(false); }
+      e.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      e.state='idle'; e.targetTower=null; e.path=null; e.pathIndex=0;
+      e.isBoss = false; e.setScale(0.35); e.clearTint && e.clearTint();
+    });
+    // пули
+    this.bullets.getChildren().forEach(b=>{
+      b.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      b.target=null;
+    });
+    // помощники
+    this.helpers.getChildren().forEach(h=>{
+      if(h.hpBar){ h.hpBar.clear().setVisible(false); }
+      h.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      h.state='idle'; h.target=null;
+    });
+
+    // Башни
+    try{
+      this.towers.forEach(t=>{
+        if(t && t.sprite && t.sprite.active){ t.sprite.destroy(); }
+        if(t && t.sprite?.upIcon){ try{ t.sprite.upIcon.destroy(); }catch(_){ } }
+      });
+      this.towers = [];
+    }catch(_){}
+
+    // Молоты
+    try{
+      this.buildSprites.forEach((spr, i)=>{
+        if(spr && spr.active) spr.destroy();
+        const pos = CONST.BUILD_SPOTS[i];
+        this._createHammer(pos, i);
+      });
+    }catch(_){}
+
+    // Герой (оставляем выбранный тип и уровень как есть; можно сбрасывать по желанию)
+    this._removeHero();
+    this._spawnHero();
+
+    this._syncHUD();
+  }
+
+  // ====== Строительство / улучшение башен ======
   _createHammer(pos, index){
-    const img = this.add.image(pos[0],pos[1],'moloticon').setInteractive({useHandCursor:true}).setScale(0.6).setDepth(10);
+    const img = this.add.image(pos[0],pos[1],'molot').setInteractive({useHandCursor:true}).setScale(0.6).setDepth(10);
     img.on('pointerdown', ()=> this._buildTower(index));
     this.buildSprites[index] = img;
   }
@@ -527,80 +689,150 @@ class AppScene extends Phaser.Scene{
       return;
     }
     const pos = CONST.BUILD_SPOTS[index];
-    try{ this.buildSprites[index].destroy(); }catch(_){}
-    this.buildSprites[index] = null;
 
-    State.gold -= CONST.TOWER_COST; this._syncHUD();
-    try{ this.sndMoney.play(); }catch(_){}
+    if(this.buildSprites[index]){
+      try{ this.buildSprites[index].destroy(); }catch(_){}
+      this.buildSprites[index] = null;
+    }
+    State.gold -= CONST.TOWER_COST;
+    this._syncHUD();
+    try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
 
     const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1').setInteractive().setDepth(5);
-    ts.level = 1; ts._typeKey='tower1'; ts._range=CONST.TOWER_RANGE;
-    ts._shootRate=900; ts._bulletSpeed=9; ts._damage=5*ts.level; ts.hp=50;
-    ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level+1);
+    ts.level = 1;
+    ts._typeKey = 'tower1';
+    ts._range = CONST.TOWER_RANGE;
+    ts._shootRate = 900;
+    ts._bulletSpeed = 9;
+    ts._damage = 5 * ts.level;
+    ts.hp = 50;
+    ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
+
+    if(this.textures.exists('up_icon') && this.textures.exists('noup_icon')){
+      ts.upIcon = this.add.image(pos[0]-28,pos[1]+40,'noup_icon').setScale(0.6).setDepth(6).setVisible(true);
+    }
     ts.on('pointerdown', ()=> this._upgradeTower(ts));
 
-    if(this.textures.exists('up')) ts.upIcon = this.add.image(pos[0]-28,pos[1]+40,'noup')
-      .setScale(0.6).setDepth(6).setVisible(true);
-
-    if(this.anims.exists('tower1_idle_anim')) ts.play('tower1_idle_anim');
+    const idle = `${ts._typeKey}_idle_anim`;
+    if(this.anims.exists(idle)) ts.play(idle);
     ts.setFlipX(ts.x > CONST.WIDTH/2);
-    ts.on('destroy', ()=> this._createHammer(pos,index));
+
+    ts.on('destroy', ()=> {
+      this.buildSprites[index] = null;
+      this._createHammer(pos,index);
+    });
+
     this.towers.push({ sprite: ts });
   }
 
   _upgradeTower(ts){
-    if(ts.level>=12) return;
     const cost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE * (ts.level + 1)));
+    if(ts.level >= 12) return;
     if(State.gold < cost){
-      this._floatText(ts.x, ts.y - 70, 'Недостаточно золота'); 
+      this._floatText(ts.x, ts.y - 70, 'Недостаточно золота');
       if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
       return;
     }
     State.gold -= cost; this._syncHUD();
-    ts.level += 1; ts._typeKey='tower'+ts.level;
+    ts.level += 1;
+    ts._typeKey = 'tower' + ts.level;
     ts._range = Math.min(300, ts._range + 30);
     ts._shootRate = Math.max(300, ts._shootRate - 120);
     ts._damage = 5 * ts.level;
     ts.hp += 50;
     ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
-    if(this.anims.exists(`${ts._typeKey}_idle_anim`)) ts.play(`${ts._typeKey}_idle_anim`);
-    if(ts.level>=12 && ts.upIcon) ts.upIcon.setVisible(false);
+    const idle = `${ts._typeKey}_idle_anim`;
+    if(this.anims.exists(idle)) ts.play(idle);
+    if(ts.level >= 12 && ts.upIcon) ts.upIcon.setVisible(false);
     try{ this.sndUp.play(); }catch(_){}
   }
 
-  // ---------- towers tick & bullets ----------
+  // ====== ПУЛ ПУЛЬ ======
+  _getBullet(){
+    for(let i=0;i<this.bulletPool.length;i++){
+      const b = this.bulletPool[i];
+      if(!b.active && !b.visible) return b;
+    }
+    const nb = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false);
+    this.bullets.add(nb);
+    this.bulletPool.push(nb);
+    return nb;
+  }
+
+  // ====== ПУЛ ВРАГОВ ======
+  _getEnemy(){
+    for(let i=0;i<this.enemyPool.length;i++){
+      const e = this.enemyPool[i];
+      if(!e.active && !e.visible) return e;
+    }
+    const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false);
+    e.hpBar = this.add.graphics().setDepth(40).setVisible(false);
+    e.hpBar.__owner = e;
+    this.enemies.add(e);
+    this.enemyPool.push(e);
+    return e;
+  }
+
+  // ====== ПУЛ ПОМОЩНИКОВ ======
+  _getHelper(){
+    for(let i=0;i<this.helperPool.length;i++){
+      const h = this.helperPool[i];
+      if(!h.active && !h.visible) return h;
+    }
+    const h = this.add.sprite(-9999,-9999,'hp_t1_w1').setScale(0.45).setVisible(false).setActive(false).setDepth(35);
+    h.hpBar = this.add.graphics().setDepth(40).setVisible(false);
+    h.hpBar.__owner = h;
+    this.helpers.add(h);
+    this.helperPool.push(h);
+    return h;
+  }
+
+  // ====== Башни / стрельба ======
   _towersTick(){
     if(!State.started || State.paused) return;
+
     let anyShot = false;
     const now = Date.now();
+
     for(const tObj of this.towers){
-      const ts = tObj.sprite; if(!ts||!ts.active) continue;
-      // апдейт иконки апгрейда
+      const ts = tObj.sprite; if(!ts || !ts.active) continue;
+
       if(ts.upIcon){
         const nextCost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE*(ts.level+1)));
-        ts.upIcon.setTexture(State.gold >= nextCost ? 'up' : 'noup');
+        const key = State.gold >= nextCost ? 'up_icon' : 'noup_icon';
+        if(ts.upIcon.texture && ts.upIcon.texture.key !== key) ts.upIcon.setTexture(key);
         ts.upIcon.setVisible(!(ts.level>=12));
         ts.upIcon.x = ts.x - 28; ts.upIcon.y = ts.y + 40;
       }
+
       ts._lastShotTime = ts._lastShotTime || 0;
       if(now - ts._lastShotTime < ts._shootRate){
         const idleKey = `${ts._typeKey}_idle_anim`;
         if(this.anims.exists(idleKey) && (!ts.anims.currentAnim || ts.anims.currentAnim.key.indexOf('_idle_anim')===-1)) ts.play(idleKey, true);
         continue;
       }
-      // цель
+
+      // поиск цели
       let target=null, dmin=1e9;
       this.enemies.getChildren().forEach(e=>{
         if(!e.active || !e.visible || e.state==='die') return;
         const d = Phaser.Math.Distance.Between(ts.x, ts.y, e.x, e.y);
         if(d < ts._range && d < dmin){ dmin=d; target=e; }
       });
+
       ts._lastShotTime = now;
       if(target){
         let b = this._getBullet();
-        b.setActive(true).setVisible(true).setTexture('arrow').setScale(0.5);
+        b.setActive(true).setVisible(true);
+        b.setTexture('arrow');
+        b.setScale(0.5);
         b.setPosition(ts.x, ts.y - Math.round((ts.displayHeight||40)*0.4));
-        b.target = target; b.speed = ts._bulletSpeed || 9; b.damage = ts._damage || (5*ts.level); b.hitRadius = 16; b.setDepth(30);
+        b.target = target;
+        b.speed = ts._bulletSpeed || 9;
+        b.damage = ts._damage || (5*ts.level);
+        b.hitRadius = 16;
+        b.setDepth(30);
+
         const atkKey = `${ts._typeKey}_atk_anim`; if(this.anims.exists(atkKey)) ts.play(atkKey,true);
         ts.setFlipX(ts.x > CONST.WIDTH/2);
         anyShot = true;
@@ -608,6 +840,7 @@ class AppScene extends Phaser.Scene{
         const idleKey = `${ts._typeKey}_idle_anim`; if(this.anims.exists(idleKey)) ts.play(idleKey,true);
       }
     }
+
     try{
       if(anyShot){
         if(!this.sndArrowLp.isPlaying && !this.sound.mute) this.sndArrowLp.play();
@@ -617,164 +850,172 @@ class AppScene extends Phaser.Scene{
     }catch(_){}
   }
 
-  _getBullet(){
-    for(const b of this.bulletPool){ if(!b.active && !b.visible) return b; }
-    const nb = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false);
-    this.bullets.add(nb); this.bulletPool.push(nb); return nb;
-  }
-
+  // ====== Пули ======
   _updateBullet(b){
     if(!b || !b.active || !b.visible) return;
+
     if(!b.target || !b.target.active || !b.target.visible || b.target.state==='die'){
-      b.setActive(false).setVisible(false).setPosition(-9999,-9999); b.target=null; return;
+      b.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      b.target=null;
+      return;
     }
-    const dx = b.target.x - b.x, dy = b.target.y - b.y;
-    const dist = Math.hypot(dx,dy), sp=b.speed||8, hitR=b.hitRadius||16;
-    if(dist<=hitR){
-      const dmg = b.damage || 5;
+
+    const dx = b.target.x - b.x;
+    const dy = b.target.y - b.y;
+    const dist = Math.hypot(dx, dy);
+    const sp = b.speed || 8;
+    const hitR = b.hitRadius || 16;
+
+    if(dist <= hitR){
+      const dmg = (b.damage || 5);
       b.target.hp -= dmg;
-      this._floatText(b.target.x, b.target.y-28, '-'+dmg);
-      if(b.target.hp<=0) this._killEnemy(b.target);
-      b.setActive(false).setVisible(false).setPosition(-9999,-9999); b.target=null; return;
+      this._floatText(b.target.x, b.target.y-28, '-' + dmg);
+      if(b.target.hp <= 0){ this._killEnemy(b.target); }
+      b.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      b.target=null;
+      return;
     }
-    const nx = dx/dist, ny=dy/dist;
-    b.x += nx*sp; b.y += ny*sp;
+
+    const nx = dx / dist, ny = dy / dist;
+    b.x += nx * sp;
+    b.y += ny * sp;
     b.rotation = Phaser.Math.Angle.Between(b.x,b.y,b.target.x,b.target.y);
-    if(b.x<-50||b.x>CONST.WIDTH+50||b.y<-50||b.y>CONST.HEIGHT+50){
-      b.setActive(false).setVisible(false).setPosition(-9999,-9999); b.target=null;
+
+    if(b.x < -50 || b.x > CONST.WIDTH+50 || b.y < -50 || b.y > CONST.HEIGHT+50){
+      b.setActive(false).setVisible(false).setPosition(-9999,-9999);
+      b.target=null;
     }
   }
 
-  // ---------- enemies ----------
-  _getEnemy(){
-    for(const e of this.enemyPool){ if(!e.active && !e.visible) return e; }
-    const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false);
-    e.hpBar = this.add.graphics().setDepth(40).setVisible(false); e.hpBar.__owner = e;
-    this.enemies.add(e); this.enemyPool.push(e); return e;
+  _floatText(x,y,text,color='#ffec8b'){
+    const t = this.add.text(x, y, text, {font:'20px Arial', fill:color, stroke:'#000', strokeThickness:3}).setDepth(100);
+    t.setOrigin(0.5,1);
+    this.tweens.add({ targets:t, y:y-30, alpha:0, duration:650, ease:'Cubic.easeOut', onComplete:()=> t.destroy() });
   }
 
-  _spawnEnemy(path, hp){
-    const spawn = path[0];
-    const e = this._getEnemy();
-    e.maxHp = hp; e.hp = hp;
-    e.speed = 0.12 + Math.min(0.018 * State.wave, 0.32);
-    e.path = path; e.pathIndex = 1; e.state='walk'; e._savedPathIndex=null; e._lastAttack=0;
-    e.setPosition(spawn[0],spawn[1]).setVisible(true).setActive(true).setScale(0.35);
-    if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
-    e.hpBar.setVisible(true); this._drawHpBar(e);
-  }
+  _killEnemy(e){
+    if(!e || e.state==='die') return;
+    e.state = 'die';
+    if(e.anims) e.anims.stop();
 
-  _spawnBoss(path){
-    const spawn = path[0];
-    const e = this._getEnemy();
-    e.maxHp = (25 + State.wave * 5) * 3; e.hp = e.maxHp;
-    e.speed = 0.05; e.damage = 20; e.isBoss = true;
-    e.path = path; e.pathIndex = 1; e.state='walk';
-    e.setScale(0.7).setPosition(spawn[0],spawn[1]).setVisible(true).setActive(true);
-    if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
-    e.hpBar.setVisible(true); this._drawHpBar(e);
-    this._floatText(e.x, e.y-60, 'БОСС!');
-  }
+    const hasDieAnim = this.anims.exists('e_die_anim');
+    if (hasDieAnim) {
+      e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => { this._deactivateEnemy(e); });
+      e.play('e_die_anim');
+    } else {
+      this._deactivateEnemy(e);
+    }
 
-  _drawHpBar(e){
-    if(!e||!e.hpBar||!e.visible) return;
-    const w=40,h=6,x=e.x-w/2,y=e.y-40,p=Math.max(0,Math.min(1,e.hp/e.maxHp));
-    e.hpBar.clear();
-    e.hpBar.fillStyle(0x000000,0.5).fillRect(x-1,y-1,w+2,h+2);
-    e.hpBar.fillStyle(0x8b0000,0.6).fillRect(x,y,w,h);
-    e.hpBar.fillStyle(0x32cd32,0.9).fillRect(x,y,w*p,h);
+    try{ this.sndKill && this.sndKill.play(); }catch(_){}
+
+    // валюты
+    State.gold += e.isBoss ? CONST.KILL_REWARD * 5 : CONST.KILL_REWARD;
+    State.heroCoins += CONST.HERO_REWARD; // +10 за каждого
+    if (e.isBoss) this._floatText(e.x, e.y - 50, 'БОСС ПОБЕЖДЁН!', '#ffd6d6');
+
+    this._syncHUD();
   }
 
   _deactivateEnemy(e){
     if(e.hpBar){ e.hpBar.clear().setVisible(false); }
     e.setActive(false).setVisible(false).setPosition(-9999,-9999);
-    e.targetTower=null; e.path=null; e.pathIndex=0; e.state='idle'; e.isBoss=false; e.setScale(0.35);
+    e.targetTower=null; e.path=null; e.pathIndex=0; e.state='idle';
+    e.isBoss = false;
+    e.setScale(0.35);
+    e.clearTint && e.clearTint();
   }
 
-  _killEnemy(e){
-    if(!e || e.state==='die') return;
-    e.state='die'; if(e.anims) e.anims.stop();
-    const hasDieAnim = this.anims.exists('e_die_anim');
-    if(hasDieAnim){
-      e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, ()=> this._deactivateEnemy(e));
-      e.play('e_die_anim');
-    }else{
-      this._deactivateEnemy(e);
-    }
-    try{ this.sndKill && this.sndKill.play(); }catch(_){}
-    // награда: золото + синие монеты
-    State.gold += e.isBoss ? CONST.KILL_REWARD_GOLD*5 : CONST.KILL_REWARD_GOLD;
-    State.blue += e.isBoss ? CONST.KILL_REWARD_BLUE*5 : CONST.KILL_REWARD_BLUE;
-    this._syncHUD();
-    if(e.isBoss) this._floatText(e.x, e.y-50, 'БОСС ПОБЕЖДЁН!');
+  // ====== Враги ======
+  _spawnEnemy(path, hp){
+    const spawn = path[0];
+    const e = this._getEnemy();
+    e.isBoss = false;
+    e.setScale(0.35);
+    e.clearTint && e.clearTint();
+
+    e.maxHp = hp; e.hp = hp;
+    e.speed = 0.12 + Math.min(0.018 * State.wave, 0.32);
+    e.path = path; e.pathIndex = 1;
+    e.state='walk'; e._savedPathIndex=null; e._lastAttack=0;
+
+    e.setPosition(spawn[0],spawn[1]).setVisible(true).setActive(true);
+    if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
+
+    e.hpBar.setVisible(true);
+    this._drawHpBar(e);
+  }
+
+  _spawnBoss(path) {
+    const spawn = path[0];
+    const e = this._getEnemy();
+    e.maxHp = (25 + State.wave * 5) * 3;
+    e.hp = e.maxHp;
+    e.speed = 0.05;
+    e.damage = 20;
+    e.path = path;
+    e.pathIndex = 1;
+    e.state = 'walk';
+    e.isBoss = true;
+    e.setScale(0.7);
+
+    e.setPosition(spawn[0], spawn[1]).setVisible(true).setActive(true);
+    if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
+
+    e.hpBar.setVisible(true);
+    this._drawHpBar(e);
+    this._floatText(e.x, e.y - 60, 'БОСС!', '#ff8080');
+  }
+
+  _drawHpBar(e){
+    if(!e || !e.hpBar || !e.visible) return;
+    const w = 40, h = 6;
+    const x = e.x - w/2;
+    const y = e.y - 40;
+    const p = Math.max(0, Math.min(1, e.hp / e.maxHp));
+    e.hpBar.clear();
+    e.hpBar.fillStyle(0x000000, 0.5).fillRect(x-1,y-1,w+2,h+2);
+    e.hpBar.fillStyle(0x8b0000, 0.6).fillRect(x,y,w,h);
+    e.hpBar.fillStyle(0x32cd32, 0.9).fillRect(x,y,w*p,h);
   }
 
   _updateEnemy(e){
     if(!e || !e.active || !e.visible || e.state==='die') return;
+
     if(e.hpBar){ this._drawHpBar(e); }
 
-    // === Поиск ближайшей цели (башня, помощник или герой) ===
-    let nearest = null; let nd = 1e9;
-
-    // башни
+    // Агро башни
+    let nearest=null, nd=1e9;
     for(const tObj of this.towers){
-      const ts = tObj.sprite; if(!ts||!ts.active) continue;
-      const d = Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);
-      if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=ts; nearest._etype='tower'; }
+      const ts=tObj.sprite; if(!ts||!ts.active) continue;
+      const d=Phaser.Math.Distance.Between(e.x,e.y,ts.x,ts.y);
+      if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=ts; }
     }
-    // помощники
-    if(this.helpers){
-      for(const h of this.helpers){
-        if(!h.active || !h.visible) continue;
-        const d = Phaser.Math.Distance.Between(e.x,e.y,h.x,h.y);
-        if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=h; nearest._etype='helper'; }
-      }
-    }
-    // герой
-    if(this.hero && this.hero.active){
-      const d = Phaser.Math.Distance.Between(e.x,e.y,this.hero.x,this.hero.y);
-      if(d < CONST.ENEMY_AGGRO && d < nd){ nd=d; nearest=this.hero; nearest._etype='hero'; }
-    }
-
     if(nearest){
-      e.targetTower = nearest; e._savedPathIndex=e.pathIndex;
+      e.targetTower=nearest; e._savedPathIndex=e.pathIndex;
       if(this.anims.exists('e_atk_anim') && e.anims?.currentAnim?.key!=='e_atk_anim') e.play('e_atk_anim');
     }
 
-    // атака цели
+    // Атака башни
     if(e.targetTower && e.targetTower.active){
       this._moveTowards(e, e.targetTower.x, e.targetTower.y, e.speed);
       e.setFlipX(e.targetTower.x < e.x);
       const d = Phaser.Math.Distance.Between(e.x,e.y,e.targetTower.x,e.targetTower.y);
       if(d < 26 && (!e._lastAttack || Date.now()-e._lastAttack > 900)){
         e._lastAttack = Date.now();
-        const dmg = e.isBoss ? 20 : 10;
         if(e.targetTower.hp != null){
+          const dmg = e.isBoss ? 20 : 10;
           e.targetTower.hp -= dmg;
-
-          // hit flash
           try{
             e.targetTower.setTint && e.targetTower.setTint(0xff9999);
             this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){} });
           }catch(_){}
-
           if(e.targetTower.hp <= 0){
-            if(e.targetTower._etype === 'helper'){
-              this._floatText(e.targetTower.x, e.targetTower.y-40, 'Помощник пал');
-              try{ e.targetTower.destroy(); }catch(_){}
-              this.helpers = this.helpers.filter(h => h.active && h.visible);
-            }
-            if(e.targetTower._etype === 'hero'){
-              this._floatText(this.hero.x, this.hero.y-60, 'Герой пал!');
-              try{ this.hero.hpBar?.destroy(); this.hero.destroy(); }catch(_){}
-            }
-            if(e.targetTower._etype === 'tower'){
-              try{ this.sndRush.play(); }catch(_){}
-              try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){}
-              try{ e.targetTower.destroy(); }catch(_){}
-              this.towers = this.towers.filter(t => t?.sprite?.active);
-            }
+            try{ this.sndRush.play(); }catch(_){}
+            try{ e.targetTower.upIcon && e.targetTower.upIcon.destroy(); }catch(_){ }
+            try{ e.targetTower.destroy(); }catch(_){}
+            this.towers = this.towers.filter(t => t && t.sprite && t.sprite.active);
             e.targetTower=null; e.state='returning';
+            if(e._savedPathIndex!=null) e.pathIndex=e._savedPathIndex;
           }
         }else{
           e.targetTower=null; e.state='returning';
@@ -783,7 +1024,7 @@ class AppScene extends Phaser.Scene{
       return;
     }
 
-    // возврат к пути
+    // Возврат к пути
     if(e.state==='returning'){
       const target = e.path[e.pathIndex] || e.path[e.path.length-1];
       this._moveTowards(e, target[0], target[1], e.speed);
@@ -793,11 +1034,11 @@ class AppScene extends Phaser.Scene{
       return;
     }
 
-    // дошел до базы
+    // Дошёл до базы
     if(e.pathIndex >= e.path.length){
       if(!e._lastAttack || Date.now()-e._lastAttack > 900){
         e._lastAttack = Date.now();
-        State.baseHp -= 5; if(State.baseHp<0) State.baseHp=0;
+        State.baseHp -= 5; if(State.baseHp < 0) State.baseHp = 0;
         this._syncHUD();
         if(State.baseHp<=0){ this.showGameOver(); }
       }
@@ -805,7 +1046,7 @@ class AppScene extends Phaser.Scene{
       return;
     }
 
-    // движение по точкам
+    // Движение по точкам
     const wp = e.path[e.pathIndex];
     if(wp){
       this._moveTowards(e, wp[0], wp[1], e.speed);
@@ -815,206 +1056,474 @@ class AppScene extends Phaser.Scene{
     }
   }
 
-  // ---------- hero & helpers ----------
-  _spawnHero(type){
-    const [x,y] = CONST.HERO_POS;
-    const sp = this.add.sprite(x,y,`h${type}_idle_1`).setDepth(12).setScale(0.7).setInteractive({useHandCursor:true});
-    sp.type = type; sp.level = 1;
-    sp.maxHp = 500; sp.hp = 500;
-    sp.attackDelay = 2000; sp.lastAttack = 0;
-    sp.on('pointerdown', ()=> this._upgradeHero(sp));
-    // анимации
-    if(this.anims.exists(`h${type}_idle_anim`)) sp.play(`h${type}_idle_anim`);
-    // HP-бар
-    sp.hpBar = this.add.graphics().setDepth(90);
-    this.hero = sp;
+  _moveTowards(obj, tx, ty, speed){
+    const dx=tx-obj.x, dy=ty-obj.y, dist=Math.hypot(dx,dy);
+    if(dist<0.1) return;
+    obj.x += (dx/dist)*speed*2;
+    obj.y += (dy/dist)*speed*2;
   }
 
-  _upgradeHero(hero){
-    if(hero.level>=3) return;
-    const cost = CONST.HERO_UPGRADE_COST[hero.level-1];
-    if(State.blue < cost){
-      this._floatText(hero.x, hero.y-70, 'Недостаточно монет'); 
-      return;
-    }
-    State.blue -= cost;
-    hero.level++;
-    hero.maxHp += 200; hero.hp = hero.maxHp;
-    hero.attackDelay = Math.max(600, hero.attackDelay * 0.8); // быстрее
-    this._floatText(hero.x, hero.y-70, `Герой ${hero.level}★`);
-    this._syncHUD();
-  }
-
-  _spawnHelper(path, typeIdx=0){
-    const [x,y] = CONST.HERO_POS;
-    const def = CONST.HELPER_TYPES[typeIdx] || CONST.HELPER_TYPES[0];
-    const h = this.add.sprite(x,y, def.key).setDepth(9).setScale(0.6);
-    h._etype='helper';
-    h.path=path; h.pathIndex=1; h.state='walk';
-    h.hp = def.hp; h.dmg = def.dmg; h.speed = def.speed;
-    if(this.anims.exists(`hp_t${typeIdx+1}_walk`)) h.play(`hp_t${typeIdx+1}_walk`);
-    this.tweens.add({ targets:h, alpha:{from:0,to:1}, duration:250 });
-    this.helpers.push(h);
-  }
-
-  _findNearestEnemy(x,y,range){
-    let nearest=null, nd=range;
-    this.enemies.getChildren().forEach(e=>{
-      if(!e.active||!e.visible||e.state==='die')return;
-      const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
-      if(d<nd){ nd=d; nearest=e; }
-    });
-    return nearest;
-  }
-
-  // ---------- waves ----------
-  _scheduleNextWave(delay=1500){
+  // ====== Волны ======
+  _scheduleNextWave(delay = 1500) {
     if (this.waveTimer?.hasDispatched) this.waveTimer.remove();
-    if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer=null; }
-    this.waveTimer = this.time.addEvent({ delay, callback: ()=> this._startWave() });
+    if (this.waveTimer) { this.waveTimer.remove(); this.waveTimer = null; }
+    this.waveTimer = this.time.addEvent({ delay, callback: () => this._startWave() });
   }
 
-  _startWave(){
-    if(!State.started || State.paused) return;
-    State.wave++; this._syncHUD();
+  _startWave() {
+    if (!State.started || State.paused) return;
 
-    const enemyHpBase = 25 + State.wave*5;
-    const hpJitter = Phaser.Math.Between(-2,4);
-    const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave-1)/4), 4);
+    State.wave++;
+    this._syncHUD();
+
+    const enemyHpBase = 25 + State.wave * 5;
+    const hpJitter = Phaser.Math.Between(-2, 4);
+    const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave - 1) / 4), 4);
 
     let spawnCount;
-    if(State.wave<=2) spawnCount=1;
-    else if(State.wave<=6) spawnCount=Phaser.Math.Between(1,2);
-    else spawnCount=Phaser.Math.Between(2,3);
+    if (State.wave <= 2) spawnCount = 1;
+    else if (State.wave <= 6) spawnCount = Phaser.Math.Between(1, 2);
+    else spawnCount = Phaser.Math.Between(2, 3);
     spawnCount = Math.min(spawnCount, CONST.PATHS.length);
 
-    const chosen = Phaser.Utils.Array.Shuffle([...Array(CONST.PATHS.length).keys()]).slice(0, spawnCount);
-    chosen.forEach((pathIndex, idx)=>{
+    const chosenIndexes = Phaser.Utils.Array.Shuffle(
+      [...Array(CONST.PATHS.length).keys()]
+    ).slice(0, spawnCount);
+
+    chosenIndexes.forEach((pathIndex, idx) => {
       const path = CONST.PATHS[pathIndex];
-      for(let j=0;j<enemiesPerSpawn;j++){
-        const base = (State.wave<=3) ? Phaser.Math.Between(2400,3000) : Phaser.Math.Between(2000,2600);
-        const delay = j*base + idx*1000;
+      for (let j = 0; j < enemiesPerSpawn; j++) {
+        const base = (State.wave <= 3) ? Phaser.Math.Between(2400, 3000) : Phaser.Math.Between(2000, 2600);
+        const delay = j * base + idx * 1000;
         const hp = Math.max(10, enemyHpBase + hpJitter);
-        this.time.addEvent({ delay, callback: ()=> this._spawnEnemy(path, hp) });
+        this.time.addEvent({ delay, callback: () => this._spawnEnemy(path, hp) });
       }
     });
 
-    const nextDelayBase = (State.wave<=3) ? 12000 : 10000;
-    const nextDelay = nextDelayBase + enemiesPerSpawn*3200 + Phaser.Math.Between(0,1800);
+    const nextDelayBase = (State.wave <= 3) ? 12000 : 10000;
+    const nextDelay = nextDelayBase + enemiesPerSpawn * 3200 + Phaser.Math.Between(0, 1800);
 
-    // босс на каждой 5-й волне
-    if(State.wave % 5 === 0){
+    // Босс раз в 5 волн
+    if (State.wave % 5 === 0) {
       const bossPath = Phaser.Utils.Array.GetRandom(CONST.PATHS);
-      this.time.addEvent({ delay:2500, callback: ()=> this._spawnBoss(bossPath) });
+      this.time.addEvent({ delay: 2500, callback: () => this._spawnBoss(bossPath) });
     }
+
     this._scheduleNextWave(nextDelay);
   }
 
-  // ---------- anims ----------
+  // ====== Анимации ======
   _createAnims(){
-    // towers
+    // Башни
     for(let i=1;i<=12;i++){
       const idle=[], atk=[];
       for(let j=1;j<=4;j++) idle.push({key:`tower${i}_idle_${j}`});
-      for(let j=0;j<5;j++)  atk.push({key:`tower${i}_atk_${j}`});
+      for(let j=0;j<5;j++) atk.push({key:`tower${i}_atk_${j}`});
       if(!this.anims.exists(`tower${i}_idle_anim`))
         this.anims.create({key:`tower${i}_idle_anim`,frames:idle,frameRate:8,repeat:-1});
       if(!this.anims.exists(`tower${i}_atk_anim`))
         this.anims.create({key:`tower${i}_atk_anim`, frames:atk, frameRate:12,repeat:-1});
     }
 
-    // enemies
+    // Враги
     const eWalk=[], eAtk=[], eDie=[];
-    for(let i=0;i<7;i++){ eWalk.push({key:`e_walk_${i}`}); eAtk.push({key:`e_atk_${i}`}); eDie.push({key:`e_die_${i}`}); }
-    if(!this.anims.exists('e_walk_anim')) this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
-    if(!this.anims.exists('e_atk_anim'))  this.anims.create({key:'e_atk_anim',  frames=eAtk,  frameRate:8, repeat:-1});
-    if(!this.anims.exists('e_die_anim'))  this.anims.create({key:'e_die_anim',  frames:eDie,  frameRate:10, repeat:0});
+    for(let i=0;i<7;i++){
+      eWalk.push({key:`e_walk_${i}`});
+      eAtk.push({key:`e_atk_${i}`});
+      eDie.push({key:`e_die_${i}`});
+    }
+    if(!this.anims.exists('e_walk_anim'))
+      this.anims.create({key:'e_walk_anim', frames:eWalk, frameRate:8, repeat:-1});
+    if(!this.anims.exists('e_atk_anim'))
+      this.anims.create({key:'e_atk_anim', frames:eAtk, frameRate:8, repeat:-1});
+    if(!this.anims.exists('e_die_anim'))
+      this.anims.create({ key:'e_die_anim', frames:eDie.map(f=>({key:f.key})), frameRate:10, repeat:0, hideOnComplete:false });
 
-    // coins/ad
-    if(!this.anims.exists('coin_anim'))
-      this.anims.create({key:'coin_anim', frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})), frameRate:10, repeat:-1});
-    if(!this.anims.exists('ad_anim'))
-      this.anims.create({key:'ad_anim', frames:[1,2,3,4,5,6].map(i=>({key:`ad_${i}`})), frameRate:8, repeat:-1});
-
-    // hero (3 набора)
-    for(let h=1; h<=3; h++){
-      const hidle=[], hatk=[];
-      for(let i=1;i<=4;i++){ hidle.push({key:`h${h}_idle_${i}`}); hatk.push({key:`h${h}_atk_${i}`}); }
-      if(!this.anims.exists(`h${h}_idle_anim`))
-        this.anims.create({key:`h${h}_idle_anim`, frames:hidle, frameRate:8, repeat:-1});
-      if(!this.anims.exists(`h${h}_atk_anim`))
-        this.anims.create({key:`h${h}_atk_anim`, frames:hatk, frameRate:10, repeat:-1});
+    // Монетка
+    if(!this.anims.exists('coin_anim')){
+      this.anims.create({key:'coin_anim',
+        frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})),
+        frameRate: 10, repeat:-1
+      });
+    }
+    // Реклама
+    if(!this.anims.exists('ad_anim')){
+      this.anims.create({key:'ad_anim',
+        frames:[1,2,3,4,5,6].map(i=>({key:`ad_${i}`})),
+        frameRate: 8, repeat:-1
+      });
     }
 
-    // helpers
+    // Герои: три набора анимаций (idle/atk)
+    for(let h=1;h<=3;h++){
+      if(!this.anims.exists(`hero${h}_idle`)){
+        this.anims.create({ key:`hero${h}_idle`, frames:[1,2,3,4].map(i=>({key:`h${h}_idle_${i}`})), frameRate:6, repeat:-1 });
+      }
+      if(!this.anims.exists(`hero${h}_atk`)){
+        this.anims.create({ key:`hero${h}_atk`,  frames:[1,2,3,4].map(i=>({key:`h${h}_atk_${i}`})),  frameRate:10, repeat:0 });
+      }
+    }
+
+    // Помощники: для каждого типа walk/atk
     for(let t=1;t<=3;t++){
-      const w=[], a=[];
-      for(let i=1;i<=4;i++){ w.push({key:`hp_t${t}_w${i}`}); a.push({key:`hp_t${t}_a${i}`}); }
-      if(!this.anims.exists(`hp_t${t}_walk`))
-        this.anims.create({key:`hp_t${t}_walk`, frames:w, frameRate:10, repeat:-1});
-      if(!this.anims.exists(`hp_t${t}_atk`))
-        this.anims.create({key:`hp_t${t}_atk`, frames:a, frameRate:10, repeat:-1});
+      if(!this.anims.exists(`hp${t}_walk`)){
+        this.anims.create({ key:`hp${t}_walk`, frames:[1,2,3,4].map(i=>({key:`hp_t${t}_w${i}`})), frameRate:8, repeat:-1 });
+      }
+      if(!this.anims.exists(`hp${t}_atk`)){
+        this.anims.create({ key:`hp${t}_atk`,  frames:[1,2,3,4].map(i=>({key:`hp_t${t}_a${i}`})), frameRate:10, repeat:0 });
+      }
     }
   }
 
-  // ---------- misc ----------
-  _floatText(x,y,text){
-    const t = this.add.text(x,y,text,{font:'20px Arial', fill:'#ffec8b', stroke:'#000', strokeThickness:3}).setDepth(100).setOrigin(0.5,1);
-    this.tweens.add({ targets:t, y:y-30, alpha:0, duration:650, ease:'Cubic.easeOut', onComplete:()=> t.destroy() });
+  /* ================= HERO ================= */
+
+  _spawnHero(){
+    // Позиция возле базы (подогнал под твоё расположение HUD базы)
+    const hx = CONST.WIDTH - 520, hy = CONST.HEIGHT - 420;
+
+    const h = this.add.sprite(hx, hy, 'h1_idle_1').setDepth(50).setScale(0.7);
+    this.hero = h;
+    this._applyHeroTypeVisual();
+
+    h.hpMax = 200;  // базовый HP (меняется с уровнем)
+    h.hp    = h.hpMax;
+    h.range = 110;  // радиус ближней атаки
+    h.cooldown = 2000; // мс (1 удар / 2 сек)
+    h._lastHit = 0;
+    h.level = State.heroLevel;  // 1..3
+
+    // звёзды над героем
+    this.heroStar = this.add.image(hx, hy - 60, 'star1').setDepth(60).setScale(0.9);
+    this._syncHeroStars();
   }
 
-  _moveTowards(obj, tx, ty, speed){
-    const dx=tx-obj.x, dy=ty-obj.y, dist=Math.hypot(dx,dy); if(dist<0.1) return;
-    obj.x += (dx/dist)*speed*2; obj.y += (dy/dist)*speed*2;
+  _removeHero(){
+    try{ this.hero && this.hero.destroy(); }catch(_){}
+    try{ this.heroStar && this.heroStar.destroy(); }catch(_){}
+    this.hero = null; this.heroStar = null;
   }
-}
 
-// Phaser boot
+  _applyHeroTypeVisual(){
+    if(!this.hero) return;
+    const htype = State.heroType|0 || 1;
+    const idleKey = `hero${htype}_idle`;
+    if(this.anims.exists(idleKey)) this.hero.play(idleKey);
+  }
+
+  _heroTick(){
+    if(!State.started || State.paused || !this.hero) return;
+
+    // Находим ближайшего врага в радиусе
+    let target = null, dmin = 1e9;
+    this.enemies.getChildren().forEach(e=>{
+      if(!e.active || !e.visible || e.state==='die') return;
+      const d = Phaser.Math.Distance.Between(this.hero.x,this.hero.y,e.x,e.y);
+      if(d < this.hero.range && d < dmin){ dmin=d; target=e; }
+    });
+    if(!target) return;
+
+    // КД
+    const now = Date.now();
+    if(now - (this.hero._lastHit||0) < this.hero.cooldown) return;
+    this.hero._lastHit = now;
+
+    // Визуал атаки
+    const atkKey = `hero${State.heroType}_atk`;
+    if(this.anims.exists(atkKey)) this.hero.play(atkKey);
+    this.time.delayedCall(220, ()=>{ this._heroKill(target); }); // удар через ~0.2с
+    // вернуться в idle
+    this.time.delayedCall(600, ()=>{ this._applyHeroTypeVisual(); });
+  }
+
+  _heroKill(e){
+    if(!e || !e.active) return;
+    // Герой убивает с 1 удара
+    e.hp = 0;
+    this._killEnemy(e);
+  }
+
+  _syncHeroStars(){
+    if(!this.heroStar) return;
+    if(State.heroLevel===1) this.heroStar.setTexture('star1');
+    else if(State.heroLevel===2) this.heroStar.setTexture('star2');
+    else this.heroStar.setTexture('star3');
+  }
+
+  _buildHeroUI(){
+    // Кнопки выбора героя справа
+    const x = 76, y0 = 96, gap = 66;
+    this.btnHero1 = this.add.image(x, y0+0*gap, 'btn_hero1').setDepth(95).setInteractive();
+    this.btnHero2 = this.add.image(x, y0+1*gap, 'btn_hero2').setDepth(95).setInteractive();
+    this.btnHero3 = this.add.image(x, y0+2*gap, 'btn_hero3').setDepth(95).setInteractive();
+    this.btnHeroUp = this.add.image(x, y0+3*gap+6, 'btn_heroup').setDepth(95).setInteractive();
+
+    const pickHero = (t)=>{
+      if(!State.heroUnlocked[t]){
+        const cost = CONST.HERO_UNLOCK_COSTS[t-1]||0;
+        if(State.heroCoins < cost){
+          this._floatText(CONST.WIDTH/2, 120, `Нужно ${cost} ⟨синих⟩`, '#9fd6ff');
+          return;
+        }
+        State.heroCoins -= cost;
+        State.heroUnlocked[t] = true;
+      }
+      State.heroType = t;
+      this._applyHeroTypeVisual();
+      this._syncHUD();
+    };
+    this.btnHero1.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pickHero(1); });
+    this.btnHero2.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pickHero(2); });
+    this.btnHero3.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pickHero(3); });
+
+    // Апгрейд героя (до 3 уровня), за 2-ю валюту
+    this.btnHeroUp.on('pointerdown', ()=>{
+      if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+      if(State.heroLevel >= 3){ this._floatText(CONST.WIDTH/2, 120, 'Герой MAX', '#9fd6ff'); return; }
+      const cost = CONST.HERO_UPGRADE_COSTS[State.heroLevel-1]||0;
+      if(State.heroCoins < cost){
+        this._floatText(CONST.WIDTH/2, 120, `Нужно ${cost} ⟨синих⟩`, '#9fd6ff');
+        return;
+      }
+      State.heroCoins -= cost;
+      State.heroLevel++;
+      // усиление героя: HP и скорость
+      this.hero.hpMax += 120;
+      this.hero.hp = Math.min(this.hero.hpMax, this.hero.hp + 120);
+      this.hero.cooldown = Math.max(700, this.hero.cooldown - 400); // быстрее бьёт
+      this._syncHUD();
+      this._floatText(this.hero.x, this.hero.y-70, 'Герой ↑', '#9fd6ff');
+      try{ this.sndUp.play(); }catch(_){}
+    });
+  }
+
+  _refreshHeroButtons(){
+    // Подсветка анлока/выбора можно сделать tint’ом
+    const tintSel = 0xffffff, tintDis = 0x666666, tintLock = 0x333333;
+    const setBtn = (btn, t)=>{
+      if(!btn) return;
+      if(State.heroType===t) btn.setTint(tintSel);
+      else if(State.heroUnlocked[t]) btn.setTint(tintDis);
+      else btn.setTint(tintLock);
+    };
+    setBtn(this.btnHero1,1);
+    setBtn(this.btnHero2,2);
+    setBtn(this.btnHero3,3);
+  }
+
+  /* ================= HELPERS ================= */
+
+  _buildHelperUI(){
+    // Кнопки выбора типа помощника (слева сверху от базы)
+    const x = CONST.WIDTH - 140, y0 = CONST.HEIGHT - 420, gap = 66;
+    this.btnHelper1 = this.add.image(x, y0+0*gap, 'btn_helper1').setDepth(95).setScale(0.9).setInteractive();
+    this.btnHelper2 = this.add.image(x, y0+1*gap, 'btn_helper2').setDepth(95).setScale(0.9).setInteractive();
+    this.btnHelper3 = this.add.image(x, y0+2*gap, 'btn_helper3').setDepth(95).setScale(0.9).setInteractive();
+
+    State.helperType = 1;
+
+    const pick = (t)=>{
+      State.helperType = t;
+      this._floatText(this.baseHud.x, this.baseHud.y-110, `Помощник ${t}`, '#c7ffc7');
+      this._refreshHelperButtons();
+    };
+    this.btnHelper1.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pick(1); });
+    this.btnHelper2.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pick(2); });
+    this.btnHelper3.on('pointerdown', ()=>{ if(State.soundEnabled) this.sound.play('klick'); pick(3); });
+  }
+
+  _refreshHelperButtons(){
+    const tintSel = 0xffffff, tintDis = 0x888888;
+    if(this.btnHelper1) this.btnHelper1.setTint(State.helperType===1?tintSel:tintDis);
+    if(this.btnHelper2) this.btnHelper2.setTint(State.helperType===2?tintSel:tintDis);
+    if(this.btnHelper3) this.btnHelper3.setTint(State.helperType===3?tintSel:tintDis);
+  }
+
+  _enableBaseClickForHelper(){
+    this.baseHud.setInteractive({useHandCursor:true});
+    this.baseHud.on('pointerdown', ()=>{
+      if(!State.started || State.paused) return;
+      if(State.gold < CONST.HELPER_COST){
+        this._floatText(this.baseHud.x, this.baseHud.y-120, 'Нужно 50 золота', '#ffd6a0');
+        if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+        return;
+      }
+      State.gold -= CONST.HELPER_COST;
+      this._syncHUD();
+      this._spawnHelper(State.helperType||1);
+    });
+  }
+
+  _spawnHelper(type){
+    const h = this._getHelper();
+    // статы по типам:
+    // 1 — быстрый, мало HP, средний урон
+    // 2 — медленный, много HP, низкий урон
+    // 3 — средний, высокий урон
+    const stats = {
+      1: {speed:0.22, hp:60,  dmg:18, scale:0.45, walk:'hp1_walk', atk:'hp1_atk'},
+      2: {speed:0.12, hp:150, dmg:10, scale:0.52, walk:'hp2_walk', atk:'hp2_atk'},
+      3: {speed:0.17, hp:90,  dmg:28, scale:0.48, walk:'hp3_walk', atk:'hp3_atk'},
+    }[type||1];
+
+    h.type = type;
+    h.maxHp = stats.hp;
+    h.hp = stats.hp;
+    h.dmg = stats.dmg;
+    h.speed = stats.speed;
+    h.setScale(stats.scale);
+
+    // позиция старта = база
+    h.x = this.baseHud.x + 10;
+    h.y = this.baseHud.y - 20;
+    h.setActive(true).setVisible(true);
+
+    // анимация ходьбы
+    const wkey = {1:'hp1_walk',2:'hp2_walk',3:'hp3_walk'}[type];
+    if(this.anims.exists(wkey)) h.play(wkey,true);
+
+    // поведение
+    h.state = 'run';
+    h.target = null;
+    h._lastHit = 0;
+    h.range = 24;
+
+    // HP-бар
+    h.hpBar.setVisible(true);
+    this._drawHelperHp(h);
+  }
+
+  _drawHelperHp(h){
+    if(!h || !h.hpBar || !h.visible) return;
+    const w = 32, hh = 5;
+    const x = h.x - w/2, y = h.y - 34;
+    const p = Math.max(0, Math.min(1, h.hp / h.maxHp));
+    h.hpBar.clear();
+    h.hpBar.fillStyle(0x000000, 0.5).fillRect(x-1,y-1,w+2,hh+2);
+    h.hpBar.fillStyle(0x003366, 0.6).fillRect(x,y,w,hh);
+    h.hpBar.fillStyle(0x66ccff, 0.9).fillRect(x,y,w*p,hh);
+  }
+
+  _updateHelper(h){
+    if(!h || !h.active || !h.visible) return;
+    this._drawHelperHp(h);
+
+    // цель — ближайший враг
+    if(!h.target || !h.target.active || h.target.state==='die'){
+      h.target = this._findNearestEnemy(h.x,h.y,220);
+    }
+    if(!h.target){ // бег к ближайшей точке врагов (в сторону центра поля)
+      this._moveTowards(h, CONST.WIDTH/2, CONST.HEIGHT/2, h.speed);
+      return;
+    }
+
+    const e = h.target;
+    const d = Phaser.Math.Distance.Between(h.x,h.y,e.x,e.y);
+
+    if(d > h.range){
+      this._moveTowards(h, e.x, e.y, h.speed);
+      const wkey = {1:'hp1_walk',2:'hp2_walk',3:'hp3_walk'}[h.type||1];
+      if(this.anims.exists(wkey) && (!h.anims.currentAnim || h.anims.currentAnim.key!==wkey)) h.play(wkey,true);
+    }else{
+      // атака, кд 600мс
+      const now = Date.now();
+      if(now - (h._lastHit||0) >= 600){
+        h._lastHit = now;
+        const akey = {1:'hp1_atk',2:'hp2_atk',3:'hp3_atk'}[h.type||1];
+        if(this.anims.exists(akey)) h.play(akey,false);
+        e.hp -= h.dmg;
+        this._floatText(e.x, e.y-20, '-' + h.dmg, '#c7ffc7');
+        if(e.hp <= 0) this._killEnemy(e);
+      }
+    }
+  }
+
+  _findNearestEnemy(x,y, radius=220){
+    let g=null, dmin=radius;
+    this.enemies.getChildren().forEach(e=>{
+      if(!e.active || !e.visible || e.state==='die') return;
+      const d = Phaser.Math.Distance.Between(x,y,e.x,e.y);
+      if(d < dmin){ dmin=d; g=e; }
+    });
+    return g;
+  }
+
+  /* ===================================================================== */
+
+} // class AppScene
+
+// ========================================================================
+//                       PHASER СТАРТ (адаптив, без двойного масштаба)
+// ========================================================================
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: CONST.WIDTH, height: CONST.HEIGHT, autoRound:true },
-  physics: { default:'arcade', arcade:{ debug:false } },
-  scene: [AppScene],
-  backgroundColor: '#000'
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: CONST.WIDTH,
+    height: CONST.HEIGHT,
+    autoRound: true
+  },
+  physics:{ default:'arcade', arcade:{ debug:false } },
+  scene:[AppScene],
+  backgroundColor: '#000000'
 };
 const game = new Phaser.Game(config);
 
-// DOM buttons
+/* ========================================================================
+   СИНХРОН DOM ↔ КАНВАС
+========================================================================= */
+function syncStageToCanvas(){
+  if(!game || !game.scale) return;
+  const s = game.scale;
+  const cssW = Math.floor((s.displaySize && s.displaySize.width) || (s.gameSize && s.gameSize.width) || CONST.WIDTH);
+  const cssH = Math.floor((s.displaySize && s.displaySize.height) || (s.gameSize && s.gameSize.height) || CONST.HEIGHT);
+  if (cssW > 0) stageBox.style.width  = cssW + 'px';
+  if (cssH > 0) stageBox.style.height = cssH + 'px';
+}
+window.addEventListener('load', ()=>{
+  showPreloader();
+  try { if (game.isBooted && game.scale) game.scale.refresh(); } catch(e){}
+  syncStageToCanvas();
+}, { passive:true });
+window.addEventListener('resize', ()=>{
+  if (syncStageToCanvas.__raf) cancelAnimationFrame(syncStageToCanvas.__raf);
+  syncStageToCanvas.__raf = requestAnimationFrame(()=>{
+    try { game.scale.refresh(); } catch(e){}
+    syncStageToCanvas();
+    syncStageToCanvas.__raf = 0;
+  });
+}, { passive:true });
+window.addEventListener('orientationchange', ()=>{
+  setTimeout(()=>{
+    try { game.scale.refresh(); } catch(e){}
+    syncStageToCanvas();
+  }, 300);
+}, { passive:true });
+const onReady = ()=>{
+  try{ game.scale.on('resize', ()=>{ syncStageToCanvas(); }); }catch(_){}
+  syncStageToCanvas();
+};
+if (document.readyState === 'complete' || document.readyState === 'interactive'){
+  setTimeout(onReady, 0);
+}else{
+  document.addEventListener('DOMContentLoaded', onReady);
+}
+
+// ========================================================================
+//                   DOM-КНОПКИ (экраны) — БЕЗ scene.restart
+// ========================================================================
 startImg.addEventListener('click', ()=>{
-  const sc = game.scene.keys['AppScene']; if(!sc) return;
+  const sc = game.scene.keys['AppScene'];
+  if(!sc) return;
   sc.beginNewGame();
-});
+}, {passive:true});
 restartImg.addEventListener('click', ()=>{
   hideGameoverOverlay();
-  const sc = game.scene.keys['AppScene']; if(!sc) return;
+  const sc = game.scene.keys['AppScene'];
+  if(!sc) return;
   sc.beginNewGame();
-});
-
-// hero choose in menu
-document.querySelectorAll('.hero-pick').forEach(el=>{
-  el.addEventListener('click', ()=>{
-    const id = parseInt(el.getAttribute('data-hero'),10) || 1;
-    let cost = 0;
-    if(id===2) cost = 5000;
-    if(id===3) cost = 10000;
-    if(State.blue < cost){
-      // визуальная подсказка
-      el.style.borderColor = '#d33';
-      setTimeout(()=>{ el.style.borderColor='#444'; }, 450);
-      return;
-    }
-    if(cost>0) State.blue -= cost;
-    State.heroType = id;
-    blueMenuText.textContent = State.blue|0;
-    // лёгкий highlight
-    document.querySelectorAll('.hero-pick').forEach(n=> n.style.borderColor='#444');
-    el.style.borderColor = '#4caf50';
-  }, {passive:true});
-});
-
-// preloader visibility on load
-window.addEventListener('load', ()=>{ showPreloader(); }, {passive:true});
+}, {passive:true});
 </script>
 </body>
 </html>
