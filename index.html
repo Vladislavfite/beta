@@ -600,47 +600,64 @@
       this.buildSprites[index] = img;
     }
 
-    _buildTower(index){
+_buildTower(index){
   if(State.gold < CONST.TOWER_COST){
     // Всплывающее сообщение без остановки игры
     this._floatText(CONST.WIDTH/2, CONST.HEIGHT/2 - 80, 'Недостаточно золота');
     if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
     return;
   }
-      const pos = CONST.BUILD_SPOTS[index];
 
-      if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){ }
-        this.buildSprites[index] = null;
-      }
-      State.gold -= CONST.TOWER_COST; this._syncHUD();
-      try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
+  const pos = CONST.BUILD_SPOTS[index];
 
-      const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1').setInteractive().setDepth(5);
-      ts.level = 1;
-      ts._typeKey = 'tower1';
-      ts._range = CONST.TOWER_RANGE;
-      ts._shootRate = 900;
-      ts._bulletSpeed = 9;
-      ts._damage = 5 * ts.level;
-      ts.hp = 50;
-      ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
+  // Удаляем иконку молота после установки башни
+  if(this.buildSprites[index]){
+    try{ this.buildSprites[index].destroy(); }catch(_){}
+    this.buildSprites[index] = null;
+  }
 
-      if(this.textures.exists('up_icon') && this.textures.exists('noup_icon')){
-        ts.upIcon = this.add.image(pos[0]-28,pos[1]+40,'noup_icon').setScale(0.6).setDepth(6).setVisible(true);
-      }
+  // Снимаем стоимость
+  State.gold -= CONST.TOWER_COST;
+  this._syncHUD();
+  try{ this.sndMoney && this.sndMoney.play(); }catch(_){}
 
-      ts.on('pointerdown', ()=> this._upgradeTower(ts));
+  // Создаём башню
+  const ts = this.add.sprite(pos[0],pos[1],'tower1_idle_1')
+    .setInteractive()
+    .setDepth(5);
 
-      const idle = `${ts._typeKey}_idle_anim`; if(this.anims.exists(idle)) ts.play(idle);
-      ts.setFlipX(ts.x > CONST.WIDTH/2);
+  ts.level = 1;
+  ts._typeKey = 'tower1';
+  ts._range = CONST.TOWER_RANGE;
+  ts._shootRate = 900;
+  ts._bulletSpeed = 9;
+  ts._damage = 5 * ts.level;
+  ts.hp = 50;
+  ts._upgradeCost = CONST.UPGRADE_COST_BASE * (ts.level + 1);
 
-      ts.on('destroy', ()=> {
-        this.buildSprites[index] = null;
-        this._createHammer(pos,index);
-      });
+  // Иконка улучшения
+  if(this.textures.exists('up_icon') && this.textures.exists('noup_icon')){
+    ts.upIcon = this.add.image(pos[0]-28,pos[1]+40,'noup_icon')
+      .setScale(0.6)
+      .setDepth(6)
+      .setVisible(true);
+  }
 
-      this.towers.push({ sprite: ts });
-    }
+  ts.on('pointerdown', ()=> this._upgradeTower(ts));
+
+  // Анимация ожидания
+  const idle = `${ts._typeKey}_idle_anim`;
+  if(this.anims.exists(idle)) ts.play(idle);
+  ts.setFlipX(ts.x > CONST.WIDTH/2);
+
+  // При уничтожении башни возвращаем молот
+  ts.on('destroy', ()=> {
+    this.buildSprites[index] = null;
+    this._createHammer(pos,index);
+  });
+
+  this.towers.push({ sprite: ts });
+}
 
     _upgradeTower(ts){
       const cost = Math.floor(ts._upgradeCost || (CONST.UPGRADE_COST_BASE*(ts.level+1)));
