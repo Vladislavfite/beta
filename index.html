@@ -6,6 +6,78 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <!-- ====== ПОЛНАЯ ДИНАМИЧЕСКАЯ ПРЕДЗАГРУЗКА АССЕТОВ ====== -->
+<script>
+const preloadAssets = () => {
+  const add = (type, path, mime) => {
+    const l = document.createElement('link');
+    l.rel = 'preload';
+    l.as = type;
+    l.href = path;
+    if (mime) l.type = mime;
+    document.head.appendChild(l);
+  };
+
+  // ===== ВИДЕО =====
+  add('video', 'assets/menu.webm', 'video/webm');
+  add('video', 'assets/gameover.webm', 'video/webm');
+
+  // ===== КАРТА =====
+  add('image', 'assets/map.png', 'image/png');
+
+  // ===== ЭЛЕМЕНТЫ UI =====
+  const ui = [
+    'moloticon','up','noup','arrow','menu','reload','sound',
+    'soundoff','fast','slow','pause','play2','gold','play','playagain'
+  ];
+  ui.forEach(n => add('image', `assets/elements/${n}.png`, 'image/png'));
+
+  // ===== БАЗА =====
+  [0,20,40,60,80,100].forEach(v => add('image', `assets/base/base${v}.png`, 'image/png'));
+
+  // ===== МОНЕТКИ =====
+  for(let i=1;i<=6;i++) add('image', `assets/money/money${i}.png`, 'image/png');
+
+  // ===== РЕКЛАМА =====
+  for(let i=1;i<=6;i++) add('image', `assets/reklama/reklama${i}.png`, 'image/png');
+
+  // ===== ВРАГИ =====
+  // Walk
+  for(let i=1;i<=7;i++) add('image', `assets/enemy/walk/walk${i}.png`, 'image/png');
+  // Attack
+  for(let i=1;i<=7;i++) add('image', `assets/enemy/atack_enemy/atackenemy${i}.png`, 'image/png');
+  // Die
+  for(let i=1;i<=7;i++) add('image', `assets/enemy/die_enemy/dead${i}.png`, 'image/png');
+
+  // ===== БАШНИ (12 уровней) =====
+  for(let t=1;t<=12;t++){
+    for(let j=1;j<=4;j++) add('image', `assets/attacktower/statik/tower${t}/stower${j}.png`, 'image/png');
+    for(let j=1;j<=5;j++) add('image', `assets/attacktower/attack/tower${t}/aatcktower${j}.png`, 'image/png');
+  }
+
+  // ===== ЗВУКИ =====
+  const mp3s = [
+    'lobby','battle','arrow','gameover','towerup','towerrush','money','killenemy'
+  ];
+  mp3s.forEach(n => add('audio', `assets/sound/${n}.mp3`, 'audio/mpeg'));
+  add('audio', 'assets/sound/klick.ogg', 'audio/ogg');
+};
+
+// Запуск сразу при парсинге <head>
+preloadAssets();
+</script>
+
+<!-- 🔊 Звуки -->
+<link rel="preload" as="audio" href="assets/sound/lobby.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/battle.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/arrow.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/gameover.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/towerup.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/towerrush.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/money.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/killenemy.mp3" type="audio/mpeg">
+<link rel="preload" as="audio" href="assets/sound/klick.ogg" type="audio/ogg">
+
   <!-- Масштабирование: только Phaser FIT (никаких CSS transform у канваса) -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
