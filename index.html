@@ -601,7 +601,12 @@
     }
 
     _buildTower(index){
-      if(State.gold < CONST.TOWER_COST){ alert('Not enough gold'); return; }
+  if(State.gold < CONST.TOWER_COST){
+    // Всплывающее сообщение без остановки игры
+    this._floatText(CONST.WIDTH/2, CONST.HEIGHT/2 - 80, 'Недостаточно золота');
+    if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
+    return;
+  }
       const pos = CONST.BUILD_SPOTS[index];
 
       if(this.buildSprites[index]){ try{ this.buildSprites[index].destroy(); }catch(_){ }
