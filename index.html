@@ -148,7 +148,18 @@ const CONST = {
   HERO_COSTS: [100,200,300],
   HERO_UPGRADE_COST: 1000
 };
-const Z = { MAP:0, BASE:20, TOWER:5, BULLET:30, ENEMY_HP:40, HERO:50, HERO_HP:60, UI:95, TEXT:100 };
+const Z = {
+  MAP: 0,
+  ENEMY: 10,      // враги — ниже башен
+  TOWER: 15,      // башни перекрывают врагов
+  BASE: 20,
+  BULLET: 30,
+  ENEMY_HP: 40,
+  HERO: 50,
+  HERO_HP: 60,
+  UI: 95,
+  TEXT: 100
+};
 const $ = (id)=>document.getElementById(id);
 const stageBox = $('stage');
 const preloaderOverlay = $('preloaderOverlay');
@@ -336,6 +347,9 @@ class AppScene extends Phaser.Scene{
     for(const b of this.bullets.getChildren()) if(b.active&&b.visible) this._updateBullet(b);
     for(const h of State.heroes) if(h?.spr?.active && h.spr.visible) this._updateHero(h);
     this._syncHUD();
+    // сортировка по глубине — башни перекрывают врагов
+this.children.list.sort((a, b) => a.depth - b.depth);
+
   }
 
   /* ============ ХЕЛПЕРЫ ============ */
@@ -706,7 +720,11 @@ const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `$
   /* ============ ВРАГИ/ВОЛНЫ ============ */
   _getEnemy(){
     for(const e of this.enemyPool) if(!e.active && !e.visible) return e;
-    const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(.35).setVisible(false).setActive(false).setDepth(10);
+    const e = this.add.sprite(-9999, -9999, 'e_walk_0')
+  .setScale(0.35)
+  .setVisible(false)
+  .setActive(false)
+  .setDepth(Z.ENEMY);
     e.hpBar = this.add.graphics().setDepth(Z.ENEMY_HP).setVisible(false); e.hpBar.__owner=e;
     this.enemies.add(e); this.enemyPool.push(e); return e;
   }
