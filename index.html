@@ -928,7 +928,9 @@ _upgradeTower(ts){
 
       try{ this.sndKill && this.sndKill.play(); }catch(_){}
 
-      State.gold += CONST.KILL_REWARD;
+      State.gold += e.isBoss ? CONST.KILL_REWARD * 5 : CONST.KILL_REWARD;
+if (e.isBoss) this._floatText(e.x, e.y - 50, 'БОСС ПОБЕЖДЁН!');
+
       this._syncHUD();
     }
 
@@ -936,6 +938,7 @@ _upgradeTower(ts){
       if(e.hpBar){ e.hpBar.clear().setVisible(false); }
       e.setActive(false).setVisible(false).setPosition(-9999,-9999);
       e.targetTower=null; e.path=null; e.pathIndex=0; e.state='idle';
+      e.isBoss = false;
     }
 
     // ====== Враги ======
@@ -955,6 +958,31 @@ _upgradeTower(ts){
       e.hpBar.setVisible(true);
       this._drawHpBar(e);
     }
+    _spawnBoss(path) {
+  const spawn = path[0];
+  const e = this._getEnemy(); // используем из пула
+
+  // те же параметры, но усиленные
+  e.maxHp = (25 + State.wave * 5) * 3; // x3 HP
+  e.hp = e.maxHp;
+  e.speed = 0.05; // медленный
+  e.damage = 20;  // двойной урон
+  e.path = path;
+  e.pathIndex = 1;
+  e.state = 'walk';
+  e.isBoss = true; // флаг
+  e.setScale(0.7); // увеличенный размер
+
+  e.setPosition(spawn[0], spawn[1]).setVisible(true).setActive(true);
+  if(this.anims.exists('e_walk_anim')) e.play('e_walk_anim');
+
+  // HP бар
+  e.hpBar.setVisible(true);
+  this._drawHpBar(e);
+
+  // эффект
+  this._floatText(e.x, e.y - 60, 'БОСС!');
+}
 
     _drawHpBar(e){
       if(!e || !e.hpBar || !e.visible) return;
@@ -993,7 +1021,8 @@ _upgradeTower(ts){
         if(d < 26 && (!e._lastAttack || Date.now()-e._lastAttack > 900)){
           e._lastAttack = Date.now();
           if(e.targetTower.hp != null){
-            e.targetTower.hp -= 10;
+  const dmg = e.isBoss ? 20 : 10; // 💥 двойной урон босса
+  e.targetTower.hp -= dmg;
             try{
               e.targetTower.setTint && e.targetTower.setTint(0xff9999);
               this.time.delayedCall(80,()=>{ try{ e.targetTower.clearTint && e.targetTower.clearTint(); }catch(_){} });
@@ -1063,42 +1092,52 @@ _upgradeTower(ts){
       });
     }
 
-    _startWave() {
-      if (!State.started || State.paused) return;
+   _startWave() {
+  if (!State.started || State.paused) return;
 
-      State.wave++;
-      this._syncHUD();
+  State.wave++;
+  this._syncHUD();
 
-      const enemyHpBase = 25 + State.wave * 5;
-      const hpJitter = Phaser.Math.Between(-2, 4);
-      const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave - 1) / 4), 4);
+  const enemyHpBase = 25 + State.wave * 5;
+  const hpJitter = Phaser.Math.Between(-2, 4);
+  const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave - 1) / 4), 4);
 
-      let spawnCount;
-      if (State.wave <= 2) spawnCount = 1;
-      else if (State.wave <= 6) spawnCount = Phaser.Math.Between(1, 2);
-      else spawnCount = Phaser.Math.Between(2, 3);
-      spawnCount = Math.min(spawnCount, CONST.PATHS.length);
+  let spawnCount;
+  if (State.wave <= 2) spawnCount = 1;
+  else if (State.wave <= 6) spawnCount = Phaser.Math.Between(1, 2);
+  else spawnCount = Phaser.Math.Between(2, 3);
+  spawnCount = Math.min(spawnCount, CONST.PATHS.length);
 
-      const chosenIndexes = Phaser.Utils.Array.Shuffle(
-        [...Array(CONST.PATHS.length).keys()]
-      ).slice(0, spawnCount);
+  const chosenIndexes = Phaser.Utils.Array.Shuffle(
+    [...Array(CONST.PATHS.length).keys()]
+  ).slice(0, spawnCount);
 
-      chosenIndexes.forEach((pathIndex, idx) => {
-        const path = CONST.PATHS[pathIndex];
-        for (let j = 0; j < enemiesPerSpawn; j++) {
-          const base = (State.wave <= 3) ? Phaser.Math.Between(2400, 3000)
-                                         : Phaser.Math.Between(2000, 2600);
-          const delay = j * base + idx * 1000;
-          const hp = Math.max(10, enemyHpBase + hpJitter);
-          this.time.addEvent({ delay, callback: () => this._spawnEnemy(path, hp) });
-        }
-      });
-
-      const nextDelayBase = (State.wave <= 3) ? 12000 : 10000;
-      const nextDelay = nextDelayBase + enemiesPerSpawn * 3200 + Phaser.Math.Between(0, 1800);
-      this._scheduleNextWave(nextDelay);
+  chosenIndexes.forEach((pathIndex, idx) => {
+    const path = CONST.PATHS[pathIndex];
+    for (let j = 0; j < enemiesPerSpawn; j++) {
+      const base = (State.wave <= 3)
+        ? Phaser.Math.Between(2400, 3000)
+        : Phaser.Math.Between(2000, 2600);
+      const delay = j * base + idx * 1000;
+      const hp = Math.max(10, enemyHpBase + hpJitter);
+      this.time.addEvent({ delay, callback: () => this._spawnEnemy(path, hp) });
     }
+  });
 
+  const nextDelayBase = (State.wave <= 3) ? 12000 : 10000;
+  const nextDelay = nextDelayBase + enemiesPerSpawn * 3200 + Phaser.Math.Between(0, 1800);
+
+  // ==== шанс появления босса ====
+  if (State.wave % 5 === 0) { // каждый 5-й раунд — БОСС
+    const bossPath = Phaser.Utils.Array.GetRandom(CONST.PATHS);
+    this.time.addEvent({
+      delay: 2500, // через 2.5 сек после старта волны
+      callback: () => this._spawnBoss(bossPath)
+    });
+  }
+
+  this._scheduleNextWave(nextDelay);
+}
     // ====== Анимации ======
     _createAnims(){
       // Башни
