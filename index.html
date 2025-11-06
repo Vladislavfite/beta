@@ -22,8 +22,10 @@
       // Карта
       add('image','assets/map.png','image/png');
 
-      // База (поддержка base0,20,40,60,80,100)
-      [0,20,40,60,80,100].forEach(p=> add('image',`assets/base/base${p}.png`,'image/png'));
+ // База (сам объект): basehp20/40/60/80/100
+[20,40,60,80,100].forEach(p=> this.load.image(`basehp_${p}`,`assets/base/basehp${p}.png`));
+// Иконка HP над базой: base0/20/40/60/100
+[0,20,40,60,100].forEach(p=> this.load.image(`baseicon_${p}`,`assets/base/base${p}.png`));
 
       // UI
       ['moloticon','up','noup','arrow','menu','reload','sound','soundoff','fast','slow','pause','play2','gold','play','playagain','bluecoin','hero1','hero2','hero3','star1','star2','star3']
@@ -161,7 +163,9 @@ const pct = $('pct');
 
 const State = {
   started:false, paused:false, soundEnabled:true,
-  gold: CONST.START_GOLD, heroCoins: 0, wave: 0, baseHp: 100, heroes: []
+  gold: CONST.START_GOLD, heroCoins: 0, wave: 0,
+  baseHp: 100, lastBaseHp: 100,   // <— добавили трекинг
+  heroes: []
 };
 
 /* ========================= УТИЛИТЫ DOM ========================= */
@@ -358,7 +362,16 @@ class AppScene extends Phaser.Scene{
     this.adBtn.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){} State.gold += 1000; this._syncHUD(); });
   }
 
-  _syncHUD(){ this.goldText && this.goldText.setText(String(State.gold|0)); this.blueCoinText && this.blueCoinText.setText(String(State.heroCoins|0)); this._applyBaseTexture(); this._refreshHeroPanel(); }
+  _syncHUD(){
+  if(this.goldText) this.goldText.setText(String(State.gold|0));
+  if(this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins|0));
+
+  if(State.baseHp !== State.lastBaseHp){        // только при реальном изменении
+    this._applyBaseTexture();
+    State.lastBaseHp = State.baseHp;
+  }
+  this._refreshHeroPanel();
+}
 
   _buildSideButtons(){
     const x=576, y0=629, gap=80;
@@ -405,23 +418,33 @@ class AppScene extends Phaser.Scene{
 
   _applyBaseTexture(forceSound=false){
   const hp = Math.max(0, Math.min(100, State.baseHp));
-  let step = 100;
-  if(hp<=0) step=20;
-  else if(hp<=20) step=20;
-  else if(hp<=40) step=40;
-  else if(hp<=60) step=60;
-  else if(hp<=80) step=80;
-  else step=100;
 
-  // спрайт базы
-  const key = `basehp_${step}`;
-  if(this.base && this.textures.exists(key)) this.base.setTexture(key);
+  // база: 0% и 20% -> basehp20; далее 40/60/80/100
+  let stepBase = 100;
+  if(hp <= 20) stepBase = 20;
+  else if(hp <= 40) stepBase = 40;
+  else if(hp <= 60) stepBase = 60;
+  else if(hp <= 80) stepBase = 80;
+  else stepBase = 100;
 
-  // индикатор HP над базой
-  if(this.baseHpIcon){
-    this.baseHpIcon.destroy();
+  // иконка: 0/20/40/60/100
+  let stepIcon = 0;
+  if(hp <= 0) stepIcon = 0;
+  else if(hp <= 20) stepIcon = 20;
+  else if(hp <= 40) stepIcon = 40;
+  else if(hp <= 60) stepIcon = 60;
+  else stepIcon = 100;
+
+  const baseKey  = `basehp_${stepBase}`;
+  const iconKey  = `baseicon_${stepIcon}`;
+
+  if(this.base && this.textures.exists(baseKey)) this.base.setTexture(baseKey);
+
+  if(!this.baseHpIcon){
+    this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, iconKey).setDepth(Z.UI+5);
+  }else if(this.textures.exists(iconKey)){
+    this.baseHpIcon.setTexture(iconKey);
   }
-  this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, `basehpbar_${step}`).setDepth(Z.UI+5);
 
   if(forceSound && this.sndBaseHit && !this.sound.mute){
     try{ this.sndBaseHit.play(); }catch(_){}
@@ -458,25 +481,15 @@ class AppScene extends Phaser.Scene{
     for(const u of this.heroPanel.ups){ if(u.visible) u.setTexture(canUp?'up_icon':'noup_icon'); }
     for(const b of this.heroPanel.btns){ const cost = CONST.HERO_COSTS[b.type-1]||0; b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777); } }
 
-  _buyHero(type){
+ _buyHero(type){
   const cost = CONST.HERO_COSTS[type-1]||0;
+
+  // если не хватает валюты
   if(State.heroCoins < cost){
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${cost}`, '#9fd6ff');
     if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
     return;
   }
-
-  // проверяем — есть ли уже герой такого типа
-  const already = State.heroes.some(h=>h.type===type);
-  if(already){
-    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, 'Уже нанят', '#9fd6ff');
-    return;
-  }
-
-  State.heroCoins -= cost;
-  this._spawnHero(type);
-  this._syncHUD();
-}
 
   _upgradeHeroesOfType(type){
     if(State.heroCoins < CONST.HERO_UPGRADE_COST){ this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff'); if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } return; }
@@ -511,8 +524,10 @@ class AppScene extends Phaser.Scene{
       3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
     }[type||1];
 
-    const s = this.add.sprite(CONST.HERO_SPAWN.x, CONST.HERO_SPAWN.y, `${baseSpec.idle}_1`).setDepth(Z.HERO).setScale(baseSpec.scale).setVisible(true).setActive(true);
-    this.playIfExists(s, baseSpec.walk, true);
+    const offsetByType = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}};
+const off = offsetByType[type] || {x:0,y:0};
+const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `${baseSpec.idle}_1`)
+  .setDepth(Z.HERO).setScale(baseSpec.scale).setVisible(true).setActive(true);
 
     const pick = this._chooseHeroPathFromBase();
     const path = CONST.PATHS[pick.idx];
@@ -789,17 +804,30 @@ class AppScene extends Phaser.Scene{
       return;
     }
 
-    // Дошёл до базы
-    if(e.pathIndex >= e.path.length){
-      if(!e._lastAttack || Date.now()-e._lastAttack>900){
-        e._lastAttack=Date.now();
-        State.baseHp = Math.max(0, State.baseHp - 5);
-        this._applyBaseTexture(true);
-        if(State.baseHp<=0){ this.showGameOver(); }
-      }
-      this.playIfExists(e,'e_atk_anim',true);
-      return;
+    // === Дошёл до базы ===
+if (e.pathIndex >= e.path.length) {
+  // атака базы раз в 900 мс
+  if (!e._lastAttack || Date.now() - e._lastAttack > 900) {
+    e._lastAttack = Date.now();
+
+    // урон по базе
+    State.baseHp = Math.max(0, State.baseHp - 5);
+    this._applyBaseTexture(true); // обновляем спрайт и звук урона
+
+    // если база разрушена — завершить игру
+    if (State.baseHp <= 0) {
+      State.baseHp = 0;
+      this._applyBaseTexture(true);
+      this.showGameOver();
+      return; // выходим, чтобы враг не продолжал атаку
     }
+  }
+
+  // проигрываем анимацию атаки
+  this.playIfExists(e, 'e_atk_anim', true);
+  return;
+}
+
 
     // Движение по точкам
     const wp = e.path[e.pathIndex];
