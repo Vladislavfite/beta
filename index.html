@@ -367,12 +367,13 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   /* ============ HUD / UI ============ */
   _buildHUD(){
     const yBottom = CONST.HEIGHT - 463;
-    this.goldPanel = this.add.image(80, yBottom, 'gold_panel').setOrigin(0,1).setScale(1/3).setDepth(Z.UI);
-    this.coin = this.add.sprite(this.goldPanel.x+58, this.goldPanel.y-36, 'coin_1').setDepth(Z.UI+1).setScale(.65);
+    this.goldPanel = this.add.image(150, 200, 'gold_panel').setOrigin(0,1).setScale(1/3).setDepth(Z.UI);
+    this.coin = this.add.sprite(this.goldPanel.x+58, this.goldPanel.y, 'coin_1').setDepth(Z.UI+1).setScale(.65);
     if(!this.anims.exists('coin_anim')) this.anims.create({key:'coin_anim',frames:[1,2,3,4,5,6].map(i=>({key:`coin_${i}`})),frameRate:10,repeat:-1});
     this.playIfExists(this.coin,'coin_anim');
 
-    this.goldText = this.add.text(this.goldPanel.x+95, this.goldPanel.y-36, String(State.gold), {font:'26px Arial',fill:'#fff',stroke:'#000',strokeThickness:4}).setOrigin(0,.5).setDepth(Z.UI+2);
+    this.goldText = this.add.text(this.goldPanel.x+95, this.goldPanel.y, String(State.gold), {font:'26px Arial',fill:'#fff',stroke:'#000',strokeThickness:4}).setOrigin(0,.5).setDepth(Z.UI+2);
+    this.bluePanel = this.add.image(this.goldPanel.x + 220, this.goldPanel.y, 'gold_panel').setScale(1/3).setDepth(Z.UI);
 
     this.blueCoinIcon = this.add.image(CONST.WIDTH/2-40, 46, 'bluecoin').setDepth(Z.UI).setScale(.9);
     this.blueCoinText = this.add.text(CONST.WIDTH/2+0, 46, String(State.heroCoins), {font:'26px Arial',fill:'#9fd6ff',stroke:'#002',strokeThickness:4}).setOrigin(0,.5).setDepth(Z.UI+2);
@@ -426,7 +427,7 @@ this.children.list.sort((a, b) => a.depth - b.depth);
     .setInteractive({useHandCursor:true});
 
   // добавляем иконку HP (спрайт сверху)
-  this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, 'basehpbar_100').setDepth(Z.UI+5);
+  this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-130, 'basehpbar_100').setDepth(Z.UI+5);
 
   this.base.on('pointerdown', ()=>{
     if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){}
@@ -462,14 +463,14 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   if(this.base && this.textures.exists(baseKey)) this.base.setTexture(baseKey);
 
   if(!this.baseHpIcon){
-    this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-110, iconKey).setDepth(Z.UI+5);
+    this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-130, iconKey).setDepth(Z.UI+5);
   }else if(this.textures.exists(iconKey)){
     this.baseHpIcon.setTexture(iconKey);
   }
 
-  if(forceSound && this.sndBaseHit && !this.sound.mute){
-    try{ this.sndBaseHit.play(); }catch(_){}
-  }
+ if(forceSound && this.sndBaseHit && !this.sound.mute && State.baseHp < State.lastBaseHp){
+  try{ this.sndBaseHit.play(); }catch(_){}
+}
 }
 
   /* ============ ГЕРОИ: ПАНЕЛЬ/ПОКУПКА/УЛУЧШЕНИЕ ============ */
@@ -478,31 +479,22 @@ _createHeroPanel(){
   this.heroPanel = { open:false, btns:[], priceTexts:[] };
 
   for(let t=1;t<=3;t++){
-    const ix = bx + (t-2)*gapX, iy = by - 130;
+    const ix = bx + (t-2)*gapX, iy = by - 150; // подняты выше на 20px
     const btn = this.add.image(ix,iy,`btn_hero${t}`)
       .setDepth(Z.UI+3)
       .setScale(1)
-      .setVisible(false)
+      .setVisible(true)
       .setInteractive({useHandCursor:true});
     btn.type = t;
     btn.on('pointerdown', ()=> this._buyHero(t));
     this.heroPanel.btns.push(btn);
 
     const price = CONST.HERO_COSTS[t-1]||0;
-    const txt = this.add.text(ix, iy+68, String(price), {
-      font:'20px Arial',
-      fill:'#9fd6ff',
-      stroke:'#001a33',
-      strokeThickness:3
-    }).setDepth(Z.UI+5).setOrigin(.5,0).setVisible(false);
-    this.heroPanel.priceTexts.push(txt);
   }
 }
 
 _toggleHeroPanel(){
   this.heroPanel.open = !this.heroPanel.open;
-  for(const b of this.heroPanel.btns) b.setVisible(this.heroPanel.open);
-  for(const t of this.heroPanel.priceTexts) t.setVisible(this.heroPanel.open);
   this._refreshHeroPanel();
 }
 
