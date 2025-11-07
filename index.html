@@ -522,6 +522,8 @@ _buyHero(type){
   this._spawnHero(type);
   this._syncHUD();
 }
+ // === Улучшение героя ===
+_upgradeHeroesOfType(type){
   // Проверяем, хватает ли валюты
   if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
     this._floatText(
@@ -1059,7 +1061,6 @@ _chooseHeroPathFromBase(){
 
   const pick = scored.slice(0, Math.min(3, scored.length)); // немного рандома из ближайших
   return pick[Math.floor(Math.random() * pick.length)];
-}
 } /* конец класса AppScene */
   </script>
   <script>
