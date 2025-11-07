@@ -428,27 +428,81 @@ _syncHUD(){
   }
   this._refreshHeroPanel();
 }
-  _buildSideButtons(){
-    const x=576, y0=629, gap=80;
-    const btnMenu = this.add.image(x, y0+0*gap, 'menu').setInteractive().setDepth(Z.UI);
-    const btnReload = this.add.image(x, y0+1*gap, 'reload').setInteractive().setDepth(Z.UI);
-    const btnSound = this.add.image(x, y0+2*gap, State.soundEnabled?'sound_on':'sound_off').setInteractive().setDepth(Z.UI);
-    this.btnTurbo = this.add.image(x, y0+3*gap, 'slow').setInteractive().setDepth(Z.UI);
-    this.btnPause = this.add.image(x, y0+4*gap, 'pause').setInteractive().setDepth(Z.UI);
-    this.btnResume = this.add.image(x, y0+4*gap, 'resume').setInteractive().setDepth(Z.UI).setVisible(false);
+_buildSideButtons() {
+  // Координаты блока боковых кнопок
+  const xCenter = 576;     // ось X для "Reload"
+  const yBase = 629;       // базовая высота первой кнопки
+  const gap = 80;          // вертикальное расстояние между рядами
 
-    const applyMuteIcon = ()=> btnSound.setTexture(State.soundEnabled ? 'sound_on':'sound_off');
-    const applyTurboIcon = ()=> this.btnTurbo.setTexture(this.speedScale>1 ? 'fast':'slow');
+  // Верхний ряд кнопок
+  const btnMenu = this.add.image(xCenter, yBase + 0 * gap, 'menu')
+    .setInteractive()
+    .setDepth(Z.UI);
 
-    btnMenu.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } this.returnToMenu(); });
-    btnReload.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } this.beginNewGame(); });
-    btnSound.on('pointerdown', ()=>{ State.soundEnabled = !State.soundEnabled; this.sound.mute = !State.soundEnabled; try{ localStorage.setItem('td_mute', State.soundEnabled?'0':'1'); }catch(_){ } applyMuteIcon(); if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } });
-    this.btnTurbo.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } this._toggleTurbo(); applyTurboIcon(); });
-    this.btnPause.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } this._setPaused(true); });
-    this.btnResume.on('pointerdown', ()=>{ if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } this._setPaused(false); });
+  const btnReload = this.add.image(xCenter, yBase + 1 * gap, 'reload')
+    .setInteractive()
+    .setDepth(Z.UI);
 
+  const btnSound = this.add.image(xCenter, yBase + 2 * gap,
+    State.soundEnabled ? 'sound_on' : 'sound_off')
+    .setInteractive()
+    .setDepth(Z.UI);
+
+  // === ДОБАВЛЕНА НОВАЯ ГРУППИРОВКА ВОКРУГ RELOAD ===
+  const offset = 85; // расстояние между кнопками, как у соседей (menu/sound)
+  this.btnTurbo = this.add.image(xCenter - offset, yBase + 1 * gap, 'slow')
+    .setInteractive()
+    .setDepth(Z.UI);
+
+  this.btnPause = this.add.image(xCenter + offset, yBase + 1 * gap, 'pause')
+    .setInteractive()
+    .setDepth(Z.UI);
+
+  this.btnResume = this.add.image(xCenter + offset, yBase + 1 * gap, 'resume')
+    .setInteractive()
+    .setDepth(Z.UI)
+    .setVisible(false);
+
+  // === Обработчики ===
+  const applyMuteIcon = () => btnSound.setTexture(State.soundEnabled ? 'sound_on' : 'sound_off');
+  const applyTurboIcon = () => this.btnTurbo.setTexture(this.speedScale > 1 ? 'fast' : 'slow');
+
+  btnMenu.on('pointerdown', () => {
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+    this.returnToMenu();
+  });
+
+  btnReload.on('pointerdown', () => {
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+    this.beginNewGame();
+  });
+
+  btnSound.on('pointerdown', () => {
+    State.soundEnabled = !State.soundEnabled;
+    this.sound.mute = !State.soundEnabled;
+    try { localStorage.setItem('td_mute', State.soundEnabled ? '0' : '1'); } catch (_) { }
+    applyMuteIcon();
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+  });
+
+  this.btnTurbo.on('pointerdown', () => {
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+    this._toggleTurbo();
     applyTurboIcon();
-  }
+  });
+
+  this.btnPause.on('pointerdown', () => {
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+    this._setPaused(true);
+  });
+
+  this.btnResume.on('pointerdown', () => {
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+    this._setPaused(false);
+  });
+
+  applyTurboIcon();
+}
 
   _toggleTurbo(){ this.speedScale = this.speedScale>1 ? 1 : 2; if(!State.paused){ this.time.timeScale = this.speedScale; this.tweens.timeScale = this.speedScale; } }
   _setPaused(flag){ State.paused = !!flag; this.btnPause && this.btnPause.setVisible(!State.paused); this.btnResume && this.btnResume.setVisible(State.paused); if(State.paused){ this.time.timeScale=0; this.tweens.pauseAll(); } else { this.time.timeScale=this.speedScale; this.tweens.resumeAll(); } }
