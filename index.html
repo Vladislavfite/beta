@@ -582,27 +582,27 @@ _upgradeHeroesOfType(type){
     h.hpBar.fillStyle(0x66ccff,.95).fillRect(x,y,w*p,hh);
   }
 
+// === Обновление героя ===
 _updateHero(h){
-  if(!h?.spr?.active) return;
+  if(!h || !h.spr?.active || h._dying) return;
 
-  // смерть героя
-  if(h.hp <= 0 && !h._dying){
+  // смерть
+  if(h.hp <= 0){
     this._killHero(h);
     return;
   }
 
   this._drawHeroHp(h);
 
-  // цель обновляем, если умерла
+  // ищем цель поблизости
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
-  // если есть цель — атака
+  // если есть цель — атакуем
   if(h.target){
     const e = h.target;
     const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
-
     if(d > h.range){
       this._moveTowards(h.spr, e.x, e.y, h.speed);
       this.playIfExists(h.spr, h.walkKey, true);
@@ -621,49 +621,46 @@ _updateHero(h){
     return;
   }
 
-  // нет цели — движение по маршруту
+// если нет цели — двигаемся по маршруту
   if(!h.path || !h.path.length) return;
   const wp = h.path[h.pIndex] || h.path[h.path.length-1];
   this._moveTowards(h.spr, wp[0], wp[1], h.speed);
   this.playIfExists(h.spr, h.walkKey, true);
   h.spr.setFlipX(wp[0] < h.spr.x);
-  if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
-    h.pIndex++;
+  if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10){
+    if(h.pIndex < h.path.length-1) h.pIndex++;
   }
 }
 
 
+
+// === Смерть героя ===
 _killHero(h){
-  // Проверка: герой существует, жив, не в процессе умирания
   if(!h || !h.spr?.active || h._dying) return;
   h._dying = true;
 
-  // Проигрываем случайный звук смерти (один раз)
-  try {
+  // звук один раз
+  try{
     if(State.soundEnabled){
       const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
       this.sound.play(pick);
     }
-  } catch(_){}
+  }catch(_){}
 
-  // Когда анимация закончится — удалить героя
-  const end = ()=> this._deactivateHero(h);
+  const onEnd = ()=> this._deactivateHero(h);
 
-  // Если есть анимация смерти — проиграть её
+  // если есть анимация смерти
   if(this.anims.exists(h.deadKey)){
-    h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, end);
+    h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onEnd);
     h.spr.play(h.deadKey);
   } else {
-    // Если нет анимации — просто удалить через 600 мс
-    this.time.delayedCall(600, end);
+    this.time.delayedCall(500, onEnd);
   }
 }
 
 _deactivateHero(h){
-  try { h.hpBar?.destroy(); } catch(_){}
-  try { h.spr?.destroy(); } catch(_){}
-
-  // Полностью удалить героя из массива State.heroes
+  try{ h.hpBar?.destroy(); }catch(_){}
+  try{ h.spr?.destroy(); }catch(_){}
   State.heroes = State.heroes.filter(x => x && x !== h);
 }
 
@@ -1053,10 +1050,9 @@ _spawnHero(type){
     3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
   }[type||1];
 
-  // небольшое смещение при спавне
+  // Разброс появления
   const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
   const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
-
   const s = this.add.sprite(
     CONST.HERO_SPAWN.x + offset.x + randOffset.x,
     CONST.HERO_SPAWN.y + offset.y + randOffset.y,
@@ -1067,7 +1063,7 @@ _spawnHero(type){
     .setVisible(true)
     .setActive(true);
 
-  // выбрать ближайший путь
+  // выбираем ближайший путь
   const pick = this._chooseHeroPathFromBase();
   const path = CONST.PATHS[pick.idx];
   const startIndex = pick.iNear;
@@ -1080,14 +1076,14 @@ _spawnHero(type){
     idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
     path, pIndex:startIndex,
     hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
-    target: null, _dying:false
+    target:null, _dying:false
   };
 
   State.heroes.push(h);
 
-  // сразу идёт по маршруту
+  // включаем движение сразу
   this.playIfExists(s, h.walkKey, true);
-  this.time.delayedCall(500, ()=>{ this._updateHero(h); });
+  this.time.addEvent({ delay:300, loop:true, callback:()=> this._updateHero(h) });
 }
 
   // Выбор ближайшего к базе пути и стартового индекса точки
