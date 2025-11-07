@@ -365,21 +365,21 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   _floatText(x,y,text,color='#ffec8b'){ const t = this.add.text(x,y,text,{font:'20px Arial',fill:color,stroke:'#000',strokeThickness:3}).setDepth(Z.TEXT).setOrigin(.5,1); this.tweens.add({targets:t,y:y-30,alpha:0,duration:650,ease:'Cubic.easeOut',onComplete:()=> t.destroy()}); }
 
   /* ============ HUD / UI ============ */
- _buildHUD(){
-  // === Верхние панели валют (компактные) ===
-  const topY = 110;
-  const goldX = 230;
-  const gapX = 250;
+_buildHUD(){
+  // === Компактные верхние панели валют ===
+  const topY = 100;
+  const goldX = 280;   // центрируем
+  const gapX = 180;    // расстояние между панелями
 
   // Первая панель — золото
   this.goldPanel = this.add.image(goldX, topY, 'gold_panel')
     .setOrigin(0.5, 0.5)
-    .setScale(0.6) // уменьшена панель
+    .setScale(0.35) // уменьшено в ~2 раза
     .setDepth(Z.UI);
 
-  this.coin = this.add.sprite(goldX - 60, topY, 'coin_1')
+  this.coin = this.add.sprite(goldX - 45, topY, 'coin_1')
     .setDepth(Z.UI + 1)
-    .setScale(0.6);
+    .setScale(0.45);
 
   if (!this.anims.exists('coin_anim'))
     this.anims.create({
@@ -390,8 +390,8 @@ this.children.list.sort((a, b) => a.depth - b.depth);
     });
   this.playIfExists(this.coin, 'coin_anim');
 
-  this.goldText = this.add.text(goldX + 10, topY, String(State.gold), {
-    font: '24px Arial',
+  this.goldText = this.add.text(goldX + 5, topY, String(State.gold), {
+    font: '22px Arial',
     fill: '#fff',
     stroke: '#000',
     strokeThickness: 4
@@ -400,15 +400,15 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   // Вторая панель — синяя валюта (герои)
   this.bluePanel = this.add.image(goldX + gapX, topY, 'gold_panel')
     .setOrigin(0.5, 0.5)
-    .setScale(0.6)
+    .setScale(0.35)
     .setDepth(Z.UI);
 
-  this.blueCoinIcon = this.add.image(goldX + gapX - 60, topY, 'bluecoin')
+  this.blueCoinIcon = this.add.image(goldX + gapX - 45, topY, 'bluecoin')
     .setDepth(Z.UI + 1)
-    .setScale(0.6);
+    .setScale(0.45);
 
-  this.blueCoinText = this.add.text(goldX + gapX + 10, topY, String(State.heroCoins), {
-    font: '24px Arial',
+  this.blueCoinText = this.add.text(goldX + gapX + 5, topY, String(State.heroCoins), {
+    font: '22px Arial',
     fill: '#9fd6ff',
     stroke: '#001a33',
     strokeThickness: 4
