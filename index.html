@@ -152,16 +152,17 @@ const CONST = {
 };
 const Z = {
   MAP: 0,
-  ENEMY: 10,      // враги — ниже башен
-  TOWER: 15,      // башни перекрывают врагов
-  BASE: 20,
+  ENEMY: 10,
+  HERO: 12,       // герои ниже башен
+  TOWER: 20,      // башни поверх героев
+  BASE: 25,
   BULLET: 30,
   ENEMY_HP: 40,
-  HERO: 50,
-  HERO_HP: 60,
+  HERO_HP: 45,
   UI: 95,
   TEXT: 100
 };
+
 const $ = (id)=>document.getElementById(id);
 const stageBox = $('stage');
 const preloaderOverlay = $('preloaderOverlay');
@@ -1125,6 +1126,9 @@ _spawnHero(type){
     2:{ speed:0.5, hp:2000, dmg:30, range:30, scale:.34, cooldown:1000, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
     3:{ speed:0.5, hp:3000, dmg:50, range:35, scale:.35, cooldown:500, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
   }[type||1];
+
+  // 🟡 Уменьшаем скорость героев в 2 раза
+  spec.speed *= 0.5;
 
   const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
   const s = this.add.sprite(
