@@ -615,6 +615,16 @@ _upgradeHeroesOfType(type){
 
  _updateHero(h){
   if(!h?.spr?.active) return;
+   // Если герой стоит без врагов и не имеет цели — двигается вперёд по пути
+if(!h.target && h.path && h.path.length){
+  const wp = h.path[h.pIndex] || h.path[h.path.length-1];
+  this._moveTowards(h.spr, wp[0], wp[1], h.speed);
+  this.playIfExists(h.spr, h.walkKey, true);
+  h.spr.setFlipX(wp[0] < h.spr.x);
+  if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
+    h.pIndex++;
+  }
+}
 
   // Обновляем HP бар
   this._drawHeroHp(h);
@@ -657,12 +667,30 @@ _upgradeHeroesOfType(type){
 }
 
   _killHero(h){
-    if(!h||!h.spr?.active) return;
-    try{ const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)]; this.sound.play(pick); }catch(_){}
-    const onEnd = ()=> this._deactivateHero(h);
-    if(this.anims.exists(h.deadKey)){ h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onEnd); h.spr.play(h.deadKey); }
-    else onEnd();
+  if(!h || !h.spr?.active) return;
+
+  // Проигрываем случайный звук смерти
+  try {
+    const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
+    this.sound.play(pick);
+  } catch(_){}
+
+  const onEnd = ()=> this._deactivateHero(h);
+
+  if(this.anims.exists(h.deadKey)){
+    h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onEnd);
+    h.spr.play(h.deadKey);
+  } else {
+    onEnd();
   }
+}
+
+_deactivateHero(h){
+  try{ h.hpBar?.destroy(); }catch(_){}
+  try{ h.spr?.destroy(); }catch(_){}
+  // Убираем героя из State.heroes полностью
+  State.heroes = State.heroes.filter(x => x && x !== h);
+}
 
   _deactivateHero(h){ try{ h.hpBar?.destroy(); }catch(_){} try{ h.spr?.destroy(); }catch(_){} State.heroes = State.heroes.filter(x=>x!==h); }
 
@@ -1052,8 +1080,14 @@ _spawnHero(type){
     3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
   }[type||1];
 
-  const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
-  const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
+  // Добавим небольшой разброс появления героев, чтобы не наслаивались
+const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
+const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+const s = this.add.sprite(
+  CONST.HERO_SPAWN.x + offset.x + randOffset.x,
+  CONST.HERO_SPAWN.y + offset.y + randOffset.y,
+  `${spec.idle}_1`
+)
     .setDepth(Z.HERO)
     .setScale(spec.scale)
     .setVisible(true)
