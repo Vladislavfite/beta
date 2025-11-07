@@ -471,39 +471,40 @@ _syncHUD(){
   this._applyBaseTexture(true);
 }
 
-  _applyBaseTexture(forceSound=false){
+_applyBaseTexture(forceSound = false) {
   const hp = Math.max(0, Math.min(100, State.baseHp));
 
-  // база: 0% и 20% -> basehp20; далее 40/60/80/100
+  // --- основной спрайт базы ---
   let stepBase = 100;
-  if(hp <= 20) stepBase = 20;
-  else if(hp <= 40) stepBase = 40;
-  else if(hp <= 60) stepBase = 60;
-  else if(hp <= 80) stepBase = 80;
+  if (hp <= 0) stepBase = 0;
+  else if (hp <= 20) stepBase = 20;
+  else if (hp <= 40) stepBase = 40;
+  else if (hp <= 60) stepBase = 60;
+  else if (hp <= 80) stepBase = 80;
   else stepBase = 100;
 
-  // иконка: 0/20/40/60/100
-  let stepIcon = 0;
-  if(hp <= 0) stepIcon = 0;
-  else if(hp <= 20) stepIcon = 20;
-  else if(hp <= 40) stepIcon = 40;
-  else if(hp <= 60) stepIcon = 60;
-  else stepIcon = 100;
+  // --- иконка над базой ---
+  let stepIcon = stepBase;
 
-  const baseKey  = `basehp_${stepBase}`;
-  const iconKey  = `basehpbar_${stepIcon}`;
+  const baseKey = `basehp_${stepBase}`;
+  const iconKey = `basehpbar_${stepIcon}`;
 
-  if(this.base && this.textures.exists(baseKey)) this.base.setTexture(baseKey);
+  if (this.base && this.textures.exists(baseKey)) {
+    this.base.setTexture(baseKey);
+  }
 
-  if(!this.baseHpIcon){
-    this.baseHpIcon = this.add.image(CONST.BASE_POS.x, CONST.BASE_POS.y-130, iconKey).setDepth(Z.UI+5);
-  }else if(this.textures.exists(iconKey)){
+  if (!this.baseHpIcon) {
+    this.baseHpIcon = this.add
+      .image(CONST.BASE_POS.x, CONST.BASE_POS.y - 130, iconKey)
+      .setDepth(Z.UI + 5);
+  } else if (this.textures.exists(iconKey)) {
     this.baseHpIcon.setTexture(iconKey);
   }
 
- if(forceSound && this.sndBaseHit && !this.sound.mute && State.baseHp < State.lastBaseHp){
-  try{ this.sndBaseHit.play(); }catch(_){}
-}
+  // звук урона только при потере HP
+  if (forceSound && this.sndBaseHit && !this.sound.mute && State.baseHp < State.lastBaseHp) {
+    try { this.sndBaseHit.play(); } catch (_) {}
+  }
 }
 
   /* ============ ГЕРОИ: ПАНЕЛЬ/ПОКУПКА/УЛУЧШЕНИЕ ============ */
