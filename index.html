@@ -522,7 +522,38 @@ _buyHero(type){
   this._spawnHero(type);
   this._syncHUD();
 }
- // === Улучшение героя ===
+ // === Улучшение всех героев выбранного типа ===
+_upgradeHeroesOfType(type){
+  if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff');
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
+    return;
+  }
+
+  State.heroCoins -= CONST.HERO_UPGRADE_COST;
+  let upgraded = 0;
+  for (const h of State.heroes) {
+    if (!h || !h.spr?.active || h.type !== type) continue;
+    h.level = (h.level || 1) + 1;
+    h.hpMax = Math.round(h.hpMax * 1.25);
+    h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax * 0.25));
+    h.dmg = Math.round(h.dmg * 1.2);
+    h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
+    this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
+    upgraded++;
+  }
+
+  if (upgraded > 0) {
+    try { this.sndUplevel.play(); } catch(_) {}
+  } else {
+    // Если ни один герой не был найден, вернём валюту (чтобы не терять её впустую)
+    State.heroCoins += CONST.HERO_UPGRADE_COST;
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Нет героев этого типа', '#9fd6ff');
+  }
+
+  this._syncHUD();
+}
+// === Улучшение героя ===
 _upgradeHeroesOfType(type){
   // Проверяем, хватает ли валюты
   if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
