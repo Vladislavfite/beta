@@ -594,12 +594,12 @@ _updateHero(h){
 
   this._drawHeroHp(h);
 
-  // ищем цель поблизости
+  // цель поблизости
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
-  // если есть цель — атакуем
+  // есть цель — идём/бьём цель
   if(h.target){
     const e = h.target;
     const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
@@ -621,25 +621,29 @@ _updateHero(h){
     return;
   }
 
-// если нет цели — двигаемся по маршруту
+  // нет цели — двигаемся ПО МАРШРУТУ ОТ базы (индекс уменьшаем)
   if(!h.path || !h.path.length) return;
-  const wp = h.path[h.pIndex] || h.path[h.path.length-1];
+  const nextIndex = Math.max(0, h.pIndex + (h.dir||-1));  // dir=-1
+  const wp = h.path[nextIndex];
+  if(!wp) return;
+
   this._moveTowards(h.spr, wp[0], wp[1], h.speed);
   this.playIfExists(h.spr, h.walkKey, true);
   h.spr.setFlipX(wp[0] < h.spr.x);
+
   if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10){
-    if(h.pIndex < h.path.length-1) h.pIndex++;
+    h.pIndex = nextIndex;
+    // дошли до начала — дальше стоим/патрулим при желании:
+    // h.dir = (h.pIndex===0 ? +1 : -1); // <- включит патруль туда-обратно, если нужно
   }
 }
 
 
-
-// === Смерть героя ===
+// === Смерть героя (однократно) ===
 _killHero(h){
   if(!h || !h.spr?.active || h._dying) return;
   h._dying = true;
 
-  // звук один раз
   try{
     if(State.soundEnabled){
       const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
@@ -649,7 +653,6 @@ _killHero(h){
 
   const onEnd = ()=> this._deactivateHero(h);
 
-  // если есть анимация смерти
   if(this.anims.exists(h.deadKey)){
     h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onEnd);
     h.spr.play(h.deadKey);
@@ -1042,7 +1045,7 @@ if (e.pathIndex >= e.path.length) {
     }
   }
 
-  // === Спавн героя ===
+ // === Спавн героя ===
 _spawnHero(type){
   const spec = {
     1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
@@ -1050,23 +1053,21 @@ _spawnHero(type){
     3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
   }[type||1];
 
-  // Разброс появления
+  // небольшой разброс, чтобы не наслаивались
   const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
   const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+
   const s = this.add.sprite(
     CONST.HERO_SPAWN.x + offset.x + randOffset.x,
     CONST.HERO_SPAWN.y + offset.y + randOffset.y,
     `${spec.idle}_1`
-  )
-    .setDepth(Z.HERO)
-    .setScale(spec.scale)
-    .setVisible(true)
-    .setActive(true);
+  ).setDepth(Z.HERO).setScale(spec.scale).setVisible(true).setActive(true);
 
-  // выбираем ближайший путь
+  // берём путь, ближайший к базе, но идём ОТ базы (индекс уменьшаем)
   const pick = this._chooseHeroPathFromBase();
   const path = CONST.PATHS[pick.idx];
-  const startIndex = pick.iNear;
+  let pIndex = pick.iNear;               // ближайшая к базе точка (обычно конец пути)
+  if (pIndex <= 0) pIndex = 1;           // страховка, чтобы был "предыдущий" узел
 
   const h = {
     spr:s, type, level:1,
@@ -1074,16 +1075,13 @@ _spawnHero(type){
     dmg: spec.dmg, speed: spec.speed,
     range: spec.range, cooldown:700, _lastHit:0,
     idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
-    path, pIndex:startIndex,
+    path, pIndex, dir:-1,                // dir=-1 — двигаемся к началу массива точек
     hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
     target:null, _dying:false
   };
 
   State.heroes.push(h);
-
-  // включаем движение сразу
   this.playIfExists(s, h.walkKey, true);
-  this.time.addEvent({ delay:300, loop:true, callback:()=> this._updateHero(h) });
 }
 
   // Выбор ближайшего к базе пути и стартового индекса точки
