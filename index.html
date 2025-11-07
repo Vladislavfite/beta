@@ -696,7 +696,7 @@ if(dist > 8){
 if(h.spr?.setDepth){
   h.spr.setDepth((h.depthBase || Z.HERO) + h.spr.y * 0.001);
 }
-
+}
 // === Смерть героя (однократно) ===
 _killHero(h){
   if(!h || !h.spr?.active || h._dying) return;
