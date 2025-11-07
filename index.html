@@ -607,26 +607,6 @@ _upgradeHeroesOfType(type){
   // Обновляем HUD
   this._syncHUD();
 }
-
-
-  // выбираем ближайший путь от базы
-  const pick = this._chooseHeroPathFromBase();
-  const path = CONST.PATHS[pick.idx];
-  const startIndex = pick.iNear;
-
-  const h = {
-    spr:s, type,
-    hpMax: spec.hp, hp: spec.hp,
-    dmg: spec.dmg, speed: spec.speed,
-    range: spec.range, cooldown:700, _lastHit:0,
-    idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
-    path, pIndex:startIndex,
-    hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true)
-  };
-
-  State.heroes.push(h);
-  this.playIfExists(s, h.walkKey, true);
-}
   _drawHeroHp(h){
     if(!h||!h.hpBar||!h.spr?.visible) return;
     const w=36, hh=6, x=h.spr.x-w/2, y=h.spr.y-40, p=Math.max(0,Math.min(1,h.hp/h.hpMax));
@@ -1069,38 +1049,54 @@ if (e.pathIndex >= e.path.length) {
       ... // остальной код класса
 
   // === Спавн героя ===
-  _spawnHero(type){
-    const spec = {
-      1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
-      2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
-      3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
-    }[type||1];
+_spawnHero(type){
+  const spec = {
+    1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
+    2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
+    3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
+  }[type||1];
 
-    const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
-    const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
-      .setDepth(Z.HERO)
-      .setScale(spec.scale)
-      .setVisible(true)
-      .setActive(true);
+  const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+  const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
+    .setDepth(Z.HERO)
+    .setScale(spec.scale)
+    .setVisible(true)
+    .setActive(true);
 
-    const pick = this._chooseHeroPathFromBase();
-    const path = CONST.PATHS[pick.idx];
-    const startIndex = pick.iNear;
+  // путь и стартовая точка
+  const pick = this._chooseHeroPathFromBase();
+  const path = CONST.PATHS[pick.idx];
+  const startIndex = pick.iNear;
 
-    const h = {
-      spr:s, type, level:1,
-      hpMax: spec.hp, hp: spec.hp,
-      dmg: spec.dmg, speed: spec.speed,
-      range: spec.range, cooldown:700, _lastHit:0,
-      idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
-      path, pIndex:startIndex,
-      hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
-      target: null
-    };
+  const h = {
+    spr:s, type, level:1,
+    hpMax: spec.hp, hp: spec.hp,
+    dmg: spec.dmg, speed: spec.speed,
+    range: spec.range, cooldown:700, _lastHit:0,
+    idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
+    path, pIndex:startIndex,
+    hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
+    target: null
+  };
 
-    State.heroes.push(h);
-    this.playIfExists(s, h.walkKey, true);
-  }
+  State.heroes.push(h);
+  this.playIfExists(s, h.walkKey, true);
+}
+  // Выбор ближайшего к базе пути и стартового индекса точки
+_chooseHeroPathFromBase(){
+  const scored = CONST.PATHS.map((p, idx) => {
+    let dmin = 1e9, near = 0;
+    for(let i=0;i<p.length;i++){
+      const wp = p[i];
+      const d = Phaser.Math.Distance.Between(CONST.BASE_POS.x, CONST.BASE_POS.y, wp[0], wp[1]);
+      if(d < dmin){ dmin = d; near = i; }
+    }
+    return { idx, d: dmin, iNear: near };
+  }).sort((a,b)=> a.d - b.d);
+
+  const pick = scored.slice(0, Math.min(3, scored.length)); // немного рандома из ближайших
+  return pick[Math.floor(Math.random() * pick.length)];
+}
 } /* конец класса AppScene */
   </script>
   <script>
