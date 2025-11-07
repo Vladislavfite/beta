@@ -554,42 +554,6 @@ _upgradeHeroesOfType(type){
 
   this._syncHUD();
 }
-// === Спавн героя ===
-_spawnHero(type){
-  const spec = {
-    1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
-    2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
-    3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
-  }[type||1];
-
-  const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
-  const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
-    .setDepth(Z.HERO)
-    .setScale(spec.scale)
-    .setVisible(true)
-    .setActive(true);
-
-  // Путь: берём ближайший к базе и стартуем от ближайшей точки
-  const pick = this._chooseHeroPathFromBase();
-  const path = CONST.PATHS[pick.idx];
-  const startIndex = pick.iNear;
-
-  const h = {
-    spr:s, type, level:1,
-    hpMax: spec.hp, hp: spec.hp,
-    dmg: spec.dmg, speed: spec.speed,
-    range: spec.range, cooldown:700, _lastHit:0,
-    idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
-    path, pIndex:startIndex,
-    hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
-    target: null
-  };
-
-  State.heroes.push(h);
-
-  // сразу включаем ходьбу (чтобы не стояли на месте)
-  this.playIfExists(s, h.walkKey, true);
-}
 
 
 // === Улучшение героя ===
@@ -1101,6 +1065,41 @@ if (e.pathIndex >= e.path.length) {
       if(!this.anims.exists(`h${h}_atk`))  this.anims.create({key:`h${h}_atk`, frames:[1,2,3,4,5,6].map(i=>({key:`h${h}_atk_${i}`})), frameRate:12,repeat:0});
       if(!this.anims.exists(`h${h}_dead`)) this.anims.create({key:`h${h}_dead`,frames:[1,2,3,4,5].map(i=>({key:`h${h}_dead_${i}`})),frameRate:10,repeat:0});
     }
+  }
+      ... // остальной код класса
+
+  // === Спавн героя ===
+  _spawnHero(type){
+    const spec = {
+      1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
+      2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
+      3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
+    }[type||1];
+
+    const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+    const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
+      .setDepth(Z.HERO)
+      .setScale(spec.scale)
+      .setVisible(true)
+      .setActive(true);
+
+    const pick = this._chooseHeroPathFromBase();
+    const path = CONST.PATHS[pick.idx];
+    const startIndex = pick.iNear;
+
+    const h = {
+      spr:s, type, level:1,
+      hpMax: spec.hp, hp: spec.hp,
+      dmg: spec.dmg, speed: spec.speed,
+      range: spec.range, cooldown:700, _lastHit:0,
+      idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
+      path, pIndex:startIndex,
+      hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
+      target: null
+    };
+
+    State.heroes.push(h);
+    this.playIfExists(s, h.walkKey, true);
   }
 } /* конец класса AppScene */
   </script>
