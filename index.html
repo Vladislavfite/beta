@@ -1092,7 +1092,8 @@ _chooseHeroPathFromBase(){
 
   const pick = scored.slice(0, Math.min(3, scored.length)); // немного рандома из ближайших
   return pick[Math.floor(Math.random() * pick.length)];
-} /* конец класса AppScene */
+} // ← закрывает функцию _chooseHeroPathFromBase
+} /* конец класса AppScene */ // ← закрывает весь класс
   </script>
   <script>
   /* ========================= ЗАПУСК PHASER ========================= */
