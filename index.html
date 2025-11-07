@@ -654,6 +654,8 @@ _updateHero(h){
 _killHero(h){
   if(!h || !h.spr?.active || h._dying) return;
   h._dying = true;
+
+  // звук смерти
   try{
     if(State.soundEnabled){
       const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
@@ -661,12 +663,9 @@ _killHero(h){
     }
   }catch(_){}
 
+  // скрываем спрайт и удаляем героя чуть позже, чтобы не застревал
   h.spr.setVisible(false);
   this.time.delayedCall(500, ()=> this._deactivateHero(h));
-} 
-  else {
-    this.time.delayedCall(500, onEnd);
-  }
 }
 
 _deactivateHero(h){
