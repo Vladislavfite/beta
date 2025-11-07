@@ -366,18 +366,18 @@ this.children.list.sort((a, b) => a.depth - b.depth);
 
   /* ============ HUD / UI ============ */
 _buildHUD(){
-  // === Компактные верхние панели валют ===
+  // === Компактные верхние панели валют (идеальное выравнивание) ===
   const topY = 100;
-  const goldX = 115;   // центрируем
-  const gapX = 480;    // расстояние между панелями
+  const goldX = 240;   // центр первой панели
+  const gapX = 240;    // расстояние между панелями
 
   // Первая панель — золото
   this.goldPanel = this.add.image(goldX, topY, 'gold_panel')
     .setOrigin(0.5, 0.5)
-    .setScale(0.35) // уменьшено в ~2 раза
+    .setScale(0.35)
     .setDepth(Z.UI);
 
-  this.coin = this.add.sprite(goldX - 45, topY, 'coin_1')
+  this.coin = this.add.sprite(goldX - 55, topY, 'coin_1')
     .setDepth(Z.UI + 1)
     .setScale(0.45);
 
@@ -390,36 +390,39 @@ _buildHUD(){
     });
   this.playIfExists(this.coin, 'coin_anim');
 
+  // Текст золота — центр панели
   this.goldText = this.add.text(goldX + 5, topY, String(State.gold), {
     font: '22px Arial',
     fill: '#fff',
     stroke: '#000',
     strokeThickness: 4
-  }).setOrigin(0, 0.5).setDepth(Z.UI + 2);
+  }).setOrigin(0.5, 0.5).setDepth(Z.UI + 2); // <-- выровнен по центру
 
   // Вторая панель — синяя валюта (герои)
-  this.bluePanel = this.add.image(goldX + gapX, topY, 'gold_panel')
+  const blueX = goldX + gapX;
+  this.bluePanel = this.add.image(blueX, topY, 'gold_panel')
     .setOrigin(0.5, 0.5)
     .setScale(0.35)
     .setDepth(Z.UI);
 
-  this.blueCoinIcon = this.add.image(goldX + gapX - 45, topY, 'bluecoin')
+  this.blueCoinIcon = this.add.image(blueX - 55, topY, 'bluecoin')
     .setDepth(Z.UI + 1)
     .setScale(0.45);
 
-  this.blueCoinText = this.add.text(goldX + gapX + 5, topY, String(State.heroCoins), {
+  // Текст синей валюты — центр панели
+  this.blueCoinText = this.add.text(blueX + 5, topY, String(State.heroCoins), {
     font: '22px Arial',
     fill: '#9fd6ff',
     stroke: '#001a33',
     strokeThickness: 4
-  }).setOrigin(0, 0.5).setDepth(Z.UI + 2);
+  }).setOrigin(0.5, 0.5).setDepth(Z.UI + 2);
 }
 
 _syncHUD(){
-  if(this.goldText) this.goldText.setText(String(State.gold | 0));
-  if(this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins | 0));
+  if (this.goldText) this.goldText.setText(String(State.gold | 0));
+  if (this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins | 0));
 
-  if(State.baseHp !== State.lastBaseHp){
+  if (State.baseHp !== State.lastBaseHp) {
     this._applyBaseTexture();
     State.lastBaseHp = State.baseHp;
   }
