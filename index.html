@@ -501,31 +501,29 @@ this.children.list.sort((a, b) => a.depth - b.depth);
     for(const u of this.heroPanel.ups){ if(u.visible) u.setTexture(canUp?'up_icon':'noup_icon'); }
     for(const b of this.heroPanel.btns){ const cost = CONST.HERO_COSTS[b.type-1]||0; b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777); } }
 
-   // === Покупка героя ===
+   // === Покупка героя (жёсткое ограничение: 1 герой на тип) ===
 _buyHero(type){
   const cost = CONST.HERO_COSTS[type-1] || 0;
 
-  // если не хватает валюты
   if (State.heroCoins < cost) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${cost}`, '#9fd6ff');
     if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
     return;
   }
 
-  // если герой этого типа уже есть — не создавать заново
-  const already = State.heroes.some(h => h.type === type && h.spr?.active);
+  // Не даём купить, если активный герой этого типа уже есть
+  const already = State.heroes.some(h => h && h.type === type && h.spr?.active);
   if (already) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Уже нанят', '#9fd6ff');
     return;
   }
 
-  // покупка
   State.heroCoins -= cost;
   this._spawnHero(type);
   this._syncHUD();
 }
 
-// === Улучшение героя ===
+// === Улучшение всех героев выбранного типа ===
 _upgradeHeroesOfType(type){
   if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff');
@@ -534,6 +532,7 @@ _upgradeHeroesOfType(type){
   }
 
   State.heroCoins -= CONST.HERO_UPGRADE_COST;
+  let upgraded = 0;
   for (const h of State.heroes) {
     if (!h || !h.spr?.active || h.type !== type) continue;
     h.level = (h.level || 1) + 1;
@@ -542,55 +541,21 @@ _upgradeHeroesOfType(type){
     h.dmg = Math.round(h.dmg * 1.2);
     h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
     this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
+    upgraded++;
   }
 
-  try { this.sndUplevel.play(); } catch(_) {}
+  if (upgraded > 0) {
+    try { this.sndUplevel.play(); } catch(_) {}
+  } else {
+    // Если ни один герой не был найден, вернём валюту (чтобы не терять её впустую)
+    State.heroCoins += CONST.HERO_UPGRADE_COST;
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Нет героев этого типа', '#9fd6ff');
+  }
+
   this._syncHUD();
 }
-
-    State.heroCoins -= CONST.HERO_UPGRADE_COST;
-
-    for (const h of State.heroes) {
-      if (!h || !h.spr?.active || h.type !== type) continue;
-      h.level = (h.level || 1) + 1;
-      h.hpMax = Math.round(h.hpMax * 1.25);
-      h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax * 0.25));
-      h.dmg = Math.round(h.dmg * 1.2);
-      h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
-      this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
-    }
-
-    try { this.sndUplevel.play(); } catch(_) {}
-    this._syncHUD();
-  }
-
-  _upgradeHeroesOfType(type){
-    if(State.heroCoins < CONST.HERO_UPGRADE_COST){ this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff'); if(State.soundEnabled) try{ this.sound.play('klick'); }catch(_){ } return; }
-    State.heroCoins -= CONST.HERO_UPGRADE_COST;
-    for(const h of State.heroes){
-      if(!h || !h.spr?.active || h.type!==type) continue;
-      h.level = (h.level||1)+1; h.hpMax = Math.round(h.hpMax*1.25); h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax*0.25));
-      h.dmg = Math.round(h.dmg*1.2); h.cooldown = Math.max(400, Math.round(h.cooldown*0.9));
-      this._floatText(h.spr.x, h.spr.y-70, 'UP!', '#9fd6ff');
-    }
-    try{ this.sndUplevel.play(); }catch(_){}
-    this._syncHUD();
-  }
-
-  _chooseHeroPathFromBase(){
-    const scored = CONST.PATHS.map((p,idx)=>{
-      let dmin=1e9, iNear=0;
-      for(let i=0;i<p.length;i++){
-        const wp=p[i], d=Phaser.Math.Distance.Between(CONST.BASE_POS.x, CONST.BASE_POS.y, wp[0], wp[1]);
-        if(d<dmin){ dmin=d; iNear=i; }
-      }
-      return {idx, d:dmin, iNear};
-    }).sort((a,b)=> a.d-b.d);
-    const pick = scored.slice(0, Math.min(3, scored.length));
-    return pick[Math.floor(Math.random()*pick.length)];
-  }
-
-  _spawnHero(type){
+// === Спавн героя ===
+_spawnHero(type){
   const spec = {
     1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
     2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
@@ -603,6 +568,82 @@ _upgradeHeroesOfType(type){
     .setScale(spec.scale)
     .setVisible(true)
     .setActive(true);
+
+  // Путь: берём ближайший к базе и стартуем от ближайшей точки
+  const pick = this._chooseHeroPathFromBase();
+  const path = CONST.PATHS[pick.idx];
+  const startIndex = pick.iNear;
+
+  const h = {
+    spr:s, type, level:1,
+    hpMax: spec.hp, hp: spec.hp,
+    dmg: spec.dmg, speed: spec.speed,
+    range: spec.range, cooldown:700, _lastHit:0,
+    idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
+    path, pIndex:startIndex,
+    hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
+    target: null
+  };
+
+  State.heroes.push(h);
+
+  // сразу включаем ходьбу (чтобы не стояли на месте)
+  this.playIfExists(s, h.walkKey, true);
+}
+
+
+// === Улучшение героя ===
+_upgradeHeroesOfType(type){
+  // Проверяем, хватает ли валюты
+  if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
+    this._floatText(
+      CONST.BASE_POS.x,
+      CONST.BASE_POS.y - 140,
+      `Нужно ${CONST.HERO_UPGRADE_COST}`,
+      '#9fd6ff'
+    );
+    if (State.soundEnabled) {
+      try { this.sound.play('klick'); } catch(_) {}
+    }
+    return;
+  }
+
+  // Списываем стоимость
+  State.heroCoins -= CONST.HERO_UPGRADE_COST;
+
+  // Применяем улучшение ко всем активным героям нужного типа
+  let upgraded = 0;
+  for (const h of State.heroes) {
+    if (!h || !h.spr?.active || h.type !== type) continue;
+
+    upgraded++;
+    h.level = (h.level || 1) + 1;
+    h.hpMax = Math.round(h.hpMax * 1.25);
+    h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax * 0.25));
+    h.dmg = Math.round(h.dmg * 1.2);
+    h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
+
+    this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
+  }
+
+  // Если были улучшены герои — проигрываем звук
+  if (upgraded > 0) {
+    try { this.sndUplevel.play(); } catch(_) {}
+  } else {
+    // Если героев такого типа нет — вернём валюту
+    State.heroCoins += CONST.HERO_UPGRADE_COST;
+    this._floatText(
+      CONST.BASE_POS.x,
+      CONST.BASE_POS.y - 140,
+      'Нет героев этого типа',
+      '#9fd6ff'
+    );
+  }
+
+  // Обновляем HUD
+  this._syncHUD();
+}
+
 
   // выбираем ближайший путь от базы
   const pick = this._chooseHeroPathFromBase();
@@ -846,33 +887,24 @@ _upgradeHeroesOfType(type){
   e.targetHero = targetHero;
   e._savedPathIndex = e.pathIndex;
 
-  // движение к герою и анимация атаки
   this.playIfExists(e, 'e_atk_anim', true);
   this._moveTowards(e, targetHero.spr.x, targetHero.spr.y, e.speed);
   e.setFlipX(targetHero.spr.x < e.x);
 
   const d = Phaser.Math.Distance.Between(e.x, e.y, targetHero.spr.x, targetHero.spr.y);
-
-  // если враг рядом — атакует
   if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 900)) {
     e._lastAttack = Date.now();
     const dmg = e.isBoss ? 22 : 12;
-
-    // наносим урон
     targetHero.hp = Math.max(0, targetHero.hp - dmg);
     this._floatText(targetHero.spr.x, targetHero.spr.y - 28, '-' + dmg, '#ffb3b3');
-
-    // если герой погиб — вызываем смерть
     if (targetHero.hp <= 0) {
       this._killHero(targetHero);
-      e.targetHero = null; // сбрасываем цель
+      e.targetHero = null;
     }
   }
+  return;
+} else if (targetTower) {
 
-  return; // враг атакует героя, больше ничего не делаем
-}
-      return;
-    } else if(targetTower){
       e.targetHero=null; e.targetTower=targetTower; e._savedPathIndex=e.pathIndex;
       this.playIfExists(e,'e_atk_anim',true);
       this._moveTowards(e, targetTower.x, targetTower.y, e.speed);
