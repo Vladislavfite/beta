@@ -601,13 +601,15 @@ _updateHero(h){
   if(h.hp <= 0){ this._killHero(h); return; }
   this._drawHeroHp(h);
 
+  // поиск цели
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
+  // если есть враг поблизости
   if(h.target){
     const e = h.target;
-    const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
+    const d = Phaser.Math.Distance.Between(h.spr.x, h.spr.y, e.x, e.y);
     if(d > h.range){
       this._moveTowards(h.spr, e.x, e.y, h.speed);
       this.playIfExists(h.spr, h.walkKey, true);
@@ -618,7 +620,7 @@ _updateHero(h){
         h._lastHit = now;
         this.playIfExists(h.spr, h.atkKey, false);
         e.hp -= h.dmg;
-        this._floatText(e.x, e.y-22, '-'+h.dmg, '#9fd6ff');
+        this._floatText(e.x, e.y - 22, '-' + h.dmg, '#9fd6ff');
         if(e.hp <= 0) this._killEnemy(e);
         this.time.delayedCall(300, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr,h.walkKey,true); });
       }
@@ -629,25 +631,33 @@ _updateHero(h){
 
   // === движение по маршруту ===
   if(!h.path || !h.path.length) return;
-  const nextIndex = Math.max(0, h.pIndex + (h.dir||-1));
-  const wp = h.path[nextIndex]; if(!wp) return;
-  const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]);
+  const wp = h.path[h.pIndex];
+  if(!wp) return;
 
-  if(d < 10){
-    h._idleTime = (h._idleTime||0) + (this.time.elapsedMS || 16);
-    if(h._idleTime > 5000){ // стоял 5 секунд
-      h.dir *= -1;          // меняем направление
-      h._idleTime = 0;
-    }
-  } else {
+  const dx = wp[0] - h.spr.x;
+  const dy = wp[1] - h.spr.y;
+  const dist = Math.hypot(dx, dy);
+
+  // движение к точке
+  if(dist > 8){
     h._idleTime = 0;
     this._moveTowards(h.spr, wp[0], wp[1], h.speed);
     this.playIfExists(h.spr, h.walkKey, true);
     h.spr.setFlipX(wp[0] < h.spr.x);
-    if(d < 10) h.pIndex = nextIndex;
+  } else {
+    // дошли до точки
+    h._idleTime = (h._idleTime||0) + (this.time.elapsedMS || 16);
+    if(h._idleTime > 5000){ // стоял 5 сек — меняем направление
+      h.dir *= -1;
+      h._idleTime = 0;
+    }
+    h.pIndex += h.dir;
+
+    // если дошёл до конца — разворот
+    if(h.pIndex <= 0){ h.pIndex = 1; h.dir = 1; }
+    if(h.pIndex >= h.path.length - 1){ h.pIndex = h.path.length - 2; h.dir = -1; }
   }
 }
-
 
 
 // === Смерть героя (однократно) ===
