@@ -957,35 +957,91 @@ if (e.pathIndex >= e.path.length) {
     this.waveTimer = this.time.addEvent({ delay, callback:()=> this._startWave() });
   }
 
-  _startWave(){
-    if(!State.started || State.paused) return;
-    State.wave++; this._syncHUD();
-    const enemyHpBase = 25 + State.wave*5;
-    const hpJitter = Phaser.Math.Between(-2,4);
-    const enemiesPerSpawn = Math.min(1 + Math.floor((State.wave-1)/4), 4);
-    let spawnCount = (State.wave<=2)?1:(State.wave<=6?Phaser.Math.Between(1,2):Phaser.Math.Between(2,3));
-    spawnCount = Math.min(spawnCount, CONST.PATHS.length);
-    const idxs = Phaser.Utils.Array.Shuffle([...Array(CONST.PATHS.length).keys()]).slice(0,spawnCount);
+ // === Запуск новой волны врагов ===
+_startWave(){
+  if(!State.started || State.paused) return;
 
-    idxs.forEach((pi, idx)=>{
-      const path = CONST.PATHS[pi];
-      for(let j=0;j<enemiesPerSpawn;j++){
-        const baseDelay = (State.wave<=3)?Phaser.Math.Between(2400,3000):Phaser.Math.Between(2000,2600);
-        const delay = j*baseDelay + idx*1000;
-        const hp = Math.max(10, enemyHpBase + hpJitter);
-        this.time.addEvent({ delay, callback:()=> this._spawnEnemy(path, hp) });
-      }
-    });
+  // Увеличиваем номер волны и обновляем HUD
+  State.wave++;
+  this._syncHUD();
 
-    const nextDelayBase = (State.wave<=3)?12000:10000;
-    const nextDelay = nextDelayBase + enemiesPerSpawn*3200 + Phaser.Math.Between(0,1800);
+  // --- Базовое здоровье врагов растёт быстрее с волнами ---
+  const enemyHpBase = 25 + State.wave * 7; // раньше было *5 → усложнение
+  const hpJitter = Phaser.Math.Between(-2, 5);
 
-    if(State.wave % 5 === 0){
-      const bossPath = Phaser.Utils.Array.GetRandom(CONST.PATHS);
-      this.time.addEvent({ delay:2500, callback:()=> this._spawnBoss(bossPath) });
+  // --- Кол-во врагов с одного спота растёт быстрее, но плавно ---
+  const enemiesPerSpawn = Math.min(1 + Math.floor(State.wave / 3), 8);
+
+  // --- Сколько спотов активно в этой волне ---
+  let spawnCount = (State.wave <= 2)
+    ? 1
+    : (State.wave <= 6 ? Phaser.Math.Between(2, 3) : Phaser.Math.Between(3, CONST.PATHS.length));
+  spawnCount = Math.min(spawnCount, CONST.PATHS.length);
+
+  // --- Рандомизация активных путей ---
+  const idxs = Phaser.Utils.Array.Shuffle([...Array(CONST.PATHS.length).keys()]).slice(0, spawnCount);
+
+  // === Спавн обычных врагов ===
+  idxs.forEach((pi, idx)=>{
+    const path = CONST.PATHS[pi];
+    for(let j=0; j<enemiesPerSpawn; j++){
+      // задержки между выходами врагов, плавный старт на первых волнах
+      const baseDelay = (State.wave <= 3)
+        ? Phaser.Math.Between(2400, 3000)
+        : Phaser.Math.Between(1600, 2200);
+      const delay = j * baseDelay + idx * 800;
+
+      // рассчитываем HP врага
+      const hp = Math.max(10, enemyHpBase + hpJitter);
+
+      // планируем появление врага
+      this.time.addEvent({
+        delay,
+        callback: ()=> this._spawnEnemy(path, hp)
+      });
     }
-    this._scheduleNextWave(nextDelay);
+  });
+
+  // === Спавн боссов (усиленные враги) ===
+  if(State.wave % 5 === 0){
+    // количество боссов увеличивается с прогрессией волн
+    const bossCount = Math.min(1 + Math.floor(State.wave / 10), 5);
+
+    for(let b=0; b<bossCount; b++){
+      const bossPath = Phaser.Utils.Array.GetRandom(CONST.PATHS);
+      this.time.addEvent({
+        delay: 3000 + b * 2500, // боссы появляются по очереди
+        callback: ()=>{
+          const spawn = bossPath[0];
+          const e = this._getEnemy();
+
+          e.isBoss = true;
+          e.maxHp = Math.round((25 + State.wave * 6) * 4.5); // +50% HP
+          e.hp = e.maxHp;
+          e.speed = 0.045; // медленнее обычных врагов
+          e.damage = Math.round(20 + State.wave * 1.5); // урон тоже растёт
+          e.path = bossPath;
+          e.pathIndex = 1;
+          e.state = 'walk';
+          e.setScale(0.75);
+
+          e.setPosition(spawn[0], spawn[1]).setVisible(true).setActive(true);
+          this.playIfExists(e, 'e_walk_anim', true);
+          e.hpBar.setVisible(true);
+          this._drawEnemyHp(e);
+
+          // визуальное уведомление
+          this._floatText(e.x, e.y - 60, 'БОСС!', '#ff8080');
+          try{ this.sndBoss.play(); }catch(_){}
+        }
+      });
+    }
   }
+
+  // === Задержка до следующей волны ===
+  const nextDelay = 11000 + enemiesPerSpawn * 2800 + Phaser.Math.Between(0, 2000);
+  this._scheduleNextWave(nextDelay);
+}
 
   /* ============ ЖИЗНЕННЫЙ ЦИКЛ ИГРЫ ============ */
   beginNewGame(){
