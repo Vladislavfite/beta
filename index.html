@@ -584,80 +584,82 @@ _upgradeHeroesOfType(type){
 
  _updateHero(h){
   if(!h?.spr?.active) return;
-   // Если герой стоит без врагов и не имеет цели — двигается вперёд по пути
-if(!h.target && h.path && h.path.length){
-  const wp = h.path[h.pIndex] || h.path[h.path.length-1];
-  this._moveTowards(h.spr, wp[0], wp[1], h.speed);
-  this.playIfExists(h.spr, h.walkKey, true);
-  h.spr.setFlipX(wp[0] < h.spr.x);
-  if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
-    h.pIndex++;
-  }
-}
 
-  // Обновляем HP бар
+  // Отрисовка HP
   this._drawHeroHp(h);
 
-  // Поиск цели
+  // Если герой мертв — удалить
+  if(h.hp <= 0){
+    this._killHero(h);
+    return;
+  }
+
+  // Если цель умерла или исчезла — сбрасываем
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
-  // Если есть цель — идём к ней и атакуем
+  // === Если есть враг поблизости ===
   if(h.target){
     const e = h.target;
     const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
+
     if(d > h.range){
-      this._moveTowards(h.spr,e.x,e.y,h.speed);
-      this.playIfExists(h.spr,h.walkKey,true);
+      // Идём к врагу
+      this._moveTowards(h.spr, e.x, e.y, h.speed);
+      this.playIfExists(h.spr, h.walkKey, true);
       h.spr.setFlipX(e.x < h.spr.x);
-    }else{
+    } else {
+      // Атакуем
       const now = Date.now();
       if(now - (h._lastHit||0) >= h.cooldown){
         h._lastHit = now;
-        this.playIfExists(h.spr,h.atkKey,false);
+        this.playIfExists(h.spr, h.atkKey, false);
         e.hp -= h.dmg;
-        this._floatText(e.x,e.y-22,'-'+h.dmg,'#9fd6ff');
-        if(e.hp<=0) this._killEnemy(e);
-        this.time.delayedCall(300, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr,h.walkKey,true); });
+        this._floatText(e.x, e.y-22, '-'+h.dmg, '#9fd6ff');
+        if(e.hp <= 0) this._killEnemy(e);
+        this.time.delayedCall(400, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr, h.walkKey, true); });
       }
     }
   } else {
-    // Нет цели — идём по маршруту
+    // === Нет врага — идём по маршруту ===
     if(!h.path || !h.path.length) return;
     const wp = h.path[h.pIndex] || h.path[h.path.length-1];
     this._moveTowards(h.spr, wp[0], wp[1], h.speed);
     this.playIfExists(h.spr, h.walkKey, true);
     h.spr.setFlipX(wp[0] < h.spr.x);
-    if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
-      h.pIndex++;
+
+    if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10){
+      if(h.pIndex < h.path.length-1) h.pIndex++;
     }
   }
 }
 
   _killHero(h){
-  if(!h || !h.spr?.active) return;
+  if(!h || !h.spr?.active || h._dying) return;
+  h._dying = true;
 
-  // Проигрываем случайный звук смерти
+  // Случайный звук смерти один раз
   try {
     const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
-    this.sound.play(pick);
+    if(State.soundEnabled) this.sound.play(pick);
   } catch(_){}
 
-  const onEnd = ()=> this._deactivateHero(h);
+  const end = ()=> this._deactivateHero(h);
 
+  // Если есть анимация смерти
   if(this.anims.exists(h.deadKey)){
-    h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, onEnd);
+    h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, end);
     h.spr.play(h.deadKey);
   } else {
-    onEnd();
+    // Если нет — просто убираем через задержку
+    this.time.delayedCall(400, end);
   }
 }
 
 _deactivateHero(h){
   try{ h.hpBar?.destroy(); }catch(_){}
   try{ h.spr?.destroy(); }catch(_){}
-  // Убираем героя из State.heroes полностью
   State.heroes = State.heroes.filter(x => x && x !== h);
 }
 
@@ -1079,7 +1081,10 @@ const s = this.add.sprite(
   };
 
   State.heroes.push(h);
-  this.playIfExists(s, h.walkKey, true);
+  // Начинаем движение по маршруту сразу
+this.playIfExists(s, h.walkKey, true);
+this.time.delayedCall(500, ()=>{ this._updateHero(h); });
+
 }
   // Выбор ближайшего к базе пути и стартового индекса точки
 _chooseHeroPathFromBase(){
