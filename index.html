@@ -456,7 +456,7 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   else stepIcon = 100;
 
   const baseKey  = `basehp_${stepBase}`;
-  const iconKey  = `baseicon_${stepIcon}`;
+  const iconKey  = `basehpbar_${stepIcon}`;
 
   if(this.base && this.textures.exists(baseKey)) this.base.setTexture(baseKey);
 
@@ -501,33 +501,52 @@ this.children.list.sort((a, b) => a.depth - b.depth);
     for(const u of this.heroPanel.ups){ if(u.visible) u.setTexture(canUp?'up_icon':'noup_icon'); }
     for(const b of this.heroPanel.btns){ const cost = CONST.HERO_COSTS[b.type-1]||0; b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777); } }
 
-   _buyHero(type){
-    const cost = CONST.HERO_COSTS[type-1] || 0;
+   // === Покупка героя ===
+_buyHero(type){
+  const cost = CONST.HERO_COSTS[type-1] || 0;
 
-    // нет валюты — просто подсказка
-    if (State.heroCoins < cost) {
-      this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${cost}`, '#9fd6ff');
-      if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
-      return;
-    }
-
-    // списываем и создаём РОВНО одного героя
-    State.heroCoins -= cost;
-    this._spawnHero(type);
-    this._syncHUD();
-
-    // лёгкий антидвоеклик (микродебаунс 200мс по типу)
-    this._heroBuyLock = this._heroBuyLock || {};
-    this._heroBuyLock[type] = true;
-    this.time.delayedCall(200, ()=>{ this._heroBuyLock[type] = false; });
+  // если не хватает валюты
+  if (State.heroCoins < cost) {
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${cost}`, '#9fd6ff');
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
+    return;
   }
 
-  _upgradeHeroesOfType(type){
-    if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
-      this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y-140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff');
-      if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
-      return;
-    }
+  // если герой этого типа уже есть — не создавать заново
+  const already = State.heroes.some(h => h.type === type && h.spr?.active);
+  if (already) {
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Уже нанят', '#9fd6ff');
+    return;
+  }
+
+  // покупка
+  State.heroCoins -= cost;
+  this._spawnHero(type);
+  this._syncHUD();
+}
+
+// === Улучшение героя ===
+_upgradeHeroesOfType(type){
+  if (State.heroCoins < CONST.HERO_UPGRADE_COST) {
+    this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${CONST.HERO_UPGRADE_COST}`, '#9fd6ff');
+    if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
+    return;
+  }
+
+  State.heroCoins -= CONST.HERO_UPGRADE_COST;
+  for (const h of State.heroes) {
+    if (!h || !h.spr?.active || h.type !== type) continue;
+    h.level = (h.level || 1) + 1;
+    h.hpMax = Math.round(h.hpMax * 1.25);
+    h.hp = Math.min(h.hpMax, Math.round(h.hp + h.hpMax * 0.25));
+    h.dmg = Math.round(h.dmg * 1.2);
+    h.cooldown = Math.max(400, Math.round(h.cooldown * 0.9));
+    this._floatText(h.spr.x, h.spr.y - 70, 'UP!', '#9fd6ff');
+  }
+
+  try { this.sndUplevel.play(); } catch(_) {}
+  this._syncHUD();
+}
 
     State.heroCoins -= CONST.HERO_UPGRADE_COST;
 
@@ -572,31 +591,37 @@ this.children.list.sort((a, b) => a.depth - b.depth);
   }
 
   _spawnHero(type){
-    const baseSpec = {
-      1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
-      2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
-      3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
-    }[type||1];
+  const spec = {
+    1:{ speed:.22, hp:160, dmg:22, range:26, scale:.31, idle:'h1_idle', walk:'h1_walk', atk:'h1_atk', dead:'h1_dead' },
+    2:{ speed:.16, hp:260, dmg:18, range:28, scale:.34, idle:'h2_idle', walk:'h2_walk', atk:'h2_atk', dead:'h2_dead' },
+    3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
+  }[type||1];
 
-    const offsetByType = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}};
-const off = offsetByType[type] || {x:0,y:0};
-const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `${baseSpec.idle}_1`)
-  .setDepth(Z.HERO).setScale(baseSpec.scale).setVisible(true).setActive(true);
+  const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+  const s = this.add.sprite(CONST.HERO_SPAWN.x+offset.x, CONST.HERO_SPAWN.y+offset.y, `${spec.idle}_1`)
+    .setDepth(Z.HERO)
+    .setScale(spec.scale)
+    .setVisible(true)
+    .setActive(true);
 
-    const pick = this._chooseHeroPathFromBase();
-    const path = CONST.PATHS[pick.idx];
-    const startIndex = pick.iNear;
+  // выбираем ближайший путь от базы
+  const pick = this._chooseHeroPathFromBase();
+  const path = CONST.PATHS[pick.idx];
+  const startIndex = pick.iNear;
 
-    const h = {
-      spr:s, type, level:1, hpMax:baseSpec.hp, hp:baseSpec.hp, dmg:baseSpec.dmg, speed:baseSpec.speed, range:baseSpec.range,
-      idleKey:baseSpec.idle, walkKey:baseSpec.walk, atkKey:baseSpec.atk, deadKey:baseSpec.dead, cooldown:700, _lastHit:0, target:null,
-      hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
-      path, pIndex: startIndex
-    };
-    State.heroes.push(h);
-    this._drawHeroHp(h);
-  }
+  const h = {
+    spr:s, type,
+    hpMax: spec.hp, hp: spec.hp,
+    dmg: spec.dmg, speed: spec.speed,
+    range: spec.range, cooldown:700, _lastHit:0,
+    idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
+    path, pIndex:startIndex,
+    hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true)
+  };
 
+  State.heroes.push(h);
+  this.playIfExists(s, h.walkKey, true);
+}
   _drawHeroHp(h){
     if(!h||!h.hpBar||!h.spr?.visible) return;
     const w=36, hh=6, x=h.spr.x-w/2, y=h.spr.y-40, p=Math.max(0,Math.min(1,h.hp/h.hpMax));
@@ -608,31 +633,36 @@ const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `$
 
  _updateHero(h){
   if(!h?.spr?.active) return;
+
+  // Обновляем HP бар
   this._drawHeroHp(h);
 
+  // Поиск цели
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
+  // Если есть цель — идём к ней и атакуем
   if(h.target){
-    const e=h.target, d=Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
-    if(d>h.range){
+    const e = h.target;
+    const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
+    if(d > h.range){
       this._moveTowards(h.spr,e.x,e.y,h.speed);
       this.playIfExists(h.spr,h.walkKey,true);
       h.spr.setFlipX(e.x < h.spr.x);
     }else{
-      const now=Date.now();
-      if(now-(h._lastHit||0)>=h.cooldown){
-        h._lastHit=now;
+      const now = Date.now();
+      if(now - (h._lastHit||0) >= h.cooldown){
+        h._lastHit = now;
         this.playIfExists(h.spr,h.atkKey,false);
         e.hp -= h.dmg;
-        this._floatText(e.x, e.y-22, '-'+h.dmg, '#9fd6ff');
+        this._floatText(e.x,e.y-22,'-'+h.dmg,'#9fd6ff');
         if(e.hp<=0) this._killEnemy(e);
         this.time.delayedCall(300, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr,h.walkKey,true); });
       }
     }
   } else {
-    // === Нет цели — герой идёт по своему маршруту ===
+    // Нет цели — идём по маршруту
     if(!h.path || !h.path.length) return;
     const wp = h.path[h.pIndex] || h.path[h.path.length-1];
     this._moveTowards(h.spr, wp[0], wp[1], h.speed);
@@ -760,11 +790,7 @@ const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `$
   /* ============ ВРАГИ/ВОЛНЫ ============ */
   _getEnemy(){
     for(const e of this.enemyPool) if(!e.active && !e.visible) return e;
-    const e = this.add.sprite(-9999, -9999, 'e_walk_0')
-  .setScale(0.35)
-  .setVisible(false)
-  .setActive(false)
-  .setDepth(Z.ENEMY);
+    const e = this.add.sprite(-9999,-9999,'e_walk_0').setScale(0.35).setVisible(false).setActive(false).setDepth(Z.ENEMY);
     e.hpBar = this.add.graphics().setDepth(Z.ENEMY_HP).setVisible(false); e.hpBar.__owner=e;
     this.enemies.add(e); this.enemyPool.push(e); return e;
   }
@@ -815,18 +841,36 @@ const s = this.add.sprite(CONST.HERO_SPAWN.x+off.x, CONST.HERO_SPAWN.y+off.y, `$
       if(d<CONST.ENEMY_AGGRO && d<tdmin){ tdmin=d; targetTower=ts; }
     }
 
-    if(targetHero && (!targetTower || hdmin <= tdmin)){
-      e.targetTower=null; e.targetHero=targetHero; e._savedPathIndex=e.pathIndex;
-      this.playIfExists(e,'e_atk_anim',true);
-      this._moveTowards(e, targetHero.spr.x, targetHero.spr.y, e.speed);
-      e.setFlipX(targetHero.spr.x<e.x);
-      const d=Phaser.Math.Distance.Between(e.x,e.y,targetHero.spr.x,targetHero.spr.y);
-      if(d<26 && (!e._lastAttack || Date.now()-e._lastAttack>900)){
-        e._lastAttack=Date.now();
-        targetHero.hp -= (e.isBoss?22:12);
-        this._floatText(targetHero.spr.x, targetHero.spr.y-28, '-'+(e.isBoss?22:12), '#ffb3b3');
-        if(targetHero.hp<=0) this._killHero(targetHero);
-      }
+    if (targetHero && (!targetTower || hdmin <= tdmin)) {
+  e.targetTower = null;
+  e.targetHero = targetHero;
+  e._savedPathIndex = e.pathIndex;
+
+  // движение к герою и анимация атаки
+  this.playIfExists(e, 'e_atk_anim', true);
+  this._moveTowards(e, targetHero.spr.x, targetHero.spr.y, e.speed);
+  e.setFlipX(targetHero.spr.x < e.x);
+
+  const d = Phaser.Math.Distance.Between(e.x, e.y, targetHero.spr.x, targetHero.spr.y);
+
+  // если враг рядом — атакует
+  if (d < 26 && (!e._lastAttack || Date.now() - e._lastAttack > 900)) {
+    e._lastAttack = Date.now();
+    const dmg = e.isBoss ? 22 : 12;
+
+    // наносим урон
+    targetHero.hp = Math.max(0, targetHero.hp - dmg);
+    this._floatText(targetHero.spr.x, targetHero.spr.y - 28, '-' + dmg, '#ffb3b3');
+
+    // если герой погиб — вызываем смерть
+    if (targetHero.hp <= 0) {
+      this._killHero(targetHero);
+      e.targetHero = null; // сбрасываем цель
+    }
+  }
+
+  return; // враг атакует героя, больше ничего не делаем
+}
       return;
     } else if(targetTower){
       e.targetHero=null; e.targetTower=targetTower; e._savedPathIndex=e.pathIndex;
