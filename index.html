@@ -366,47 +366,65 @@ this.children.list.sort((a, b) => a.depth - b.depth);
 
   /* ============ HUD / UI ============ */
  _buildHUD(){
-  const yBottom = CONST.HEIGHT - 463;
-  // === Верхние панели валют ===
-  const topY = 120;
-  const goldX = 200;
-  const gapX = 300;
+  // === Верхние панели валют (компактные) ===
+  const topY = 110;
+  const goldX = 230;
+  const gapX = 250;
 
   // Первая панель — золото
-  this.goldPanel = this.add.image(goldX, topY, 'gold_panel').setOrigin(0.5, 0.5).setScale(0.9).setDepth(Z.UI);
-  this.coin = this.add.sprite(goldX - 80, topY, 'coin_1').setDepth(Z.UI + 1).setScale(0.75);
+  this.goldPanel = this.add.image(goldX, topY, 'gold_panel')
+    .setOrigin(0.5, 0.5)
+    .setScale(0.6) // уменьшена панель
+    .setDepth(Z.UI);
+
+  this.coin = this.add.sprite(goldX - 60, topY, 'coin_1')
+    .setDepth(Z.UI + 1)
+    .setScale(0.6);
+
   if (!this.anims.exists('coin_anim'))
-    this.anims.create({ key: 'coin_anim', frames: [1,2,3,4,5,6].map(i => ({ key: `coin_${i}` })), frameRate: 10, repeat: -1 });
+    this.anims.create({
+      key: 'coin_anim',
+      frames: [1,2,3,4,5,6].map(i => ({ key: `coin_${i}` })),
+      frameRate: 10,
+      repeat: -1
+    });
   this.playIfExists(this.coin, 'coin_anim');
-  this.goldText = this.add.text(goldX + 20, topY, String(State.gold), {
-    font: '28px Arial',
+
+  this.goldText = this.add.text(goldX + 10, topY, String(State.gold), {
+    font: '24px Arial',
     fill: '#fff',
     stroke: '#000',
     strokeThickness: 4
   }).setOrigin(0, 0.5).setDepth(Z.UI + 2);
 
   // Вторая панель — синяя валюта (герои)
-  this.bluePanel = this.add.image(goldX + gapX, topY, 'gold_panel').setOrigin(0.5, 0.5).setScale(0.9).setDepth(Z.UI);
-  this.blueCoinIcon = this.add.image(goldX + gapX - 80, topY, 'bluecoin').setDepth(Z.UI + 1).setScale(0.75);
-  this.blueCoinText = this.add.text(goldX + gapX + 20, topY, String(State.heroCoins), {
-    font: '28px Arial',
+  this.bluePanel = this.add.image(goldX + gapX, topY, 'gold_panel')
+    .setOrigin(0.5, 0.5)
+    .setScale(0.6)
+    .setDepth(Z.UI);
+
+  this.blueCoinIcon = this.add.image(goldX + gapX - 60, topY, 'bluecoin')
+    .setDepth(Z.UI + 1)
+    .setScale(0.6);
+
+  this.blueCoinText = this.add.text(goldX + gapX + 10, topY, String(State.heroCoins), {
+    font: '24px Arial',
     fill: '#9fd6ff',
     stroke: '#001a33',
     strokeThickness: 4
   }).setOrigin(0, 0.5).setDepth(Z.UI + 2);
-} // ← вот здесь закрываем _buildHUD()
+}
 
- _syncHUD(){
-  if(this.goldText) this.goldText.setText(String(State.gold|0));
-  if(this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins|0));
+_syncHUD(){
+  if(this.goldText) this.goldText.setText(String(State.gold | 0));
+  if(this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins | 0));
 
-  if(State.baseHp !== State.lastBaseHp){        // только при реальном изменении
+  if(State.baseHp !== State.lastBaseHp){
     this._applyBaseTexture();
     State.lastBaseHp = State.baseHp;
   }
   this._refreshHeroPanel();
 }
-
   _buildSideButtons(){
     const x=576, y0=629, gap=80;
     const btnMenu = this.add.image(x, y0+0*gap, 'menu').setInteractive().setDepth(Z.UI);
@@ -491,7 +509,7 @@ _createHeroPanel(){
   this.heroPanel = { open:false, btns:[], priceTexts:[] };
 
   for(let t=1;t<=3;t++){
-    const ix = bx + (t-2)*gapX, iy = by - 250; // подняты выше на 20px
+    const ix = bx + (t-2)*gapX, iy = by - 180; // подняты выше на 20px
     const btn = this.add.image(ix,iy,`btn_hero${t}`)
       .setDepth(Z.UI+3)
       .setScale(1)
