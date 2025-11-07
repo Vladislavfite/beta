@@ -512,7 +512,7 @@ _buyHero(type){
   }
 
   // Не даём купить, если активный герой этого типа уже есть
-  const already = State.heroes.some(h => h && h.type === type && h.spr?.active);
+  const already = State.heroes.some(h => h && h.type === type && h.spr && h.spr.active && !h._dying);
   if (already) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Уже нанят', '#9fd6ff');
     return;
@@ -582,35 +582,32 @@ _upgradeHeroesOfType(type){
     h.hpBar.fillStyle(0x66ccff,.95).fillRect(x,y,w*p,hh);
   }
 
- _updateHero(h){
+_updateHero(h){
   if(!h?.spr?.active) return;
 
-  // Отрисовка HP
-  this._drawHeroHp(h);
-
-  // Если герой мертв — удалить
-  if(h.hp <= 0){
+  // смерть героя
+  if(h.hp <= 0 && !h._dying){
     this._killHero(h);
     return;
   }
 
-  // Если цель умерла или исчезла — сбрасываем
+  this._drawHeroHp(h);
+
+  // цель обновляем, если умерла
   if(!h.target || !h.target.active || h.target.state==='die'){
     h.target = this._findNearestEnemy(h.spr.x, h.spr.y, 240);
   }
 
-  // === Если есть враг поблизости ===
+  // если есть цель — атака
   if(h.target){
     const e = h.target;
     const d = Phaser.Math.Distance.Between(h.spr.x,h.spr.y,e.x,e.y);
 
     if(d > h.range){
-      // Идём к врагу
       this._moveTowards(h.spr, e.x, e.y, h.speed);
       this.playIfExists(h.spr, h.walkKey, true);
       h.spr.setFlipX(e.x < h.spr.x);
     } else {
-      // Атакуем
       const now = Date.now();
       if(now - (h._lastHit||0) >= h.cooldown){
         h._lastHit = now;
@@ -621,59 +618,64 @@ _upgradeHeroesOfType(type){
         this.time.delayedCall(400, ()=>{ if(h?.spr?.active) this.playIfExists(h.spr, h.walkKey, true); });
       }
     }
-  } else {
-    // === Нет врага — идём по маршруту ===
-    if(!h.path || !h.path.length) return;
-    const wp = h.path[h.pIndex] || h.path[h.path.length-1];
-    this._moveTowards(h.spr, wp[0], wp[1], h.speed);
-    this.playIfExists(h.spr, h.walkKey, true);
-    h.spr.setFlipX(wp[0] < h.spr.x);
+    return;
+  }
 
-    if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10){
-      if(h.pIndex < h.path.length-1) h.pIndex++;
-    }
+  // нет цели — движение по маршруту
+  if(!h.path || !h.path.length) return;
+  const wp = h.path[h.pIndex] || h.path[h.path.length-1];
+  this._moveTowards(h.spr, wp[0], wp[1], h.speed);
+  this.playIfExists(h.spr, h.walkKey, true);
+  h.spr.setFlipX(wp[0] < h.spr.x);
+  if(Phaser.Math.Distance.Between(h.spr.x,h.spr.y,wp[0],wp[1]) < 10 && h.pIndex < h.path.length-1){
+    h.pIndex++;
   }
 }
 
-  _killHero(h){
+
+_killHero(h){
+  // Проверка: герой существует, жив, не в процессе умирания
   if(!h || !h.spr?.active || h._dying) return;
   h._dying = true;
 
-  // Случайный звук смерти один раз
+  // Проигрываем случайный звук смерти (один раз)
   try {
-    const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
-    if(State.soundEnabled) this.sound.play(pick);
+    if(State.soundEnabled){
+      const pick = ['herodead1','herodead2','herodead3'][Math.floor(Math.random()*3)];
+      this.sound.play(pick);
+    }
   } catch(_){}
 
+  // Когда анимация закончится — удалить героя
   const end = ()=> this._deactivateHero(h);
 
-  // Если есть анимация смерти
+  // Если есть анимация смерти — проиграть её
   if(this.anims.exists(h.deadKey)){
     h.spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, end);
     h.spr.play(h.deadKey);
   } else {
-    // Если нет — просто убираем через задержку
-    this.time.delayedCall(400, end);
+    // Если нет анимации — просто удалить через 600 мс
+    this.time.delayedCall(600, end);
   }
 }
 
 _deactivateHero(h){
-  try{ h.hpBar?.destroy(); }catch(_){}
-  try{ h.spr?.destroy(); }catch(_){}
+  try { h.hpBar?.destroy(); } catch(_){}
+  try { h.spr?.destroy(); } catch(_){}
+
+  // Полностью удалить героя из массива State.heroes
   State.heroes = State.heroes.filter(x => x && x !== h);
 }
 
-  _deactivateHero(h){ try{ h.hpBar?.destroy(); }catch(_){} try{ h.spr?.destroy(); }catch(_){} State.heroes = State.heroes.filter(x=>x!==h); }
-
-  _findNearestEnemy(x,y, radius=220){
-    let g=null, dmin=radius;
-    for(const e of this.enemies.getChildren()){
-      if(!e.active||!e.visible||e.state==='die') continue;
-      const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
-      if(d<dmin){ dmin=d; g=e; }
-    }
-    return g;
+_findNearestEnemy(x, y, radius = 220){
+  let nearest = null, dmin = radius;
+  for(const e of this.enemies.getChildren()){
+    if(!e.active || !e.visible || e.state === 'die') continue;
+    const d = Phaser.Math.Distance.Between(x, y, e.x, e.y);
+    if(d < dmin){ dmin = d; nearest = e; }
   }
+  return nearest;
+}
 
   /* ============ СПОТЫ/БАШНИ ============ */
   _createHammer(pos,index){
@@ -1051,20 +1053,21 @@ _spawnHero(type){
     3:{ speed:.19, hp:210, dmg:32, range:30, scale:.33, idle:'h3_idle', walk:'h3_walk', atk:'h3_atk', dead:'h3_dead' }
   }[type||1];
 
-  // Добавим небольшой разброс появления героев, чтобы не наслаивались
-const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
-const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
-const s = this.add.sprite(
-  CONST.HERO_SPAWN.x + offset.x + randOffset.x,
-  CONST.HERO_SPAWN.y + offset.y + randOffset.y,
-  `${spec.idle}_1`
-)
+  // небольшое смещение при спавне
+  const randOffset = {x:Phaser.Math.Between(-12,12), y:Phaser.Math.Between(-4,4)};
+  const offset = {1:{x:-10,y:0}, 2:{x:0,y:0}, 3:{x:+10,y:0}}[type] || {x:0,y:0};
+
+  const s = this.add.sprite(
+    CONST.HERO_SPAWN.x + offset.x + randOffset.x,
+    CONST.HERO_SPAWN.y + offset.y + randOffset.y,
+    `${spec.idle}_1`
+  )
     .setDepth(Z.HERO)
     .setScale(spec.scale)
     .setVisible(true)
     .setActive(true);
 
-  // путь и стартовая точка
+  // выбрать ближайший путь
   const pick = this._chooseHeroPathFromBase();
   const path = CONST.PATHS[pick.idx];
   const startIndex = pick.iNear;
@@ -1077,15 +1080,16 @@ const s = this.add.sprite(
     idleKey: spec.idle, walkKey: spec.walk, atkKey: spec.atk, deadKey: spec.dead,
     path, pIndex:startIndex,
     hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
-    target: null
+    target: null, _dying:false
   };
 
   State.heroes.push(h);
-  // Начинаем движение по маршруту сразу
-this.playIfExists(s, h.walkKey, true);
-this.time.delayedCall(500, ()=>{ this._updateHero(h); });
 
+  // сразу идёт по маршруту
+  this.playIfExists(s, h.walkKey, true);
+  this.time.delayedCall(500, ()=>{ this._updateHero(h); });
 }
+
   // Выбор ближайшего к базе пути и стартового индекса точки
 _chooseHeroPathFromBase(){
   const scored = CONST.PATHS.map((p, idx) => {
