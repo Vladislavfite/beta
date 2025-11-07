@@ -594,6 +594,33 @@ _upgradeHeroesOfType(type){
     h.hpBar.fillStyle(0x003366,.6).fillRect(x,y,w,hh);
     h.hpBar.fillStyle(0x66ccff,.95).fillRect(x,y,w*p,hh);
   }
+// лёгкое отталкивание героев, чтобы не слипались
+_applyHeroSeparation(h){
+  if(!h?.spr?.active) return;
+  let rx = 0, ry = 0, cnt = 0;
+  const r = h.sepRadius || 28;
+  const r2 = r * r;
+
+  for(const other of State.heroes){
+    if(!other || other===h || !other.spr?.active) continue;
+    const dx = h.spr.x - other.spr.x;
+    const dy = h.spr.y - other.spr.y;
+    const d2 = dx*dx + dy*dy;
+    if(d2 > 0 && d2 < r2){
+      const d = Math.sqrt(d2);
+      rx += dx / d; ry += dy / d; cnt++;
+    }
+  }
+
+  if(cnt){
+    const k = h._sepK || 0.6;
+    const maxStep = 1.8;
+    const mx = Math.max(-maxStep, Math.min(maxStep, rx * k));
+    const my = Math.max(-maxStep, Math.min(maxStep, ry * k));
+    h.spr.x += mx;
+    h.spr.y += my;
+  }
+}
 
 // === Обновление героя ===
 _updateHero(h){
@@ -630,36 +657,45 @@ _updateHero(h){
     return;
   }
 
-  // === движение по маршруту ===
-  if(!h.path || !h.path.length) return;
-  const wp = h.path[h.pIndex];
-  if(!wp) return;
+ // === движение по маршруту ===
+if(!h.path || !h.path.length) return;
+const wp = h.path[h.pIndex];
+if(!wp) return;
 
-  const dx = wp[0] - h.spr.x;
-  const dy = wp[1] - h.spr.y;
-  const dist = Math.hypot(dx, dy);
+// --- целевая точка с личным поперечным сдвигом ("ряд") ---
+const tx = wp[0] + h.sideShift;
+const ty = wp[1] + Math.round(h.sideShift * 0.3); // слегка смещаем по Y, чтобы не уходил с тропы
 
-  // движение к точке
-  if(dist > 8){
+const dx = tx - h.spr.x;
+const dy = ty - h.spr.y;
+const dist = Math.hypot(dx, dy);
+
+if(dist > 8){
+  h._idleTime = 0;
+  this._moveTowards(h.spr, tx, ty, h.speed);
+  this.playIfExists(h.spr, h.walkKey, true);
+  h.spr.setFlipX(tx < h.spr.x);
+  // 🟢 мягкое отталкивание от других героев
+  this._applyHeroSeparation(h);
+
+} else {
+  // дошли до точки
+  h._idleTime = (h._idleTime||0) + (this.time.elapsedMS || 16);
+  if(h._idleTime > 5000){ // стоял 5 сек — меняем направление
+    h.dir *= -1;
     h._idleTime = 0;
-    this._moveTowards(h.spr, wp[0], wp[1], h.speed);
-    this.playIfExists(h.spr, h.walkKey, true);
-    h.spr.setFlipX(wp[0] < h.spr.x);
-  } else {
-    // дошли до точки
-    h._idleTime = (h._idleTime||0) + (this.time.elapsedMS || 16);
-    if(h._idleTime > 5000){ // стоял 5 сек — меняем направление
-      h.dir *= -1;
-      h._idleTime = 0;
-    }
-    h.pIndex += h.dir;
-
-    // если дошёл до конца — разворот
-    if(h.pIndex <= 0){ h.pIndex = 1; h.dir = 1; }
-    if(h.pIndex >= h.path.length - 1){ h.pIndex = h.path.length - 2; h.dir = -1; }
   }
+  h.pIndex += h.dir;
+
+  // если дошёл до конца — разворот
+  if(h.pIndex <= 0){ h.pIndex = 1; h.dir = 1; }
+  if(h.pIndex >= h.path.length - 1){ h.pIndex = h.path.length - 2; h.dir = -1; }
 }
 
+// --- динамическая глубина по y (ближние герои поверх дальних, но под башнями) ---
+if(h.spr?.setDepth){
+  h.spr.setDepth((h.depthBase || Z.HERO) + h.spr.y * 0.001);
+}
 
 // === Смерть героя (однократно) ===
 _killHero(h){
@@ -1135,7 +1171,11 @@ _spawnHero(type){
     CONST.HERO_SPAWN.x + randOffset.x,
     CONST.HERO_SPAWN.y + randOffset.y,
     `${spec.idle}_1`
-  ).setDepth(Z.HERO).setScale(spec.scale).setVisible(true).setActive(true);
+  )
+  .setDepth(Z.HERO)          // глубина (чуть ниже башен)
+  .setScale(spec.scale)
+  .setVisible(true)
+  .setActive(true);
 
   const pick = this._chooseHeroPathFromBase();
   const path = CONST.PATHS[pick.idx];
@@ -1151,10 +1191,20 @@ _spawnHero(type){
     path, pIndex, dir:-1,
     hpBar: this.add.graphics().setDepth(Z.HERO_HP).setVisible(true),
     target:null, _dying:false,
-    _idleTime:0
+    _idleTime:0,
+
+    // 🟢 антислипание и уникальный ряд
+    sideShift: Phaser.Math.Between(-10,10),  // свой поперечный сдвиг (ряды)
+    sepRadius: 28,                           // радиус личного пространства
+    _sepK: 0.6,                              // сила отталкивания
+    depthBase: Z.HERO                        // базовый слой
   };
 
   State.heroes.push(h);
+
+  // динамическая глубина по y (чтобы ближние герои перекрывали дальних)
+  s.setDepth(h.depthBase + h.spr.y * 0.001);
+
   this.playIfExists(s, h.walkKey, true);
 }
 
