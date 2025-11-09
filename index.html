@@ -236,7 +236,9 @@ class AppScene extends Phaser.Scene{
     this.load.image('pause','assets/elements/pause.png');
     this.load.image('resume','assets/elements/play2.png');
     this.load.image('gold_panel','assets/elements/gold.png');
-    this.load.image('bluecoin','assets/elements/bluecoin.png');
+   // Анимированная синяя монета (вторая валюта)
+for (let i = 1; i <= 6; i++)
+  this.load.image(`mt${i}`, `assets/money/mt${i}.png`);
 
     // Кнопки меню
     this.load.image('btn_play','assets/elements/play.png');
@@ -426,9 +428,21 @@ _buildHUD(){
     .setScale(0.35)
     .setDepth(Z.UI);
 
-  this.blueCoinIcon = this.add.image(blueX - 55, topY, 'bluecoin')
-    .setDepth(Z.UI + 1)
-    .setScale(0.45);
+// Анимированная монета второй валюты
+this.blueCoinIcon = this.add.sprite(blueX - 55, topY, 'mt1')
+  .setDepth(Z.UI + 1)
+  .setScale(0.45);
+
+// Создаём анимацию, если ещё не создана
+if (!this.anims.exists('mt_anim')) {
+  this.anims.create({
+    key: 'mt_anim',
+    frames: [1,2,3,4,5,6].map(i => ({ key: `mt${i}` })),
+    frameRate: 10,
+    repeat: -1
+  });
+}
+this.playIfExists(this.blueCoinIcon, 'mt_anim');
 
   // Текст синей валюты — центр панели
   this.blueCoinText = this.add.text(blueX + 5, topY, String(State.heroCoins), {
