@@ -30,7 +30,7 @@
 
 
       // UI
-      ['moloticon','up','noup','arrow','menu','reload','sound','soundoff','fast','slow','pause','play2','gold','play','playagain','bluecoin','hero1','hero2','hero3','star1','star2','star3']
+      ['moloticon','up','noup','arrow','menu','reload','sound','soundoff','fast','slow','pause','play2','gold','play','playagain','hero1','hero2','hero3','star1','star2','star3']
         .forEach(n=> add('image',`assets/elements/${n}.png`,'image/png'));
 
       // Монеты/реклама
@@ -304,8 +304,6 @@ for (let i = 1; i <= 6; i++)
   }
 
   create(){
-    /* Карта */
-    this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map').setDisplaySize(CONST.WIDTH, CONST.HEIGHT).setDepth(Z.MAP);
 
     /* Группы/пулы */
     this.enemies = this.add.group(); this.bullets = this.add.group();
@@ -349,7 +347,14 @@ for (let i = 1; i <= 6; i++)
     this.playGameOver = ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
     /* Прелоадер → меню */
-    hidePreloader(); this.playLobby(); showMenuOverlay();
+this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
+  .setDisplaySize(CONST.WIDTH, CONST.HEIGHT)
+  .setDepth(Z.MAP);
+
+hidePreloader();
+this.playLobby();
+showMenuOverlay();
+
 
     /* Споты строительства */
     CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
@@ -447,7 +452,7 @@ this.playIfExists(this.blueCoinIcon, 'mt_anim');
   // Текст синей валюты — центр панели
   this.blueCoinText = this.add.text(blueX + 5, topY, String(State.heroCoins), {
     font: '22px Arial',
-    fill: '#9fd6ff',
+    fill: '#cce6ff',
     stroke: '#001a33',
     strokeThickness: 4
   }).setOrigin(0.5, 0.5).setDepth(Z.UI + 2);
@@ -622,34 +627,51 @@ _toggleHeroPanel(){
 }
 
 _refreshHeroPanel(){
-  if(!this.heroPanel?.btns?.length) return;
-  for(const b of this.heroPanel.btns){
-    const cost = CONST.HERO_COSTS[b.type-1]||0;
-    b.setTint(State.heroCoins>=cost ? 0xffffff : 0x777777);
+  if (!this.heroPanel?.btns?.length) return;
+
+  for (const b of this.heroPanel.btns) {
+    const cost = CONST.HERO_COSTS[b.type - 1] || 0;
+    const hasHero = State.heroes.some(h => h && h.type === b.type && h.spr?.active && !h._dying);
+    const canAfford = State.heroCoins >= cost;
+
+    // 🔵 Неактивна, если валюты не хватает или герой этого типа уже есть
+    if (!canAfford || hasHero) {
+      b.setTint(0x777777);
+      b.disableInteractive();
+    } else {
+      b.clearTint();
+      b.setInteractive({ useHandCursor: true });
+    }
   }
 }
 
    // === Покупка героя (жёсткое ограничение: 1 герой на тип) ===
 _buyHero(type){
-  const cost = CONST.HERO_COSTS[type-1] || 0;
+  const cost = CONST.HERO_COSTS[type - 1] || 0;
 
+  // Недостаточно валюты
   if (State.heroCoins < cost) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, `Нужно ${cost}`, '#9fd6ff');
     if (State.soundEnabled) try { this.sound.play('klick'); } catch(_) {}
     return;
   }
 
-  // Не даём купить, если активный герой этого типа уже есть
-  const already = State.heroes.some(h => h && h.type === type && h.spr && h.spr.active && !h._dying);
+  // Уже есть активный герой этого типа
+  const already = State.heroes.some(h => h && h.type === type && h.spr?.active && !h._dying);
   if (already) {
     this._floatText(CONST.BASE_POS.x, CONST.BASE_POS.y - 140, 'Уже нанят', '#9fd6ff');
     return;
   }
 
+  // Всё в порядке — покупаем
   State.heroCoins -= cost;
+  if (State.soundEnabled) try { this.sndMoney.play(); } catch(_) {} // 🎵 звук покупки
+
   this._spawnHero(type);
   this._syncHUD();
+  this._refreshHeroPanel(); // 🔄 обновляем состояние кнопок
 }
+
 // === Улучшение героя ===
 _upgradeHeroesOfType(type){
   // Проверяем, хватает ли валюты
