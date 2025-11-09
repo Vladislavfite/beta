@@ -82,6 +82,9 @@
   #preloaderOverlay{ background:#000; }
   #bar{ width:60%; max-width:520px; height:18px; background:#1a1a1a; border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6); }
   #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
+  #menuOverlay.hidden .imgbtn {
+  display: none;
+}
 </style>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
@@ -1490,11 +1493,23 @@ _chooseHeroPathFromBase(){
     const menuOverlay = document.getElementById('menuOverlay');
 
     // 🚫 не показываем меню пока идёт загрузка
-menuOverlay.classList.add('hidden');
-menuOverlay.style.display = 'none';
+    menuOverlay.classList.add('hidden');
+    menuOverlay.style.display = 'none';
+
+  <!-- ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ И GAMEOVER ========================= -->
+  <script>
+  window.addEventListener('DOMContentLoaded', async () => {
+    const menuVideo = document.getElementById('menuVideo');
+    const gameoverVideo = document.getElementById('gameoverVideo');
+    const preloaderOverlay = document.getElementById('preloaderOverlay');
+    const menuOverlay = document.getElementById('menuOverlay');
+
+    // 🚫 не показываем меню пока идёт загрузка
+    menuOverlay.classList.add('hidden');
+    menuOverlay.style.display = 'none';
 
     try {
-      // === Загружаем оба видео как blob, чтобы убрать паузу
+      // === Загружаем оба видео как blob, чтобы убрать лаги при первом запуске ===
       const [menuBlob, goBlob] = await Promise.all([
         fetch('assets/menu.webm').then(r => r.blob()),
         fetch('assets/gameover.webm').then(r => r.blob())
@@ -1502,22 +1517,27 @@ menuOverlay.style.display = 'none';
       menuVideo.src = URL.createObjectURL(menuBlob);
       gameoverVideo.src = URL.createObjectURL(goBlob);
 
+      // ✅ Настройки видео меню
       menuVideo.muted = true;
       menuVideo.loop = true;
       menuVideo.setAttribute('playsinline', '');
+      menuVideo.currentTime = 0;
+
+      // ✅ Видео стартует один раз и спокойно играет под прелоадером
       await menuVideo.play().catch(() => {});
-      // Видео меню играет в фоне, но не показываем панель пока идёт загрузка
-menuVideo.style.visibility = 'visible';
-menuVideo.style.opacity = '1';
-menuVideo.currentTime = 0;
-menuVideo.play().catch(()=>{});
+      menuVideo.style.visibility = 'visible';
+      menuVideo.style.opacity = '1';
 
-// меню станет видимым только после скрытия прелоадера (см. create)
-
-      // При старте игры отключаем видео меню
+      // ✅ При старте игры плавно убираем видео меню
       window.addEventListener('startGame', () => {
-        try { menuVideo.pause(); menuVideo.currentTime = 0; } catch(_) {}
-        lobbyPlaying = false;
+        try {
+          menuVideo.style.transition = 'opacity 0.3s ease';
+          menuVideo.style.opacity = '0';
+          setTimeout(() => {
+            menuVideo.pause();
+            menuVideo.currentTime = 0;
+          }, 300);
+        } catch (_) {}
       });
 
     } catch (e) {
@@ -1526,19 +1546,19 @@ menuVideo.play().catch(()=>{});
   });
 
   /* ========================= КНОПКИ МЕНЮ ========================= */
-  startImg.addEventListener('click', ()=>{
+  startImg.addEventListener('click', () => {
     const sc = game.scene.keys['AppScene'];
-    if(!sc) return;
+    if (!sc) return;
     hideMenuOverlay();
     sc.beginNewGame();
-  },{passive:true});
+  }, { passive: true });
 
-  restartImg.addEventListener('click', ()=>{
+  restartImg.addEventListener('click', () => {
     const sc = game.scene.keys['AppScene'];
-    if(!sc) return;
+    if (!sc) return;
     hideGameoverOverlay();
     sc.beginNewGame();
-  },{passive:true});
+  }, { passive: true });
   </script>
 </body>
 </html>
