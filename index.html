@@ -67,45 +67,58 @@
     })();
     // === Принудительная предзагрузка видео, чтобы убрать задержку при первом показе ===
 window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const menuVideo = document.getElementById('menuVideo');
-    const goVideo = document.getElementById('goVideo');
+  const menuVideo = document.getElementById('menuVideo');
+  const goVideo = document.getElementById('goVideo');
+  const preloaderOverlay = document.getElementById('preloaderOverlay');
+  const menuOverlay = document.getElementById('menuOverlay');
 
-    // Загружаем оба видео полностью в кэш
-    await Promise.all([
-      fetch('assets/menu.webm').then(r => r.blob()).catch(()=>{}),
-      fetch('assets/gameover.webm').then(r => r.blob()).catch(()=>{})
+  try {
+    // 🟢 Показываем меню сразу (ещё до Phaser)
+    preloaderOverlay.classList.add('hidden');
+    menuOverlay.classList.remove('hidden');
+    menuOverlay.style.display = 'flex';
+
+    // Принудительная предзагрузка
+    const [menuBlob, goBlob] = await Promise.all([
+      fetch('assets/menu.webm').then(r=>r.blob()).catch(()=>null),
+      fetch('assets/gameover.webm').then(r=>r.blob()).catch(()=>null)
     ]);
 
-    // Инициализируем видеоэлементы
-    menuVideo.load();
-    goVideo.load();
-    // Инициализируем видеоэлементы
-menuVideo.load();
-goVideo.load();
-
-// 🟢 Принудительно прогреваем видео, чтобы убрать задержку на старте (iOS fix)
-const warmUpVideo = async (video) => {
-  try {
-    // создаём крошечный blob-URL для preload
-    const blob = await fetch(video.src).then(r => r.blob());
-    const url = URL.createObjectURL(blob);
-    video.src = url;
-    video.muted = true;
-    video.play().then(() => {
-      video.pause();
-      video.currentTime = 0;
+    if (menuBlob) {
+      const url = URL.createObjectURL(menuBlob);
+      menuVideo.src = url;
+      await menuVideo.play().catch(()=>{});
+      menuVideo.currentTime = 0;
+      menuVideo.pause();
       URL.revokeObjectURL(url);
-    }).catch(()=>{});
-  } catch(e) { console.warn('warmup fail', e); }
-};
-await Promise.all([warmUpVideo(menuVideo), warmUpVideo(goVideo)]);
+    }
+    if (goBlob) {
+      const url = URL.createObjectURL(goBlob);
+      goVideo.src = url;
+      goVideo.load();
+      URL.revokeObjectURL(url);
+    }
 
-    console.log('✅ Видео меню и гейм-овер предзагружены полностью');
-  } catch(e) {
-    console.warn('⚠️ Не удалось предзагрузить видео:', e);
+    // 🟢 После того как видео готово, инициализируем Phaser
+    setTimeout(() => {
+      if (typeof Phaser !== 'undefined' && !window.__gameStarted) {
+        window.__gameStarted = true;
+        const config = {
+          type: Phaser.AUTO,
+          parent: 'game',
+          backgroundColor:'#000000',
+          scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:CONST.WIDTH, height:CONST.HEIGHT },
+          physics:{ default:'arcade', arcade:{ debug:false } },
+          scene:[AppScene]
+        };
+        new Phaser.Game(config);
+      }
+    }, 200);
+  } catch (e) {
+    console.warn('⚠️ Предзагрузка видео не удалась:', e);
   }
 });
+
   </script>
 
   <style>
