@@ -387,16 +387,43 @@ this.time.delayedCall(50, () => {
     this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback:()=> this._towersTick() });
   }
 
-  update(){
-    if(!State.started || State.paused){ this._syncHUD(); return; }
-    for(const e of this.enemies.getChildren()) if(e.active&&e.visible) this._updateEnemy(e);
-    for(const b of this.bullets.getChildren()) if(b.active&&b.visible) this._updateBullet(b);
-    for(const h of State.heroes) if(h?.spr?.active && h.spr.visible) this._updateHero(h);
+update() {
+  // 🚫 Если игра на паузе или не начата — обновляем только HUD и выходим
+  if (!State.started || State.paused) {
     this._syncHUD();
-    // сортировка по глубине — башни перекрывают врагов
-this.children.list.sort((a, b) => a.depth - b.depth);
-
+    return;
   }
+
+  // === Обновляем всех активных врагов, пули и героев ===
+  for (const e of this.enemies.getChildren())
+    if (e.active && e.visible) this._updateEnemy(e);
+
+  for (const b of this.bullets.getChildren())
+    if (b.active && b.visible) this._updateBullet(b);
+
+  for (const h of State.heroes)
+    if (h?.spr?.active && h.spr.visible) this._updateHero(h);
+
+  // Обновляем интерфейс
+  this._syncHUD();
+
+  // 🧩 Динамическая сортировка по Y: кто ниже — тот спереди
+  for (const child of this.children.list) {
+    if (child.depth !== undefined && child.y !== undefined) {
+      // Игнорируем элементы интерфейса
+      if (child.depth < Z.UI) {
+        let offset = 0;
+        // башни чуть выше, база ещё выше
+        if (child.texture?.key?.startsWith('tower')) offset = 5;
+        else if (child.texture?.key?.startsWith('basehp')) offset = 10;
+        child.setDepth(child.y + offset);
+      }
+    }
+  }
+
+  // Финальная сортировка по глубине, чтобы применить порядок отрисовки
+  this.children.list.sort((a, b) => a.depth - b.depth);
+}
 
   /* ============ ХЕЛПЕРЫ ============ */
   playIfExists(sprite, key, repeat=true){ if(!sprite || !key) return; const exists = this.anims.exists(key); if(!exists) return; const cur = sprite.anims && sprite.anims.currentAnim && sprite.anims.currentAnim.key; if(cur === key) return; sprite.play(key, repeat); }
@@ -468,7 +495,6 @@ this.playIfExists(this.blueCoinIcon, 'mt_anim');
     strokeThickness: 4
   }).setOrigin(0.5, 0.5).setDepth(Z.UI + 2);
 }
-
 _syncHUD(){
   if (this.goldText) this.goldText.setText(String(State.gold | 0));
   if (this.blueCoinText) this.blueCoinText.setText(String(State.heroCoins | 0));
