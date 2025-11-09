@@ -354,18 +354,18 @@ for (let i = 1; i <= 6; i++)
     this.playBattle = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
     this.playGameOver = ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
-    /* Прелоадер → меню */
-this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
-  .setDisplaySize(CONST.WIDTH, CONST.HEIGHT)
-  .setDepth(Z.MAP);
-
+    // Сначала полностью прячем сцену и показываем меню сразу
 hidePreloader();
+showMenuOverlay();
+this.playLobby();
 
-// ⏳ даём Phaser догрузить всё, потом показываем меню и включаем звук
-this.time.delayedCall(400, () => {
-  showMenuOverlay();
-  this.playLobby();
+// Только потом (через мгновение) добавляем карту, чтобы не было “вспышки”
+this.time.delayedCall(50, () => {
+  this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
+    .setDisplaySize(CONST.WIDTH, CONST.HEIGHT)
+    .setDepth(Z.MAP);
 });
+
 
     /* Споты строительства */
     CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
@@ -1302,11 +1302,8 @@ beginNewGame(){
 }
 
 returnToMenu() {
-  // 🧩 Сбрасываем состояние игры
   State.started = false;
   this._setPaused(false);
-
-  // 🧹 Останавливаем все активные звуки
   this.stopAllLoops();
   try { this.sndBattle.stop(); } catch(_) {}
   try { this.sndArrowLp.stop(); } catch(_) {}
@@ -1315,19 +1312,18 @@ returnToMenu() {
   // 🖼️ Показываем меню
   showMenuOverlay();
 
-  // 🎵 Запускаем музыку меню (lobby.mp3)
+  // 🎵 Запускаем музыку меню
   this.playLobby();
 
-  // 🎬 Восстанавливаем проигрывание фонового видео меню, если оно на паузе
+  // 🟢 Плавное возвращение видео меню при выходе из игры
   try {
-    const mv = document.getElementById('menuVideo');
-    if (mv && mv.paused) {
-      mv.currentTime = 0;       // начинаем заново, чтобы не было зависания на последнем кадре
-      mv.play().catch(() => {}); // защищаемся от ошибок автозапуска
-    }
+    menuVideo.style.transition = 'opacity 0.4s ease';
+    menuVideo.style.opacity = '1';
+    menuVideo.currentTime = 0;
+    menuVideo.play().catch(() => {});
   } catch (_) {}
 
-  // ⏱️ Очищаем таймер волн, если он ещё активен
+  // ⏱️ Очищаем таймер волн
   if (this.waveTimer) {
     try { this.waveTimer.remove(); } catch(_) {}
     this.waveTimer = null;
