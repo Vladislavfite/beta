@@ -2,49 +2,91 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=720, height=1280, user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Tower Defense — база, герои, 2-я валюта (без помощников)</title>
 
-<!-- Предзагрузка ключевых ассетов -->
-<script>
-async function fullPreloadAssets() {
-  const bar = document.getElementById('barFill');
-  const pct = document.getElementById('pct');
+  <!-- Предзагрузка ключевых ассетов -->
+  <script>
+    (function preloadAssets(){
+      const add = (as, href, type) => {
+        const l = document.createElement('link');
+        l.rel = 'preload'; l.as = as; l.href = href; if(type) l.type = type;
+        document.head.appendChild(l);
+      };
+      // Видео
+      add('video','assets/menu.webm','video/webm');
+      add('video','assets/gameover.webm','video/webm');
 
-  // Загружаем только тяжёлые видео, чтобы избежать задержки при первом запуске
-  const assetList = ['assets/menu.webm', 'assets/gameover.webm'];
-  let done = 0;
+      // Карта
+      add('image','assets/map.png','image/png');
 
-  const updateBar = () => {
-    const percent = Math.round((done / assetList.length) * 100);
-    bar.style.width = percent + '%';
-    pct.textContent = percent + '%';
-  };
+ // База (сам объект): basehp20/40/60/80/100
+[20,40,60,80,100].forEach(p=> add('image', `assets/base/basehp${p}.png`, 'image/png'));
 
-  for (const url of assetList) {
-    await fetch(url).then(r => r.blob()).catch(() => {});
-    done++;
-    updateBar();
-  }
+// Иконка HP над базой (надпись/плашка хп): base0/20/40/60/100
+[0,20,40,60,100].forEach(p=> add('image', `assets/base/base${p}.png`, 'image/png'));
 
-  // === Явная инициализация видео для мгновенного старта ===
-  const menuVideo = document.getElementById('menuVideo');
-  const goVideo = document.getElementById('goVideo');
+
+      // UI
+      ['moloticon','up','noup','arrow','menu','reload','sound','soundoff','fast','slow','pause','play2','gold','play','playagain','bluecoin','hero1','hero2','hero3','star1','star2','star3']
+        .forEach(n=> add('image',`assets/elements/${n}.png`,'image/png'));
+
+      // Монеты/реклама
+      for(let i=1;i<=6;i++){
+        add('image',`assets/money/money${i}.png`,'image/png');
+        add('image',`assets/reklama/reklama${i}.png`,'image/png');
+      }
+
+      // Враги
+      for(let i=1;i<=7;i++){
+        add('image',`assets/enemy/walk/walk${i}.png`,'image/png');
+        add('image',`assets/enemy/atack_enemy/atackenemy${i}.png`,'image/png');
+        add('image',`assets/enemy/die_enemy/dead${i}.png`,'image/png');
+      }
+
+      // Башни
+      for(let t=1;t<=12;t++){
+        for(let j=1;j<=4;j++) add('image',`assets/attacktower/statik/tower${t}/stower${j}.png`,'image/png');
+        for(let j=1;j<=5;j++) add('image',`assets/attacktower/attack/tower${t}/aatcktower${j}.png`,'image/png');
+      }
+
+      // Герои (idle4/walk4/atk6/dead5)
+      for(let h=1;h<=3;h++){
+        for(let j=1;j<=4;j++) add('image',`assets/hero/h${h}_idle${j}.png`,'image/png');
+        for(let j=1;j<=4;j++) add('image',`assets/hero/h${h}_walk${j}.png`,'image/png');
+        for(let j=1;j<=6;j++) add('image',`assets/hero/h${h}_atk${j}.png`,'image/png');
+        for(let j=1;j<=5;j++) add('image',`assets/hero/h${h}_dead${j}.png`,'image/png');
+      }
+
+      // Звук
+      ['lobby','battle','arrow','gameover','towerup','towerrush','money','killenemy','boss','uplevel','herodead1','herodead2','herodead3','uronbase']
+        .forEach(n=> add('audio',`assets/sound/${n}.mp3`,'audio/mpeg'));
+      add('audio','assets/sound/klick.ogg','audio/ogg');
+    })();
+    // === Принудительная предзагрузка видео, чтобы убрать задержку при первом показе ===
+window.addEventListener('DOMContentLoaded', async () => {
   try {
+    const menuVideo = document.getElementById('menuVideo');
+    const goVideo = document.getElementById('goVideo');
+
+    // Загружаем оба видео полностью в кэш
+    await Promise.all([
+      fetch('assets/menu.webm').then(r => r.blob()).catch(()=>{}),
+      fetch('assets/gameover.webm').then(r => r.blob()).catch(()=>{})
+    ]);
+
+    // Инициализируем видеоэлементы
     menuVideo.load();
     goVideo.load();
-    // Чтобы на Android видео гарантированно стартовало
-    menuVideo.play().catch(()=>{});
-    goVideo.play().catch(()=>{});
-  } catch (e) {
-    console.warn('Ошибка загрузки видео:', e);
-  }
 
-  console.log('✅ Видео предзагружено, можно запускать Phaser');
-}
-</script>
+    console.log('✅ Видео меню и гейм-овер предзагружены полностью');
+  } catch(e) {
+    console.warn('⚠️ Не удалось предзагрузить видео:', e);
+  }
+});
+  </script>
 
   <style>
     :root{ --w:720px; --h:1280px; }
@@ -384,10 +426,9 @@ _buildHUD(){
     .setScale(0.35)
     .setDepth(Z.UI);
 
-this.blueCoinIcon = this.add.sprite(blueX - 55, topY, 'mt1').setScale(0.45).setDepth(Z.UI+1);
-if (!this.anims.exists('mt_anim'))
-  this.anims.create({ key: 'mt_anim', frames: [1,2,3,4,5,6].map(i => ({ key: `mt${i}` })), frameRate: 10, repeat: -1 });
-this.playIfExists(this.blueCoinIcon, 'mt_anim');
+  this.blueCoinIcon = this.add.image(blueX - 55, topY, 'bluecoin')
+    .setDepth(Z.UI + 1)
+    .setScale(0.45);
 
   // Текст синей валюты — центр панели
   this.blueCoinText = this.add.text(blueX + 5, topY, String(State.heroCoins), {
@@ -1288,64 +1329,33 @@ _chooseHeroPathFromBase(){
   </script>
   <script>
   /* ========================= ЗАПУСК PHASER ========================= */
-(async function(){
-  // Показываем глобальный прелоадер и начинаем полную загрузку ассетов
-  showPreloader();
-  try {
-    await fullPreloadAssets(); // ждём пока все ассеты загрузятся
-  } catch(e) {
-    console.warn('Ошибка предзагрузки:', e);
-  }
-  hidePreloader(); // убираем экран загрузки
-
-  // После загрузки — создаём Phaser игру
   const config = {
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor:'#000000',
-    scale:{
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: CONST.WIDTH,
-      height: CONST.HEIGHT,
-      autoRound: true
-    },
+    scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:CONST.WIDTH, height:CONST.HEIGHT, autoRound:true },
     physics:{ default:'arcade', arcade:{ debug:false } },
     scene:[AppScene]
   };
-
   const game = new Phaser.Game(config);
 
-  // === Связь Canvas ↔ DOM ===
+  /* ========================= СВЯЗЬ DOM ↔ CANVAS ========================= */
   function syncStageToCanvas(){
     if(!game || !game.scale) return;
     const s=game.scale, cssW=(s.displaySize&&s.displaySize.width)||CONST.WIDTH, cssH=(s.displaySize&&s.displaySize.height)||CONST.HEIGHT;
     stageBox.style.width = Math.floor(cssW)+'px';
     stageBox.style.height= Math.floor(cssH)+'px';
   }
-
-  window.addEventListener('load', ()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },{passive:true});
+  window.addEventListener('load', ()=>{ showPreloader(); try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },{passive:true});
   window.addEventListener('resize', ()=>{ cancelAnimationFrame(syncStageToCanvas.__raf||0); syncStageToCanvas.__raf=requestAnimationFrame(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); syncStageToCanvas.__raf=0; }); },{passive:true});
   window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },300); },{passive:true});
   function afterBoot(){ try{ game.scale.on('resize', ()=> syncStageToCanvas()); }catch(_){ } syncStageToCanvas(); }
   if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
   else document.addEventListener('DOMContentLoaded', afterBoot);
-  
-    // === Кнопки меню ===
-  startImg.addEventListener('click', () => {
-    const sc = game.scene.keys['AppScene'];
-    if (!sc) return;
-    hideMenuOverlay();
-    sc.beginNewGame();
-  }, { passive: true });
 
-  restartImg.addEventListener('click', () => {
-    const sc = game.scene.keys['AppScene'];
-    if (!sc) return;
-    hideGameoverOverlay();
-    sc.beginNewGame();
-  }, { passive: true });
-})(); // конец async функции
-</script>
+  /* ========================= КНОПКИ МЕНЮ ========================= */
+  startImg.addEventListener('click', ()=>{ const sc = game.scene.keys['AppScene']; if(!sc) return; hideMenuOverlay(); sc.beginNewGame(); },{passive:true});
+  restartImg.addEventListener('click', ()=>{ const sc = game.scene.keys['AppScene']; if(!sc) return; hideGameoverOverlay(); sc.beginNewGame(); },{passive:true});
+  </script>
 </body>
 </html>
