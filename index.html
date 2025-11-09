@@ -13,77 +13,39 @@ async function fullPreloadAssets() {
   const bar = document.getElementById('barFill');
   const pct = document.getElementById('pct');
 
-  const assetList = [];
-
-  // Собираем ВСЕ ассеты, включая видео, изображения и звук
-  const push = (arr)=> assetList.push(...arr);
-  push([
-    'assets/menu.webm','assets/gameover.webm','assets/map.png'
-  ]);
-
-  [20,40,60,80,100].forEach(p=> push([`assets/base/basehp${p}.png`]));
-  [0,20,40,60,100].forEach(p=> push([`assets/base/base${p}.png`]));
-
-  const elems = ['moloticon','up','noup','arrow','menu','reload','sound','soundoff',
-                 'fast','slow','pause','play2','gold','play','playagain','hero1','hero2','hero3'];
-  elems.forEach(n=> push([`assets/elements/${n}.png`]));
-
-  for(let i=1;i<=6;i++) push([`assets/money/money${i}.png`,`assets/reklama/reklama${i}.png`,`assets/money/mt${i}.png`]);
-
-  for(let i=1;i<=7;i++)
-    push([`assets/enemy/walk/walk${i}.png`,`assets/enemy/atack_enemy/atackenemy${i}.png`,`assets/enemy/die_enemy/dead${i}.png`]);
-
-  for(let t=1;t<=12;t++)
-    for(let j=1;j<=5;j++) push([`assets/attacktower/statik/tower${t}/stower${j}.png`,`assets/attacktower/attack/tower${t}/aatcktower${j}.png`]);
-
-  for(let h=1;h<=3;h++){
-    for(let j=1;j<=4;j++) push([`assets/hero/h${h}_idle${j}.png`,`assets/hero/h${h}_walk${j}.png`]);
-    for(let j=1;j<=6;j++) push([`assets/hero/h${h}_atk${j}.png`]);
-    for(let j=1;j<=5;j++) push([`assets/hero/h${h}_dead${j}.png`]);
-  }
-
-  const sounds = ['lobby','battle','arrow','gameover','towerup','towerrush','money','killenemy','boss','uplevel','herodead1','herodead2','herodead3','uronbase'];
-  sounds.forEach(n=> push([`assets/sound/${n}.mp3`]));
-  push(['assets/sound/klick.ogg']);
-
+  // Загружаем только тяжёлые видео, чтобы избежать задержки при первом запуске
+  const assetList = ['assets/menu.webm', 'assets/gameover.webm'];
   let done = 0;
-  const total = assetList.flat().length;
-  const updateBar = ()=>{
-    const percent = Math.round((done/total)*100);
+
+  const updateBar = () => {
+    const percent = Math.round((done / assetList.length) * 100);
     bar.style.width = percent + '%';
     pct.textContent = percent + '%';
   };
 
-  async function load(url){
-    return new Promise(res=>{
-      const ext = url.split('.').pop();
-      if(ext==='mp3'||ext==='ogg'){
-        const a=new Audio(); a.src=url; a.oncanplaythrough=a.onerror=()=>{done++;updateBar();res();};
-      }else if(ext==='webm'){
-        fetch(url).then(r=>r.blob()).then(()=>{done++;updateBar();res();}).catch(()=>{done++;updateBar();res();});
-      }else{
-        const img=new Image(); img.onload=img.onerror=()=>{done++;updateBar();res();}; img.src=url;
-      }
-    });
+  for (const url of assetList) {
+    await fetch(url).then(r => r.blob()).catch(() => {});
+    done++;
+    updateBar();
   }
 
-  // Загружаем последовательно батчами
-  const batchSize=16;
-  for(let i=0;i<assetList.length;i+=batchSize){
-    await Promise.all(assetList.slice(i,i+batchSize).flat().map(load));
-  }
-
-  // === ДОБАВЛЕНО: Явная инициализация видео для мгновенного старта ===
+  // === Явная инициализация видео для мгновенного старта ===
   const menuVideo = document.getElementById('menuVideo');
   const goVideo = document.getElementById('goVideo');
   try {
     menuVideo.load();
     goVideo.load();
-  } catch(e) {
-    console.warn('Не удалось инициализировать видео:', e);
+    // Чтобы на Android видео гарантированно стартовало
+    menuVideo.play().catch(()=>{});
+    goVideo.play().catch(()=>{});
+  } catch (e) {
+    console.warn('Ошибка загрузки видео:', e);
   }
+
+  console.log('✅ Видео предзагружено, можно запускать Phaser');
 }
 </script>
+
   <style>
     :root{ --w:720px; --h:1280px; }
     html,body{ height:100%; margin:0; background:#000; overflow:hidden; -webkit-tap-highlight-color:transparent; }
