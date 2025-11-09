@@ -387,15 +387,39 @@ this.time.delayedCall(50, () => {
     this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback:()=> this._towersTick() });
   }
 
-update(){
-    if(!State.started || State.paused){ this._syncHUD(); return; }
-    for(const e of this.enemies.getChildren()) if(e.active&&e.visible) this._updateEnemy(e);
-    for(const b of this.bullets.getChildren()) if(b.active&&b.visible) this._updateBullet(b);
-    for(const h of State.heroes) if(h?.spr?.active && h.spr.visible) this._updateHero(h);
+update() {
+  if (!State.started || State.paused) {
     this._syncHUD();
-    // сортировка по глубине — башни перекрывают врагов
-this.children.list.sort((a, b) => a.depth - b.depth);
+    return;
   }
+
+  // === Обновление всех активных объектов ===
+  for (const e of this.enemies.getChildren())
+    if (e.active && e.visible) this._updateEnemy(e);
+
+  for (const b of this.bullets.getChildren())
+    if (b.active && b.visible) this._updateBullet(b);
+
+  for (const h of State.heroes)
+    if (h?.spr?.active && h.spr.visible) this._updateHero(h);
+
+  this._syncHUD();
+
+  // 🧩 Безопасная динамическая сортировка по Y
+  for (const child of this.children.list) {
+    if (!child || child.depth === undefined || child.y === undefined) continue;
+    if (child.depth < Z.UI) {
+      let offset = 0;
+      const key = child.texture?.key || '';
+      if (key.startsWith('tower')) offset = 5;
+      else if (key.startsWith('basehp')) offset = 10;
+      child.setDepth(child.y + offset);
+    }
+  }
+
+  // Финальная сортировка по глубине — башни перекрывают врагов
+  this.children.list.sort((a, b) => a.depth - b.depth);
+}
   /* ============ ХЕЛПЕРЫ ============ */
   playIfExists(sprite, key, repeat=true){ if(!sprite || !key) return; const exists = this.anims.exists(key); if(!exists) return; const cur = sprite.anims && sprite.anims.currentAnim && sprite.anims.currentAnim.key; if(cur === key) return; sprite.play(key, repeat); }
   _moveTowards(obj, tx, ty, speed){ const dx=tx-obj.x, dy=ty-obj.y, d=Math.hypot(dx,dy); if(d<0.1) return; const k = (speed||0.2)*2; obj.x += dx/d*k; obj.y += dy/d*k; }
