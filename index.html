@@ -80,6 +80,26 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Инициализируем видеоэлементы
     menuVideo.load();
     goVideo.load();
+    // Инициализируем видеоэлементы
+menuVideo.load();
+goVideo.load();
+
+// 🟢 Принудительно прогреваем видео, чтобы убрать задержку на старте (iOS fix)
+const warmUpVideo = async (video) => {
+  try {
+    // создаём крошечный blob-URL для preload
+    const blob = await fetch(video.src).then(r => r.blob());
+    const url = URL.createObjectURL(blob);
+    video.src = url;
+    video.muted = true;
+    video.play().then(() => {
+      video.pause();
+      video.currentTime = 0;
+      URL.revokeObjectURL(url);
+    }).catch(()=>{});
+  } catch(e) { console.warn('warmup fail', e); }
+};
+await Promise.all([warmUpVideo(menuVideo), warmUpVideo(goVideo)]);
 
     console.log('✅ Видео меню и гейм-овер предзагружены полностью');
   } catch(e) {
