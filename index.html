@@ -50,26 +50,39 @@
 
   </script>
 
-  <style>
-    :root{ --w:720px; --h:1280px; }
-    html,body{ height:100%; margin:0; background:#000; overflow:hidden; -webkit-tap-highlight-color:transparent; }
-    #viewport{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#000; touch-action:none; }
-    #stage{ position:relative; width:var(--w); height:var(--h); overflow:hidden; user-select:none;
-            image-rendering:crisp-edges; image-rendering:-webkit-optimize-contrast; }
-    #game{ position:absolute; inset:0; }
+<style>
+  :root{ --w:720px; --h:1280px; }
+  html,body{ height:100%; margin:0; background:#000; overflow:hidden; -webkit-tap-highlight-color:transparent; }
+  #viewport{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#000; touch-action:none; }
+  #stage{ position:relative; width:var(--w); height:var(--h); overflow:hidden; user-select:none;
+          image-rendering:crisp-edges; image-rendering:-webkit-optimize-contrast; }
+  #game{ position:absolute; inset:0; }
 
-    .overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; pointer-events:auto; }
-    .hidden{ display:none; }
-    .panel{ position:relative; z-index:2; display:flex; flex-direction:column; gap:18px; align-items:center; justify-content:center; padding-top:36vh; }
-    .title{ color:#fff; margin:0; font:700 20px/1.2 Arial,Helvetica,sans-serif; text-shadow:0 0 12px rgba(0,0,0,.6); z-index:2; }
-    .bg-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; filter:brightness(.9) contrast(1.05); }
-    .imgbtn{ width:44%; max-width:360px; height:auto; cursor:pointer; filter:drop-shadow(0 0 16px rgba(0,0,0,.7)); transition:transform .08s; user-select:none; -webkit-user-drag:none; }
-    .imgbtn:active{ transform:scale(.98); }
+  .overlay{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:60; pointer-events:auto; }
+  .hidden{ display:none; }
+  .panel{ position:relative; z-index:2; display:flex; flex-direction:column; gap:18px; align-items:center; justify-content:center; padding-top:36vh; }
+  .title{ color:#fff; margin:0; font:700 20px/1.2 Arial,Helvetica,sans-serif; text-shadow:0 0 12px rgba(0,0,0,.6); z-index:2; }
 
-    #preloaderOverlay{ background:#000; }
-    #bar{ width:60%; max-width:520px; height:18px; background:#1a1a1a; border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6); }
-    #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
-  </style>
+  /* 🟢 Добавляем плавное появление видео */
+  .bg-video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    z-index:1;
+    pointer-events:none;
+    filter:brightness(.9) contrast(1.05);
+    transition: opacity .5s ease; /* ← вот эта строка делает плавное проявление */
+  }
+
+  .imgbtn{ width:44%; max-width:360px; height:auto; cursor:pointer; filter:drop-shadow(0 0 16px rgba(0,0,0,.7)); transition:transform .08s; user-select:none; -webkit-user-drag:none; }
+  .imgbtn:active{ transform:scale(.98); }
+
+  #preloaderOverlay{ background:#000; }
+  #bar{ width:60%; max-width:520px; height:18px; background:#1a1a1a; border-radius:9px; overflow:hidden; box-shadow: inset 0 0 12px rgba(0,0,0,.6); }
+  #bar > div{ height:100%; width:0%; background:#1e90ff; transition:width .12s linear; }
+</style>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
@@ -343,9 +356,12 @@ this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
   .setDepth(Z.MAP);
 
 hidePreloader();
-this.playLobby();
-showMenuOverlay();
 
+// ⏳ даём Phaser догрузить всё, потом показываем меню и включаем звук
+this.time.delayedCall(400, () => {
+  showMenuOverlay();
+  this.playLobby();
+});
 
     /* Споты строительства */
     CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
@@ -1281,23 +1297,33 @@ beginNewGame(){
   this._scheduleNextWave(1200);
 }
 
-  returnToMenu() {
+returnToMenu() {
+  // 🧩 Сбрасываем состояние игры
   State.started = false;
   this._setPaused(false);
-  this.stopAllLoops(); // 🧹 останавливает все фоны (battle, arrow, lobby и т.п.)
 
-  // 🧩 дополнительная страховка, чтобы звук точно не остался играть
+  // 🧹 Останавливаем все активные звуки
+  this.stopAllLoops();
   try { this.sndBattle.stop(); } catch(_) {}
   try { this.sndArrowLp.stop(); } catch(_) {}
   try { this.sndLobby.stop(); } catch(_) {}
 
-  // 🟢 теперь запускаем только lobby.mp3
-  this.playLobby();
-
-  // 🖼️ показываем главное меню
+  // 🖼️ Показываем меню
   showMenuOverlay();
 
-  // ⏱️ очищаем таймер волн, если он ещё активен
+  // 🎵 Запускаем музыку меню (lobby.mp3)
+  this.playLobby();
+
+  // 🎬 Восстанавливаем проигрывание фонового видео меню, если оно на паузе
+  try {
+    const mv = document.getElementById('menuVideo');
+    if (mv && mv.paused) {
+      mv.currentTime = 0;       // начинаем заново, чтобы не было зависания на последнем кадре
+      mv.play().catch(() => {}); // защищаемся от ошибок автозапуска
+    }
+  } catch (_) {}
+
+  // ⏱️ Очищаем таймер волн, если он ещё активен
   if (this.waveTimer) {
     try { this.waveTimer.remove(); } catch(_) {}
     this.waveTimer = null;
@@ -1463,10 +1489,9 @@ _chooseHeroPathFromBase(){
     const preloaderOverlay = document.getElementById('preloaderOverlay');
     const menuOverlay = document.getElementById('menuOverlay');
 
-    // показываем меню сразу, без карты
-    preloaderOverlay.classList.add('hidden');
-    menuOverlay.classList.remove('hidden');
-    menuOverlay.style.display = 'flex';
+    // 🚫 не показываем меню пока идёт загрузка
+menuOverlay.classList.add('hidden');
+menuOverlay.style.display = 'none';
 
     try {
       // === Загружаем оба видео как blob, чтобы убрать паузу
@@ -1479,22 +1504,15 @@ _chooseHeroPathFromBase(){
 
       menuVideo.muted = true;
       menuVideo.loop = true;
+      menuVideo.setAttribute('playsinline', '');
       await menuVideo.play().catch(() => {});
+      // Видео меню играет в фоне, но не показываем панель пока идёт загрузка
+menuVideo.style.visibility = 'visible';
+menuVideo.style.opacity = '1';
+menuVideo.currentTime = 0;
+menuVideo.play().catch(()=>{});
 
-      // музыка меню — только один раз
-      let lobbyPlaying = false;
-      const playLobbyOnce = () => {
-        if (lobbyPlaying) return;
-        const sc = game?.scene?.keys?.['AppScene'];
-        if (sc?.sndLobby && !sc.sndLobby.isPlaying) {
-          sc.stopAllLoops?.();
-          sc.sndLobby.play();
-          lobbyPlaying = true;
-        }
-      };
-
-      setTimeout(playLobbyOnce, 1000);
-      document.body.addEventListener('touchstart', () => playLobbyOnce(), { once: true, passive: true });
+// меню станет видимым только после скрытия прелоадера (см. create)
 
       // При старте игры отключаем видео меню
       window.addEventListener('startGame', () => {
