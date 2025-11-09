@@ -66,58 +66,93 @@
       add('audio','assets/sound/klick.ogg','audio/ogg');
     })();
     // === Принудительная предзагрузка видео, чтобы убрать задержку при первом показе ===
+// === Мгновенная инициализация меню с видео и музыкой ===
 window.addEventListener('DOMContentLoaded', async () => {
   const menuVideo = document.getElementById('menuVideo');
-  const goVideo = document.getElementById('goVideo');
   const preloaderOverlay = document.getElementById('preloaderOverlay');
   const menuOverlay = document.getElementById('menuOverlay');
 
+  // 🟢 Скрываем прелоадер и сразу показываем меню
+  preloaderOverlay.classList.add('hidden');
+  menuOverlay.classList.remove('hidden');
+  menuOverlay.style.display = 'flex';
+
   try {
-    // 🟢 Показываем меню сразу (ещё до Phaser)
-    preloaderOverlay.classList.add('hidden');
-    menuOverlay.classList.remove('hidden');
-    menuOverlay.style.display = 'flex';
+    // === Принудительная подгрузка видео (iOS-friendly) ===
+    const menuBlob = await fetch('assets/menu.webm').then(r=>r.blob());
+    const goBlob = await fetch('assets/gameover.webm').then(r=>r.blob());
+    const menuURL = URL.createObjectURL(menuBlob);
+    const goURL = URL.createObjectURL(goBlob);
 
-    // Принудительная предзагрузка
-    const [menuBlob, goBlob] = await Promise.all([
-      fetch('assets/menu.webm').then(r=>r.blob()).catch(()=>null),
-      fetch('assets/gameover.webm').then(r=>r.blob()).catch(()=>null)
-    ]);
+    menuVideo.src = menuURL;
+    goVideo.src = goURL;
 
-    if (menuBlob) {
-      const url = URL.createObjectURL(menuBlob);
-      menuVideo.src = url;
-      await menuVideo.play().catch(()=>{});
-      menuVideo.currentTime = 0;
-      menuVideo.pause();
-      URL.revokeObjectURL(url);
-    }
-    if (goBlob) {
-      const url = URL.createObjectURL(goBlob);
-      goVideo.src = url;
-      goVideo.load();
-      URL.revokeObjectURL(url);
-    }
+    // Включаем автовоспроизведение видео (оно без звука)
+    menuVideo.muted = true;
+    menuVideo.loop = true;
+    await menuVideo.play().catch(()=>{});
 
-    // 🟢 После того как видео готово, инициализируем Phaser
+    // Через 200 мс создаём Phaser — чтобы меню появилось без задержки
     setTimeout(() => {
       if (typeof Phaser !== 'undefined' && !window.__gameStarted) {
         window.__gameStarted = true;
+
         const config = {
           type: Phaser.AUTO,
           parent: 'game',
-          backgroundColor:'#000000',
-          scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:CONST.WIDTH, height:CONST.HEIGHT },
-          physics:{ default:'arcade', arcade:{ debug:false } },
-          scene:[AppScene]
+          backgroundColor: '#000000',
+          scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+            width: CONST.WIDTH,
+            height: CONST.HEIGHT
+          },
+          physics: { default: 'arcade', arcade: { debug: false } },
+          scene: [AppScene]
         };
-        new Phaser.Game(config);
+        window.game = new Phaser.Game(config);
       }
     }, 200);
+
+    // 🟢 Контроль звука (чтобы lobby.mp3 не накладывался)
+    let lobbyPlaying = false;
+
+    // Когда меню видно — включаем lobby.mp3 один раз
+    const playLobbyOnce = () => {
+      if (lobbyPlaying) return;
+      const sc = game?.scene?.keys?.['AppScene'];
+      if (sc?.sndLobby && !sc.sndLobby.isPlaying) {
+        sc.stopAllLoops?.();
+        sc.sndLobby.play();
+        lobbyPlaying = true;
+      }
+    };
+
+    // Когда стартует игра — убираем видео и звук меню
+    window.addEventListener('startGame', () => {
+      try {
+        menuVideo.pause();
+        menuVideo.currentTime = 0;
+      } catch(_) {}
+      const sc = game?.scene?.keys?.['AppScene'];
+      if (sc?.sndLobby?.isPlaying) {
+        try { sc.sndLobby.stop(); } catch(_) {}
+      }
+      lobbyPlaying = false;
+    });
+
+    // Небольшая проверка: если Phaser уже запущен, а меню активно — включаем музыку
+    setTimeout(playLobbyOnce, 1000);
+    // iOS требует первого клика, чтобы звук включился
+document.body.addEventListener('touchstart', () => {
+  playLobbyOnce();
+}, { once: true, passive: true });
+
   } catch (e) {
-    console.warn('⚠️ Предзагрузка видео не удалась:', e);
+    console.warn('⚠️ Ошибка инициализации видео:', e);
   }
 });
+
 
   </script>
 
@@ -157,16 +192,20 @@ window.addEventListener('DOMContentLoaded', async () => {
       </div>
 
       <!-- Меню -->
-      <div id="menuOverlay" class="overlay hidden">
-        <video id="menuVideo" class="bg-video" src="assets/menu.webm" autoplay loop muted playsinline></video>
-        <div class="panel"><img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start"></div>
-      </div>
+<div id="menuOverlay" class="overlay hidden">
+  <video id="menuVideo" class="bg-video" autoplay loop muted playsinline></video>
+  <div class="panel">
+    <img id="startImg" class="imgbtn" src="assets/elements/play.png" alt="Start">
+  </div>
+</div>
 
-      <!-- Game Over -->
-      <div id="gameoverOverlay" class="overlay hidden">
-        <video id="goVideo" class="bg-video" src="assets/gameover.webm" autoplay loop muted playsinline></video>
-        <div class="panel"><img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again"></div>
-      </div>
+<!-- Game Over -->
+<div id="gameoverOverlay" class="overlay hidden">
+  <video id="gameoverVideo" class="bg-video" autoplay loop muted playsinline></video>
+  <div class="panel">
+    <img id="restartImg" class="imgbtn" src="assets/elements/playagain.png" alt="Play Again">
+  </div>
+</div>
 
       <!-- Канвас Phaser -->
       <div id="game"></div>
@@ -1250,39 +1289,76 @@ _startWave(){
   this._scheduleNextWave(nextDelay);
 }
 
-  /* ============ ЖИЗНЕННЫЙ ЦИКЛ ИГРЫ ============ */
-  beginNewGame(){
-    hideMenuOverlay(); hideGameoverOverlay(); this.stopAllLoops(); try{ this.sndLobby.stop(); }catch(_){}
-    if(this.waveTimer){ try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer=null; }
+ /* ============ ЖИЗНЕННЫЙ ЦИКЛ ИГРЫ ============ */
+beginNewGame(){
+  // --- Скрываем меню и гейм-овер
+  hideMenuOverlay(); 
+  hideGameoverOverlay(); 
 
-    // Сброс состояния
-    State.gold = CONST.START_GOLD; State.heroCoins=0; State.wave=0; State.baseHp=100;
-    State.paused=false; State.started=true;
+  // 🟢 Останавливаем все фоновые звуки и видео меню
+  try { this.stopAllLoops(); } catch(_) {}
+  try { this.sndLobby.stop(); } catch(_) {}
+  try { 
+    const mv = document.getElementById('menuVideo'); 
+    if (mv) { mv.pause(); mv.currentTime = 0; } 
+  } catch(_) {}
 
-    // Очистка героев
-    for(const h of State.heroes){ try{ h.hpBar?.destroy(); h.spr?.destroy(); }catch(_){} }
-    State.heroes.length=0;
+  // 🟢 Отправляем сигнал в DOM, чтобы внешние обработчики знали, что игра стартовала
+  window.dispatchEvent(new Event('startGame'));
 
-    // Сброс врагов/пуль
-    for(const e of this.enemies.getChildren()){
-      if(e.hpBar){ e.hpBar.clear().setVisible(false); }
-      e.setActive(false).setVisible(false).setPosition(-9999,-9999);
-      e.state='idle'; e.targetTower=null; e.targetHero=null; e.path=null; e.pathIndex=0; e.isBoss=false;
-      e.setScale(.35); e.clearTint && e.clearTint();
-    }
-    for(const b of this.bullets.getChildren()){ b.setActive(false).setVisible(false).setPosition(-9999,-9999); b.target=null; }
-
-    // Удаляем башни и перерисовываем споты
-    try{
-      for(const t of this.towers){ if(t?.sprite?.active) t.sprite.destroy(); if(t?.sprite?.upIcon) t.sprite.upIcon.destroy(); }
-      this.towers.length=0;
-      this.buildSprites.forEach((spr,i)=>{ try{ spr?.destroy(); }catch(_){} this._createHammer(CONST.BUILD_SPOTS[i], i); });
-    }catch(_){}
-
-    this._applyBaseTexture(); this._syncHUD();
-    this.playBattle();
-    this._scheduleNextWave(1200);
+  if (this.waveTimer){ 
+    try{ this.waveTimer.remove(); }catch(_){ } 
+    this.waveTimer=null; 
   }
+
+  // --- Сброс состояния
+  State.gold = CONST.START_GOLD; 
+  State.heroCoins = 0; 
+  State.wave = 0; 
+  State.baseHp = 100;
+  State.paused = false; 
+  State.started = true;
+
+  // --- Очистка героев
+  for (const h of State.heroes){ 
+    try{ h.hpBar?.destroy(); h.spr?.destroy(); }catch(_){} 
+  }
+  State.heroes.length = 0;
+
+  // --- Сброс врагов и пуль
+  for (const e of this.enemies.getChildren()){
+    if(e.hpBar){ e.hpBar.clear().setVisible(false); }
+    e.setActive(false).setVisible(false).setPosition(-9999,-9999);
+    e.state='idle'; e.targetTower=null; e.targetHero=null; e.path=null; e.pathIndex=0; e.isBoss=false;
+    e.setScale(.35); e.clearTint && e.clearTint();
+  }
+
+  for (const b of this.bullets.getChildren()){ 
+    b.setActive(false).setVisible(false).setPosition(-9999,-9999); 
+    b.target = null; 
+  }
+
+  // --- Удаляем башни и восстанавливаем споты
+  try{
+    for (const t of this.towers){ 
+      if(t?.sprite?.active) t.sprite.destroy(); 
+      if(t?.sprite?.upIcon) t.sprite.upIcon.destroy(); 
+    }
+    this.towers.length = 0;
+    this.buildSprites.forEach((spr,i)=>{ 
+      try{ spr?.destroy(); }catch(_){} 
+      this._createHammer(CONST.BUILD_SPOTS[i], i); 
+    });
+  }catch(_){}
+
+  // --- Обновляем текстуры и HUD
+  this._applyBaseTexture(); 
+  this._syncHUD();
+
+  // --- Запускаем музыку боя и волну
+  this.playBattle();
+  this._scheduleNextWave(1200);
+}
 
   returnToMenu(){
     State.started=false; this._setPaused(false); this.stopAllLoops();
@@ -1293,12 +1369,34 @@ _startWave(){
   }
 
   showGameOver(){
-    State.started=false; this._setPaused(false); this.stopAllLoops();
-    try{ this.sndBattle.stop(); }catch(_){}
-    try{ this.sndArrowLp.stop(); }catch(_){}
-    this.playGameOver(); showGameoverOverlay();
-    if(this.waveTimer){ try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer=null; }
-  }
+  State.started = false;
+  this._setPaused(false);
+  this.stopAllLoops();
+  try { this.sndBattle.stop(); } catch(_) {}
+  try { this.sndArrowLp.stop(); } catch(_) {}
+
+  // играем звук Game Over
+  this.playGameOver();
+
+  // показываем видео Game Over
+  showGameoverOverlay();
+
+  // принудительно сбрасываем меню-видео
+  try {
+    const mv = document.getElementById('menuVideo');
+    mv.pause();
+    mv.currentTime = 0;
+  } catch(_) {}
+
+  // и запускаем GameOver-видео
+  try {
+    const gv = document.getElementById('gameoverVideo');
+    gv.currentTime = 0;
+    gv.play().catch(()=>{});
+  } catch(_) {}
+
+  if (this.waveTimer){ try{ this.waveTimer.remove(); }catch(_){ } this.waveTimer=null; }
+}
 
   /* ============ АНИМАЦИИ ============ */
   _createAnims(){
@@ -1408,7 +1506,7 @@ _chooseHeroPathFromBase(){
   };
   const game = new Phaser.Game(config);
 
-  /* ========================= СВЯЗЬ DOM ↔ CANVAS ========================= */
+   /* ========================= СВЯЗЬ DOM ↔ CANVAS ========================= */
   function syncStageToCanvas(){
     if(!game || !game.scale) return;
     const s=game.scale, cssW=(s.displaySize&&s.displaySize.width)||CONST.WIDTH, cssH=(s.displaySize&&s.displaySize.height)||CONST.HEIGHT;
@@ -1422,9 +1520,71 @@ _chooseHeroPathFromBase(){
   if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
   else document.addEventListener('DOMContentLoaded', afterBoot);
 
+  /* ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ И GAMEOVER ========================= */
+  window.addEventListener('DOMContentLoaded', async () => {
+    const menuVideo = document.getElementById('menuVideo');
+    const gameoverVideo = document.getElementById('gameoverVideo');
+    const preloaderOverlay = document.getElementById('preloaderOverlay');
+    const menuOverlay = document.getElementById('menuOverlay');
+
+    // показываем меню сразу, без карты
+    preloaderOverlay.classList.add('hidden');
+    menuOverlay.classList.remove('hidden');
+    menuOverlay.style.display = 'flex';
+
+    try {
+      // === Загружаем оба видео как blob, чтобы убрать паузу
+      const [menuBlob, goBlob] = await Promise.all([
+        fetch('assets/menu.webm').then(r => r.blob()),
+        fetch('assets/gameover.webm').then(r => r.blob())
+      ]);
+      menuVideo.src = URL.createObjectURL(menuBlob);
+      gameoverVideo.src = URL.createObjectURL(goBlob);
+
+      menuVideo.muted = true;
+      menuVideo.loop = true;
+      await menuVideo.play().catch(() => {});
+
+      // музыка меню — только один раз
+      let lobbyPlaying = false;
+      const playLobbyOnce = () => {
+        if (lobbyPlaying) return;
+        const sc = game?.scene?.keys?.['AppScene'];
+        if (sc?.sndLobby && !sc.sndLobby.isPlaying) {
+          sc.stopAllLoops?.();
+          sc.sndLobby.play();
+          lobbyPlaying = true;
+        }
+      };
+
+      setTimeout(playLobbyOnce, 1000);
+      document.body.addEventListener('touchstart', () => playLobbyOnce(), { once: true, passive: true });
+
+      // При старте игры отключаем видео меню
+      window.addEventListener('startGame', () => {
+        try { menuVideo.pause(); menuVideo.currentTime = 0; } catch(_) {}
+        lobbyPlaying = false;
+      });
+
+    } catch (e) {
+      console.warn('⚠️ Ошибка инициализации видео:', e);
+    }
+  });
+
   /* ========================= КНОПКИ МЕНЮ ========================= */
-  startImg.addEventListener('click', ()=>{ const sc = game.scene.keys['AppScene']; if(!sc) return; hideMenuOverlay(); sc.beginNewGame(); },{passive:true});
-  restartImg.addEventListener('click', ()=>{ const sc = game.scene.keys['AppScene']; if(!sc) return; hideGameoverOverlay(); sc.beginNewGame(); },{passive:true});
+  startImg.addEventListener('click', ()=>{
+    const sc = game.scene.keys['AppScene'];
+    if(!sc) return;
+    hideMenuOverlay();
+    sc.beginNewGame();
+  },{passive:true});
+
+  restartImg.addEventListener('click', ()=>{
+    const sc = game.scene.keys['AppScene'];
+    if(!sc) return;
+    hideGameoverOverlay();
+    sc.beginNewGame();
+  },{passive:true});
   </script>
 </body>
 </html>
