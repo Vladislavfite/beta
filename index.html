@@ -393,13 +393,19 @@ function animateStars(scene){
   resetStarsDom();
   // последовательное появление 3 звёзд + звук
   starEls.forEach((s, i) => {
-    setTimeout(()=>{
-      s.classList.add('appear');
-      try{ scene.sound.play('star',{volume:.9}); }catch(_){}
-      // включаем пульсацию после появления
-      setTimeout(()=> s.classList.add('pulse'), 460);
-    }, i*360);
-  });
+  setTimeout(()=>{
+    s.classList.add('appear');
+    // безопасное проигрывание звука после GameOver
+    if (State.soundEnabled && scene.sound && !scene.sound.mute) {
+      try {
+        const snd = scene.sound.add('star', { volume: 0.9 });
+        snd.play();
+        snd.once('complete', () => snd.destroy());
+      } catch(_) {}
+    }
+    setTimeout(()=> s.classList.add('pulse'), 460);
+  }, i*360 + 150); // +150мс чтобы избежать обрезки
+});
   // показать "+N" после звёзд
   setTimeout(()=>{
     scoreGain.textContent = '+' + (State.sessionScore|0);
