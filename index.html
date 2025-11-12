@@ -189,8 +189,16 @@
 }
 
     </style>
-
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+    <!-- Yandex Games SDK -->
+<script src="https://yandex.ru/games/sdk/v2"></script>
+<script>
+  let ysdk;
+  YaGames.init().then(sdk => {
+    ysdk = sdk;
+    console.log('✅ Yandex SDK инициализирован');
+  }).catch(e => console.warn('Ошибка SDK:', e));
+</script>
     <meta http-equiv="Cache-Control" content="max-age=31536000, immutable">
     <meta name="theme-color" content="#000000">
     <link rel="manifest" href="/manifest.json">
@@ -557,6 +565,13 @@ function animateStars(scene){
           hidePreloader();
           showMenuOverlay();
           this.playLobby();
+          try {
+  if (ysdk && ysdk.features && ysdk.features.LoadingAPI) {
+    ysdk.features.LoadingAPI.ready();
+    console.log('🎮 Игра готова (LoadingAPI.ready)');
+  }
+} catch(e) { console.warn('Ошибка LoadingAPI:', e); }
+
 
           // карта (отложенно)
           this.time.delayedCall(50, () => {
@@ -1545,7 +1560,7 @@ function animateStars(scene){
         }
       });
 
-      /* ========================= КНОПКИ МЕНЮ ========================= */
+            /* ========================= КНОПКИ МЕНЮ ========================= */
       startImg.addEventListener('click', () => {
         const sc = game.scene.keys['AppScene'];
         if (!sc) return;
@@ -1558,7 +1573,24 @@ function animateStars(scene){
         if (!sc) return;
         hideGameoverOverlay();
         sc.beginNewGame();
+
+        // 🎬 Показываем рекламу после рестарта
+        try {
+          if (ysdk) showYandexAd();
+        } catch(_) {}
       }, { passive: true });
+
+      /* === Показ видео-рекламы Яндекс === */
+      function showYandexAd() {
+        if (!ysdk) return;
+        ysdk.adv.showFullscreenAdv({
+          callbacks: {
+            onOpen: () => console.log('▶️ Реклама началась'),
+            onClose: (wasShown) => console.log('⏹️ Реклама завершена', wasShown),
+            onError: (err) => console.warn('Ошибка рекламы:', err)
+          }
+        });
+      }
     </script>
 
     <script>
