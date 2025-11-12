@@ -1491,33 +1491,32 @@ function animateStars(scene){
     </script>
 
     <script>
-      /* ========================= ЗАПУСК PHASER ========================= */
-      const config = {
-        type: Phaser.AUTO,
-        parent: 'game',
-        backgroundColor:'#000000',
-        scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:CONST.WIDTH, height:CONST.HEIGHT, autoRound:true },
-        physics:{ default:'arcade', arcade:{ debug:false } },
-        scene:[AppScene]
-      };
-      const game = new Phaser.Game(config);
+/* ========================= ЗАПУСК PHASER ========================= */
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  backgroundColor:'#000000',
+  scale:{ mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH, width:CONST.WIDTH, height:CONST.HEIGHT, autoRound:true },
+  physics:{ default:'arcade', arcade:{ debug:false } },
+  scene:[AppScene]
+};
+const game = new Phaser.Game(config);
 
-      /* ========================= СВЯЗЬ DOM ↔ CANVAS ========================= */
-      function syncStageToCanvas(){
-        if(!game || !game.scale) return;
-        const s=game.scale, cssW=(s.displaySize&&s.displaySize.width)||CONST.WIDTH, cssH=(s.displaySize&&s.displaySize.height)||CONST.HEIGHT;
-        stageBox.style.width = Math.floor(cssW)+'px';
-        stageBox.style.height= Math.floor(cssH)+'px';
-      }
-      window.addEventListener('load', ()=>{ showPreloader(); try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },{passive:true});
-      window.addEventListener('resize', ()=>{ cancelAnimationFrame(syncStageToCanvas.__raf||0); syncStageToCanvas.__raf=requestAnimationFrame(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); syncStageToCanvas.__raf=0; }); },{passive:true});
-      window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },300); },{passive:true});
-      function afterBoot(){ try{ game.scale.on('resize', ()=> syncStageToCanvas()); }catch(_){ } syncStageToCanvas(); }
-      if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
-      else document.addEventListener('DOMContentLoaded', afterBoot);
+/* ========================= СВЯЗЬ DOM ↔ CANVAS ========================= */
+function syncStageToCanvas(){
+  if(!game || !game.scale) return;
+  const s=game.scale, cssW=(s.displaySize&&s.displaySize.width)||CONST.WIDTH, cssH=(s.displaySize&&s.displaySize.height)||CONST.HEIGHT;
+  stageBox.style.width = Math.floor(cssW)+'px';
+  stageBox.style.height= Math.floor(cssH)+'px';
+}
+window.addEventListener('load', ()=>{ showPreloader(); try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },{passive:true});
+window.addEventListener('resize', ()=>{ cancelAnimationFrame(syncStageToCanvas.__raf||0); syncStageToCanvas.__raf=requestAnimationFrame(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); syncStageToCanvas.__raf=0; }); },{passive:true});
+window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ try{ game.scale.refresh(); }catch(_){ } syncStageToCanvas(); },300); },{passive:true});
+function afterBoot(){ try{ game.scale.on('resize', ()=> syncStageToCanvas()); }catch(_){ } syncStageToCanvas(); }
+if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
+else document.addEventListener('DOMContentLoaded', afterBoot);
 
-     // ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ, GO, SCORE ========================= //
-<script>
+/* ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ, GO, SCORE ========================= */
 window.addEventListener('DOMContentLoaded', async () => {
   const menuVideo = document.getElementById('menuVideo');
   const gameoverVideo = document.getElementById('gameoverVideo');
@@ -1567,12 +1566,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.warn('⚠️ Ошибка инициализации видео:', e);
   }
 });
-</script>
 
-<!-- ========================= КНОПКИ МЕНЮ / РЕКЛАМА ========================= -->
-<script>
+/* ========================= КНОПКИ МЕНЮ / РЕКЛАМА ========================= */
 // использует уже объявленные startImg / restartImg
-
 startImg.addEventListener('click', () => {
   const sc = game.scene.keys['AppScene'];
   if (!sc) return;
@@ -1621,4 +1617,5 @@ function showYandexAd(scene, afterClose) {
 </script>
 </body>
 </html>
+
 
