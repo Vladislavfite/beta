@@ -1568,5 +1568,17 @@ function animateStars(scene){
         });
       }
     </script>
+    <script>
+  // === Разрешение аудио после первого клика ===
+  window.addEventListener('click', () => {
+    try {
+      const sc = game.scene.keys['AppScene'];
+      if (sc && sc.sound && sc.sound.context.state === 'suspended') {
+        sc.sound.context.resume();
+        console.log('🔊 Аудио контекст разблокирован');
+      }
+    } catch (_) {}
+  }, { once: true, passive: true });
+</script>
   </body>
 </html>
