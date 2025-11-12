@@ -87,6 +87,32 @@
 			  #menuOverlay.hidden .imgbtn {
 			  display: none;
 			}
+			/* === Логотип при загрузке === */
+.logoPulse {
+  width: 180px;
+  height: auto;
+  margin-bottom: 25px;
+  filter: drop-shadow(0 0 14px rgba(0, 0, 0, 0.7));
+  animation: logoPulseAnim 1.6s infinite ease-in-out;
+  transition: opacity 0.5s ease;
+}
+
+@keyframes logoPulseAnim {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: 0.75;
+  }
+}
+
+/* когда загрузка закончена — плавно скрываем логотип */
+#preloaderOverlay.hidden .logoPulse {
+  opacity: 0;
+}
+
 		</style>
 
 		<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
@@ -99,13 +125,15 @@
 			<div id="stage">
 				<!-- Прелоадер -->
 				<div id="preloaderOverlay" class="overlay">
-					<div class="panel">
-						<h2 class="title">Загрузка…</h2>
-						<div id="bar"><div id="barFill"></div></div>
-						<div id="pct" class="title">0%</div>
-					</div>
-				</div>
-
+  <div class="panel">
+    <!-- 🎯 ЛОГОТИП -->
+    <img src="assets/icons/logo.png" alt="ADDAGEDON" class="logoPulse">
+    
+    <h2 class="title">Загрузка…</h2>
+    <div id="bar"><div id="barFill"></div></div>
+    <div id="pct" class="title">0%</div>
+  </div>
+</div>
 				<!-- Меню -->
 				<div id="menuOverlay" class="overlay hidden">
 					<video id="menuVideo" class="bg-video" autoplay loop muted playsinline></video>
@@ -192,7 +220,11 @@
 
 			/* ========================= УТИЛИТЫ DOM ========================= */
 			const showPreloader = () => preloaderOverlay.classList.remove('hidden');
-			const hidePreloader = () => preloaderOverlay.classList.add('hidden');
+			const hidePreloader = () => {
+  preloaderOverlay.classList.add('hidden');
+  const logo = document.querySelector('.logoPulse');
+  if (logo) logo.style.opacity = '0';
+};
 
 			const showMenuOverlay = () => {
 			  gameoverOverlay.classList.add('hidden');
@@ -1558,4 +1590,3 @@ for(let i=1;i<=6;i++){
 </script>
 	</body>
 </html>
-
