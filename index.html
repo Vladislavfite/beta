@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ru">
 	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=720, height=1280, user-scalable=no" />
-		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<title>Tower Defense — база, герои, 2-я валюта (без помощников)</title>
-
+<link rel="icon" href="favicon.ico" sizes="16x16">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icons/logo.png" sizes="180x180">
+<meta name="application-name" content="ADDAGEDON">
+<meta name="apple-mobile-web-app-title" content="ADDAGEDON">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=720, height=1280, user-scalable=no">
 		<!-- Предзагрузка ключевых ассетов -->
 		<script>
 			    (function preloadAssets(){
@@ -37,9 +39,8 @@
 			    'gold','play','playagain'
 			  ].forEach(n => add('image', `assets/elements/${n}.png`, 'image/png'));
 
-			  // 💰 Монеты и реклама — только первый кадр (остальные загрузит Phaser)
-			  add('image', 'assets/money/money1.png', 'image/png');
-			  add('image', 'assets/reklama/reklama1.png', 'image/png');
+				  // 💰 Монеты — только первый кадр (остальные загрузит Phaser)
+				add('image', 'assets/money/money1.png', 'image/png');
 
 			  // 🔊 Основные звуки — для мгновенного отклика интерфейса
 			  ['lobby','battle','klick','gameover'].forEach(n => {
@@ -87,6 +88,9 @@
 		</style>
 
 		<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+		<meta http-equiv="Cache-Control" content="max-age=31536000, immutable">
+		<meta name="theme-color" content="#000000">
+		<link rel="manifest" href="manifest.json">
 	</head>
 	<body>
 		<div id="viewport">
@@ -252,10 +256,10 @@
 			    this.load.image('btn_again','assets/elements/playagain.png');
 
 			    // Монеты / реклама
-			    for(let i=1;i<=6;i++){
-			      this.load.image(`coin_${i}`,`assets/money/money${i}.png`);
-			      this.load.image(`ad_${i}`,`assets/reklama/reklama${i}.png`);
-			    }
+			   // Монеты (только монеты, без рекламы)
+for(let i=1;i<=6;i++){
+  this.load.image(`coin_${i}`,`assets/money/money${i}.png`);
+}
 
 			    // База (спрайт и HP-индикатор)
 			[0,20,40,60,80,100].forEach(p=>{
@@ -375,6 +379,7 @@
 			    /* HUD / боковые кнопки */
 			    this._buildHUD();
 			    this._buildSideButtons();
+			
 
 			    /* База (кликабельная) + полоска HP */
 			    this._createBase();
@@ -1542,5 +1547,12 @@
 			  sc.beginNewGame();
 			}, { passive: true });
 		</script>
+		<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
 	</body>
 </html>
