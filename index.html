@@ -1560,10 +1560,16 @@ function animateStars(scene){
         }
       });
 
-            /* ========================= КНОПКИ МЕНЮ ========================= */
+                 /* ========================= КНОПКИ МЕНЮ ========================= */
       startImg.addEventListener('click', () => {
         const sc = game.scene.keys['AppScene'];
         if (!sc) return;
+
+        // 🎬 Реклама перед стартом игры
+        try {
+          if (ysdk) showYandexAd(sc);
+        } catch(_) {}
+
         hideMenuOverlay();
         sc.beginNewGame();
       }, { passive: true });
@@ -1571,26 +1577,67 @@ function animateStars(scene){
       restartImg.addEventListener('click', () => {
         const sc = game.scene.keys['AppScene'];
         if (!sc) return;
-        hideGameoverOverlay();
-        sc.beginNewGame();
 
-        // 🎬 Показываем рекламу после рестарта
+        hideGameoverOverlay();
+
+        // 🎬 Реклама перед рестартом
         try {
-          if (ysdk) showYandexAd();
+          if (ysdk) showYandexAd(sc);
         } catch(_) {}
+
+        sc.beginNewGame();
       }, { passive: true });
 
-      /* === Показ видео-рекламы Яндекс === */
-      function showYandexAd() {
+      /* === Показ видео-рекламы Яндекс (с паузой игры) === */
+      function showYandexAd(scene) {
         if (!ysdk) return;
-        ysdk.adv.showFullscreenAdv({
-          callbacks: {
-            onOpen: () => console.log('▶️ Реклама началась'),
-            onClose: (wasShown) => console.log('⏹️ Реклама завершена', wasShown),
-            onError: (err) => console.warn('Ошибка рекламы:', err)
-          }
-        });
+        try {
+          // ставим игру на паузу перед рекламой
+          if (scene && scene._setPaused) scene._setPaused(true);
+
+          ysdk.adv.showFullscreenAdv({
+            callbacks: {
+              onOpen: () => console.log('▶️ Реклама началась'),
+              onClose: (wasShown) => {
+                console.log('⏹️ Реклама завершена', wasShown);
+                // снимаем паузу после рекламы
+                if (scene && scene._setPaused) scene._setPaused(false);
+              },
+              onError: (err) => {
+                console.warn('Ошибка рекламы:', err);
+                if (scene && scene._setPaused) scene._setPaused(false);
+              }
+            }
+          });
+        } catch (err) {
+          console.warn('Ошибка при показе рекламы:', err);
+          if (scene && scene._setPaused) scene._setPaused(false);
+        }
       }
+
+      // 🎮 Подключаем рекламу к кнопкам Menu и Pause
+      window.addEventListener('load', () => {
+        const sc = game.scene?.keys?.['AppScene'];
+        if (!sc) return;
+
+        try {
+          const wait = setInterval(() => {
+            const btnMenu = sc.btnMenu || null;
+            const btnPause = sc.btnPause || null;
+
+            if (btnMenu && !btnMenu.__adHooked) {
+              btnMenu.__adHooked = true;
+              btnMenu.on('pointerdown', () => showYandexAd(sc));
+            }
+            if (btnPause && !btnPause.__adHooked) {
+              btnPause.__adHooked = true;
+              btnPause.on('pointerdown', () => showYandexAd(sc));
+            }
+
+            if (btnMenu && btnPause) clearInterval(wait);
+          }, 800);
+        } catch (_) {}
+      });
     </script>
 
     <script>
@@ -1602,3 +1649,4 @@ function animateStars(scene){
     </script>
   </body>
 </html>
+
