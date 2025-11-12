@@ -632,10 +632,6 @@ function animateStars(scene){
 
           /* Стрельба башен */
           this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback:()=> this._towersTick() });
-
-          // показать HUD очков (значок сверху)
-          scoreHud.classList.remove('hidden');
-          updateScoreHud();
         }
 
         update(){
