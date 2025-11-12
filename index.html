@@ -201,7 +201,6 @@
 </script>
     <meta http-equiv="Cache-Control" content="max-age=31536000, immutable">
     <meta name="theme-color" content="#000000">
-    <link rel="manifest" href="/manifest.json">
   </head>
   <body>
     <div id="viewport">
@@ -600,15 +599,18 @@ function animateStars(scene){
           this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback:()=> this._towersTick() });
         }
 
-        update(){
-          if(!State.started || State.paused){ this._syncHUD(); return; }
-          for(const e of this.enemies.getChildren()) if(e.active&&e.visible) this._updateEnemy(e);
-          for(const b of this.bullets.getChildren()) if(b.active&&b.visible) this._updateBullet(b);
-          for(const h of State.heroes) if(h?.spr?.active && h.spr.visible) this._updateHero(h);
-          this._syncHUD();
-          // сортировка по глубине — башни перекрывают врагов
-          this.children.list.sort((a, b) => a.depth - b.depth);
-        }
+    update(){
+  if(!State.started || State.paused){
+    this._syncHUD();
+    return;
+  }
+  for(const e of this.enemies.getChildren()) if(e.active&&e.visible) this._updateEnemy(e);
+  for(const b of this.bullets.getChildren()) if(b.active&&b.visible) this._updateBullet(b);
+  for(const h of State.heroes) if(h?.spr?.active && h.spr.visible) this._updateHero(h);
+
+  // сортировка по глубине — башни перекрывают врагов
+  this.children.list.sort((a, b) => a.depth - b.depth);
+}
 
         /* ============ ХЕЛПЕРЫ ============ */
         playIfExists(sprite, key, repeat=true){ if(!sprite || !key) return; const exists = this.anims.exists(key); if(!exists) return; const cur = sprite.anims && sprite.anims.currentAnim && sprite.anims.currentAnim.key; if(cur === key) return; sprite.play(key, repeat); }
@@ -671,8 +673,8 @@ function animateStars(scene){
           const gap = 80;          // вертикальное расстояние между рядами
 
           // Верхний ряд кнопок
-          const btnMenu = this.add.image(xCenter, yBase + 0 * gap, 'menu')
-            .setInteractive().setDepth(Z.UI);
+          this.btnMenu = this.add.image(xCenter, yBase + 0 * gap, 'menu')
+  .setInteractive().setDepth(Z.UI);
 
           const btnReload = this.add.image(xCenter, yBase + 1 * gap, 'reload')
             .setInteractive().setDepth(Z.UI);
@@ -695,10 +697,10 @@ function animateStars(scene){
           const applyMuteIcon = () => btnSound.setTexture(State.soundEnabled ? 'sound_on' : 'sound_off');
           const applyTurboIcon = () => this.btnTurbo.setTexture(this.speedScale > 1 ? 'fast' : 'slow');
 
-          btnMenu.on('pointerdown', () => {
-            if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
-            this.returnToMenu();
-          });
+          this.btnMenu.on('pointerdown', () => {
+  if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+  showYandexAd(this, () => this.returnToMenu());
+});
 
           btnReload.on('pointerdown', () => {
             if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
@@ -719,15 +721,15 @@ function animateStars(scene){
             applyTurboIcon();
           });
 
-          this.btnPause.on('pointerdown', () => {
-            if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
-            this._setPaused(true);
-          });
+         this.btnPause.on('pointerdown', () => {
+  if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+  showYandexAd(this, () => this._setPaused(true));
+});
 
           this.btnResume.on('pointerdown', () => {
-            if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
-            this._setPaused(false);
-          });
+  if (State.soundEnabled) try { this.sound.play('klick'); } catch (_) { }
+  this._setPaused(false);
+});
 
           applyTurboIcon();
         }
@@ -1212,7 +1214,6 @@ function animateStars(scene){
           const pts = Phaser.Math.Between(5,20);
           State.sessionScore += pts;
           State.totalScore   += pts;
-          try { localStorage.setItem('td_total_score', String(State.totalScore|0)); } catch(_){}
           updateScoreHud();
           this._floatText(e.x, e.y - 50, '+'+pts, '#ffec8b');
 
@@ -1515,138 +1516,119 @@ function animateStars(scene){
       if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
       else document.addEventListener('DOMContentLoaded', afterBoot);
 
-      /* ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ, GO, SCORE ========================= */
-      window.addEventListener('DOMContentLoaded', async () => {
-        const menuVideo = document.getElementById('menuVideo');
-        const gameoverVideo = document.getElementById('gameoverVideo');
-        const menuOverlay = document.getElementById('menuOverlay');
+     // ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ, GO, SCORE ========================= //
+<script>
+window.addEventListener('DOMContentLoaded', async () => {
+  const menuVideo = document.getElementById('menuVideo');
+  const gameoverVideo = document.getElementById('gameoverVideo');
+  const menuOverlay = document.getElementById('menuOverlay');
 
-        // не показываем меню пока идёт загрузка
-        menuOverlay.classList.add('hidden');
-        menuOverlay.style.display = 'none';
+  // не показываем меню пока идёт загрузка
+  menuOverlay.classList.add('hidden');
+  menuOverlay.style.display = 'none';
 
-        try {
-          const [menuBlob, goBlob] = await Promise.all([
-            fetch('assets/menu.webm').then(r => r.blob()),
-            fetch('assets/gameover.webm').then(r => r.blob())
-          ]);
-          menuVideo.src = URL.createObjectURL(menuBlob);
-          gameoverVideo.src = URL.createObjectURL(goBlob);
+  try {
+    const [menuBlob, goBlob] = await Promise.all([
+      fetch('assets/menu.webm').then(r => r.blob()),
+      fetch('assets/gameover.webm').then(r => r.blob())
+    ]);
+    menuVideo.src = URL.createObjectURL(menuBlob);
+    gameoverVideo.src = URL.createObjectURL(goBlob);
 
-          menuVideo.muted = true; menuVideo.loop = true; menuVideo.setAttribute('playsinline', ''); menuVideo.currentTime = 0;
-          await menuVideo.play().catch(() => {});
-          menuVideo.style.visibility = 'visible'; menuVideo.style.opacity = '1';
+    menuVideo.muted = true;
+    menuVideo.loop = true;
+    menuVideo.setAttribute('playsinline', '');
+    menuVideo.currentTime = 0;
+    await menuVideo.play().catch(() => {});
+    menuVideo.style.visibility = 'visible';
+    menuVideo.style.opacity = '1';
 
-          // При старте игры плавно убираем видео меню
-          window.addEventListener('startGame', () => {
-            try {
-              menuVideo.style.transition = 'opacity 0.3s ease';
-              menuVideo.style.opacity = '0';
-              setTimeout(() => {
-                menuVideo.pause();
-                menuVideo.currentTime = 0;
-              }, 300);
-            } catch (_) {}
-          });
+    // При старте игры плавно убираем видео меню
+    window.addEventListener('startGame', () => {
+      try {
+        menuVideo.style.transition = 'opacity 0.3s ease';
+        menuVideo.style.opacity = '0';
+        setTimeout(() => {
+          menuVideo.pause();
+          menuVideo.currentTime = 0;
+        }, 300);
+      } catch (_) {}
+    });
 
-          // Обновить текст "Количество очков" при загрузке
-          try{
-            const savedScore = localStorage.getItem('td_total_score');
-            if(savedScore!==null) { document.getElementById('menuScore').textContent = 'Количество очков: ' + (parseInt(savedScore,10)||0); }
-          }catch(_){}
+    // Обновить текст "Количество очков" при загрузке
+    try {
+      const savedScore = localStorage.getItem('td_total_score');
+      if (savedScore !== null) {
+        document.getElementById('menuScore').textContent =
+          'Количество очков: ' + (parseInt(savedScore, 10) || 0);
+      }
+    } catch(_) {}
+  } catch (e) {
+    console.warn('⚠️ Ошибка инициализации видео:', e);
+  }
+});
+</script>
 
-        } catch (e) {
-          console.warn('⚠️ Ошибка инициализации видео:', e);
-        }
-      });
+<!-- ========================= КНОПКИ МЕНЮ / РЕКЛАМА ========================= -->
+<script>
+const startImg = document.getElementById('startImg');
+const restartImg = document.getElementById('restartImg');
 
-                 /* ========================= КНОПКИ МЕНЮ ========================= */
-      startImg.addEventListener('click', () => {
-        const sc = game.scene.keys['AppScene'];
-        if (!sc) return;
+startImg.addEventListener('click', () => {
+  const sc = game.scene.keys['AppScene'];
+  if (!sc) return;
+  showYandexAd(sc, () => {
+    hideMenuOverlay();
+    sc.beginNewGame();
+  });
+}, { passive: true });
 
-        // 🎬 Реклама перед стартом игры
-        try {
-          if (ysdk) showYandexAd(sc);
-        } catch(_) {}
+restartImg.addEventListener('click', () => {
+  const sc = game.scene.keys['AppScene'];
+  if (!sc) return;
+  showYandexAd(sc, () => {
+    hideGameoverOverlay();
+    sc.beginNewGame();
+  });
+}, { passive: true });
 
-        hideMenuOverlay();
-        sc.beginNewGame();
-      }, { passive: true });
+function showYandexAd(scene, afterClose) {
+  // Если SDK не инициализирован — просто продолжаем игру
+  if (!ysdk) { if (typeof afterClose === 'function') afterClose(); return; }
 
-      restartImg.addEventListener('click', () => {
-        const sc = game.scene.keys['AppScene'];
-        if (!sc) return;
-
-        hideGameoverOverlay();
-
-        // 🎬 Реклама перед рестартом
-        try {
-          if (ysdk) showYandexAd(sc);
-        } catch(_) {}
-
-        sc.beginNewGame();
-      }, { passive: true });
-
-      /* === Показ видео-рекламы Яндекс (с паузой игры) === */
-      function showYandexAd(scene) {
-        if (!ysdk) return;
-        try {
-          // ставим игру на паузу перед рекламой
-          if (scene && scene._setPaused) scene._setPaused(true);
-
-          ysdk.adv.showFullscreenAdv({
-            callbacks: {
-              onOpen: () => console.log('▶️ Реклама началась'),
-              onClose: (wasShown) => {
-                console.log('⏹️ Реклама завершена', wasShown);
-                // снимаем паузу после рекламы
-                if (scene && scene._setPaused) scene._setPaused(false);
-              },
-              onError: (err) => {
-                console.warn('Ошибка рекламы:', err);
-                if (scene && scene._setPaused) scene._setPaused(false);
-              }
-            }
-          });
-        } catch (err) {
-          console.warn('Ошибка при показе рекламы:', err);
+  try {
+    if (scene && scene._setPaused) scene._setPaused(true);
+    ysdk.adv.showFullscreenAdv({
+      callbacks: {
+        onOpen: () => console.log('▶️ Реклама началась'),
+        onClose: (wasShown) => {
+          console.log('⏹️ Реклама завершена', wasShown);
           if (scene && scene._setPaused) scene._setPaused(false);
+          if (typeof afterClose === 'function') afterClose();
+        },
+        onError: (err) => {
+          console.warn('Ошибка рекламы:', err);
+          if (scene && scene._setPaused) scene._setPaused(false);
+          if (typeof afterClose === 'function') afterClose();
         }
       }
+    });
+  } catch (err) {
+    console.warn('Ошибка при показе рекламы:', err);
+    if (scene && scene._setPaused) scene._setPaused(false);
+    if (typeof afterClose === 'function') afterClose();
+  }
+}
+</script>
 
-      // 🎮 Подключаем рекламу к кнопкам Menu и Pause
-      window.addEventListener('load', () => {
-        const sc = game.scene?.keys?.['AppScene'];
-        if (!sc) return;
-
-        try {
-          const wait = setInterval(() => {
-            const btnMenu = sc.btnMenu || null;
-            const btnPause = sc.btnPause || null;
-
-            if (btnMenu && !btnMenu.__adHooked) {
-              btnMenu.__adHooked = true;
-              btnMenu.on('pointerdown', () => showYandexAd(sc));
-            }
-            if (btnPause && !btnPause.__adHooked) {
-              btnPause.__adHooked = true;
-              btnPause.on('pointerdown', () => showYandexAd(sc));
-            }
-
-            if (btnMenu && btnPause) clearInterval(wait);
-          }, 800);
-        } catch (_) {}
-      });
-    </script>
-
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(()=>{});
-        });
-      }
-    </script>
-  </body>
+<!-- (опционально) Service Worker для PWA -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
 </html>
 
