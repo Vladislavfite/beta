@@ -103,41 +103,143 @@
         backdrop-filter: blur(2px);
       }
 
-      /* ===== GameOver: звёзды и +очки ===== */
-      #goPanel{
-        position:absolute; top:44%; width:100%; z-index:3; display:flex; flex-direction:column; align-items:center; gap:12px; pointer-events:none;
-      }
-      #starRow{ display:flex; gap:18px; }
-      .star{
-        font: 900 44px/1 Arial, Helvetica, sans-serif;
-        color:#ffd700; text-shadow: 0 0 10px rgba(0,0,0,.8), 0 0 18px rgba(255,215,0,.35);
-        transform: scale(0); opacity:0; transition: transform .45s ease, opacity .45s ease;
-        filter: drop-shadow(0 0 10px rgba(255,215,0,.45));
-      }
-      .star.appear{ transform: scale(1); opacity:1; }
-      .star.pulse{ animation: starPulse 1.6s ease-in-out infinite; }
-      @keyframes starPulse{
-        0%,100%{ transform: scale(1); }
-        50%    { transform: scale(1.06); }
-      }
-      #scoreGain{
-        color:#ffec8b; font:800 24px/1 Arial,Helvetica,sans-serif; text-shadow:0 0 10px rgba(0,0,0,.8);
-        opacity:0; transform: translateY(8px); transition: opacity .4s ease, transform .4s ease;
-      }
-      #scoreGain.show{ opacity:1; transform: translateY(0); }
+    /* ===== GameOver: звёзды и +очки ===== */
+#goPanel {
+  position: absolute;
+  top: 25%;               /* поднято выше экрана */
+  width: 100%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
 
-      /* ===== Маленькое верхнее окошко очков в игре ===== */
-      #scoreHud{
-        position:absolute; left:50%; top:18px; transform: translateX(-50%);
-        z-index:95; pointer-events:none;
-      }
-      #scoreHud .box{
-        display:inline-block; padding:6px 12px; border-radius:12px;
-        background:rgba(0,0,0,.35); box-shadow: inset 0 0 10px rgba(0,0,0,.3);
-        backdrop-filter: blur(2px);
-      }
-      #scoreHud .label{ color:#cde6ff; font:700 14px/1 Arial,Helvetica,sans-serif; text-shadow:0 0 8px rgba(0,0,0,.8); }
-      #scoreHud .val{ color:#fff; font:800 20px/1.1 Arial,Helvetica,sans-serif; text-shadow:0 0 10px rgba(0,0,0,.8); text-align:center; }
+#starRow {
+  display: flex;
+  gap: 18px;
+}
+
+.star {
+  font: 900 44px/1 Arial, Helvetica, sans-serif;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .8), 0 0 18px rgba(255, 215, 0, .35);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform .45s ease, opacity .45s ease;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, .45));
+}
+
+.star.appear {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.star.pulse {
+  animation: starPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes starPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+#scoreGain {
+  color: #ffec8b;
+  font: 800 24px/1 Arial, Helvetica, sans-serif;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .8);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .4s ease, transform .4s ease;
+}
+
+#scoreGain.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+
+/* ===== Маленькое окошко очков в игре ===== */
+#scoreHud {
+  position: absolute;
+  left: 135px;         /* левее */
+  top: 145px;          /* ниже панели монет */
+  z-index: 95;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+#scoreHud.hidden {
+  opacity: 0;
+}
+#scoreHud .box {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .35);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, .3);
+  backdrop-filter: blur(2px);
+}
+#scoreHud .label {
+  color: #cde6ff;
+  font: 700 13px/1 Arial, Helvetica, sans-serif;
+  text-shadow: 0 0 8px rgba(0, 0, 0, .8);
+}
+#scoreHud .val {
+  color: #fff;
+  font: 800 18px/1.1 Arial, Helvetica, sans-serif;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .8);
+  text-align: center;
+}
+
+/* ===== GameOver: звёзды и +очки ===== */
+#goPanel {
+  position: absolute;
+  top: 25%;        /* было 44%, теперь выше */
+  width: 100%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+#starRow {
+  display: flex;
+  gap: 18px;
+}
+.star {
+  font: 900 44px/1 Arial, Helvetica, sans-serif;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .8), 0 0 18px rgba(255, 215, 0, .35);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform .45s ease, opacity .45s ease;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, .45));
+}
+.star.appear {
+  transform: scale(1);
+  opacity: 1;
+}
+.star.pulse {
+  animation: starPulse 1.6s ease-in-out infinite;
+}
+@keyframes starPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+#scoreGain {
+  color: #ffec8b;
+  font: 800 24px/1 Arial, Helvetica, sans-serif;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .8);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .4s ease, transform .4s ease;
+}
+#scoreGain.show {
+  opacity: 1;
+  transform: translateY(0);
+}
 
     </style>
 
@@ -274,80 +376,84 @@
       };
 
       /* ========================= УТИЛИТЫ DOM ========================= */
-      const showPreloader = () => preloaderOverlay.classList.remove('hidden');
-      const hidePreloader = () => {
-        preloaderOverlay.classList.add('hidden');
-        const logo = document.querySelector('.logoPulse');
-        if (logo) logo.style.opacity = '0';
-      };
+const showPreloader = () => preloaderOverlay.classList.remove('hidden');
+const hidePreloader = () => {
+  preloaderOverlay.classList.add('hidden');
+  const logo = document.querySelector('.logoPulse');
+  if (logo) logo.style.opacity = '0';
+};
 
-      const showMenuOverlay = () => {
-        gameoverOverlay.classList.add('hidden');
-        menuOverlay.classList.remove('hidden');
-        menuOverlay.style.display = 'flex';
-        try {
-          menuVideo.currentTime = 0;
-          menuVideo.play().catch(() => {});
-        } catch (_) {}
-        // показать HUD очков в меню
-        updateMenuScore();
-        // скрыть HUD очков сверху (он только в игре)
-        scoreHud.classList.add('hidden');
-      };
+const showMenuOverlay = () => {
+  gameoverOverlay.classList.add('hidden');
+  menuOverlay.classList.remove('hidden');
+  menuOverlay.style.display = 'flex';
+  try {
+    menuVideo.currentTime = 0;
+    menuVideo.play().catch(() => {});
+  } catch (_) {}
+  // показать HUD очков в меню
+  updateMenuScore();
+  // скрыть HUD очков сверху (он только в игре)
+  scoreHud.classList.add('hidden');
+};
 
-      const hideMenuOverlay = () => {
-        menuOverlay.classList.add('hidden');
-        menuOverlay.style.display = 'none';
-        try { menuVideo.pause(); } catch (_) {}
-      };
+const hideMenuOverlay = () => {
+  menuOverlay.classList.add('hidden');
+  menuOverlay.style.display = 'none';
+  try { menuVideo.pause(); } catch (_) {}
+};
 
-      const showGameoverOverlay = () => {
-        menuOverlay.classList.add('hidden');
-        gameoverOverlay.classList.remove('hidden');
-        try {
-          gameoverVideo.currentTime = 0;
-          gameoverVideo.play().catch(() => {});
-        } catch (_) {}
-      };
+const showGameoverOverlay = () => {
+  menuOverlay.classList.add('hidden');
+  gameoverOverlay.classList.remove('hidden');
+  try {
+    gameoverVideo.currentTime = 0;
+    gameoverVideo.play().catch(() => {});
+  } catch (_) {}
+  // 👇 добавлено: при Game Over скрываем очки
+  scoreHud.classList.add('hidden');
+};
 
-      const hideGameoverOverlay = () => {
-        gameoverOverlay.classList.add('hidden');
-        try { gameoverVideo.pause(); } catch (_) {}
-      };
+const hideGameoverOverlay = () => {
+  gameoverOverlay.classList.add('hidden');
+  try { gameoverVideo.pause(); } catch (_) {}
+  // 👇 добавлено: при выходе из Game Over возвращаем очки
+  scoreHud.classList.remove('hidden');
+};
 
-      function updateMenuScore(){
-        try {
-          menuScore.textContent = 'Количество очков: ' + (State.totalScore|0);
-        } catch(_) {}
-      }
-      function updateScoreHud(){
-        scoreHudVal.textContent = String(State.totalScore|0);
-      }
-      function resetStarsDom(){
-        scoreGain.classList.remove('show');
-        scoreGain.textContent = '+0';
-        starEls.forEach(s => {
-          s.classList.remove('appear','pulse');
-          s.style.transitionDelay = '0s';
-        });
-      }
-      function animateStars(scene){
-        resetStarsDom();
-        // последовательное появление 3 звёзд + звук
-        starEls.forEach((s, i) => {
-          setTimeout(()=>{
-            s.classList.add('appear');
-            try{ scene.sound.play('star',{volume:.9}); }catch(_){}
-            // включаем пульсацию после появления
-            setTimeout(()=> s.classList.add('pulse'), 460);
-          }, i*360);
-        });
-        // показать "+N" после звёзд
-        setTimeout(()=>{
-          scoreGain.textContent = '+' + (State.sessionScore|0);
-          scoreGain.classList.add('show');
-        }, starEls.length*360 + 120);
-      }
+function updateMenuScore(){
+  try {
+    menuScore.textContent = 'Количество очков: ' + (State.totalScore|0);
+  } catch(_) {}
+}
+function updateScoreHud(){
+  scoreHudVal.textContent = String(State.totalScore|0);
+}
+function resetStarsDom(){
+  scoreGain.classList.remove('show');
+  scoreGain.textContent = '+0';
+  starEls.forEach(s => {
+    s.classList.remove('appear','pulse');
+    s.style.transitionDelay = '0s';
+  });
+}
+function animateStars(scene){
+  resetStarsDom();
+  // последовательное появление 3 звёзд + звук
+  starEls.forEach((s, i) => {
+    setTimeout(()=>{
+      s.classList.add('appear');
+      try{ scene.sound.play('star',{volume:.9}); }catch(_){}
+      // включаем пульсацию после появления
+      setTimeout(()=> s.classList.add('pulse'), 460);
+    }, i*360);
+  });
+  // показать "+N" после звёзд
+  setTimeout(()=>{
+    scoreGain.textContent = '+' + (State.sessionScore|0);
+    scoreGain.classList.add('show');
+  }, starEls.length*360 + 120);
+}
 
       /* ========================= СЦЕНА ИГРЫ ========================= */
       class AppScene extends Phaser.Scene{
