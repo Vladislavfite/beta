@@ -1571,8 +1571,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 <!-- ========================= КНОПКИ МЕНЮ / РЕКЛАМА ========================= -->
 <script>
-const startImg = document.getElementById('startImg');
-const restartImg = document.getElementById('restartImg');
+// использует уже объявленные startImg / restartImg
 
 startImg.addEventListener('click', () => {
   const sc = game.scene.keys['AppScene'];
@@ -1618,15 +1617,6 @@ function showYandexAd(scene, afterClose) {
     if (scene && scene._setPaused) scene._setPaused(false);
     if (typeof afterClose === 'function') afterClose();
   }
-}
-</script>
-
-<!-- (опционально) Service Worker для PWA -->
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  });
 }
 </script>
 </body>
