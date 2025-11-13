@@ -235,6 +235,19 @@
       }
 
       /* ===== GameOver: звёзды и +очки ===== */
+/* SCORE IN MENU */
+#menuScoreWrap {
+  position:absolute;
+  z-index:50;
+}
+
+/* SCORE HUD IN GAME */
+#scoreHud {
+  position:absolute;
+  z-index:50;
+}
+
+/* GAMEOVER PANEL */
 #goPanel{
   position:absolute;
   z-index:99;
@@ -245,6 +258,7 @@
   gap:12px;
   pointer-events:none;
 }
+
       #starRow{
         display:flex;
         gap:18px;
@@ -318,17 +332,24 @@
         </div>
 
         <!-- Общий счёт (главное меню) -->
-        <div id="menuScoreWrap" class="hidden">
+  <!-- SCORE IN MENU -->
+<div id="menuScoreWrap" class="hidden">
   <div id="menuScore">Количество очков: 0</div>
 </div>
 
-        <!-- HUD очков (игра/геймовер) -->
-        <div id="scoreHud" class="hidden">
-          <div class="box">
-            <div class="label">Очки</div>
-            <div id="scoreHudVal" class="val">0</div>
-          </div>
-        </div>
+<!-- SCORE HUD IN GAME -->
+<div id="scoreHud" class="hidden">
+  <div id="scoreHudVal">0</div>
+</div>
+
+<!-- GAMEOVER PANEL -->
+<div id="goPanel" class="hidden">
+  <div id="star1" class="star"></div>
+  <div id="star2" class="star"></div>
+  <div id="star3" class="star"></div>
+  <div id="scoreGain">+0</div>
+</div>
+
 
         <!-- Меню -->
         <div id="menuOverlay" class="overlay hidden">
@@ -421,8 +442,16 @@
 
       const scoreHud   = $('scoreHud');
       const scoreHudVal= $('scoreHudVal');
-      const menuScoreWrap = $('menuScoreWrap');
-      const menuScore  = $('menuScore');
+     const menuScoreWrap = $('menuScoreWrap');
+const menuScore     = $('menuScore');
+
+const scoreHud      = $('scoreHud');
+const scoreHudVal   = $('scoreHudVal');
+
+const goPanel       = $('goPanel');
+const starEls       = [ $('star1'), $('star2'), $('star3') ];
+const scoreGain     = $('scoreGain');
+
       const starEls    = [ $('star1'), $('star2'), $('star3') ];
       const scoreGain  = $('scoreGain');
 
@@ -2130,22 +2159,20 @@ menuScoreWrap.classList.add('hidden');
     el.style.transform = 'none';
   }
 
-  function updateHudLayout() {
-    const menuScoreWrap = document.getElementById('menuScoreWrap');
-    const scoreHud      = document.getElementById('scoreHud');
-    const goPanel       = document.getElementById('goPanel');
+function updateHudLayout() {
+  const baseX = CONST.BASE_POS.x;
+  const baseY = CONST.BASE_POS.y;
 
-    // --- 1. MENU SCORE
-    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.38);
+  // MENU — чуть выше середины
+  placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.38);
 
-    // --- 2. GAME HUD — под базой
-    const baseX = CONST.BASE_POS.x;
-    const baseY = CONST.BASE_POS.y;
-    placeAt(scoreHud, baseX, baseY - 120);
+  // GAME — строго под базой
+  placeAt(scoreHud, baseX, baseY + 120);
 
-    // --- 3. GAMEOVER — центр
-    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.33);
-  }
+  // GAMEOVER — чуть выше центра
+  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.28);
+}
+
 </script>
 
     <script>
