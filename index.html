@@ -238,41 +238,37 @@
     opacity:0;
   }
 
-/* ======================== GAMEOVER: звёзды + +очки ======================== */
+/* ======================== GAMEOVER PANEL ======================== */
 
-#goPanel {
+#goPanel{
   position:absolute;
-
-  /* центр относительно логического экрана 720×1280 */
-  left:50%;
-  top:32%;                    /* регулируй 30–36% */
-
-  transform:translate(-50%, -50%);
-  width:720px;                /* ← фикс ширины под игру */
-  max-width:720px;            /* ← не растягивается */
-  z-index:200;
+  width:720px;            /* фикс ширины игры */
+  height:260px;           /* фикс высоты панели */
+  left:0;
+  top:0;
 
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
-  gap:20px;
+  justify-content:flex-start;
 
   pointer-events:none;
   text-align:center;
+
+  /* отключаем влияние transform от placeAt */
+  transform:none !important;
 }
 
-
-/* Контейнер со звёздами */
+/* Центрирование звёзд */
 #starRow{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:22px;
   width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:20px;
 }
 
-/* Звезда */
+/* Сами звёзды */
 .star{
   font:900 82px/1 Arial,Helvetica,sans-serif;
   color:#ffd700;
@@ -284,6 +280,7 @@
   transition:transform .35s ease, opacity .35s ease;
 }
 
+/* Анимации */
 .star.appear{
   opacity:1;
   transform:scale(1);
@@ -298,12 +295,12 @@
   50%{ transform:scale(1.08); }
 }
 
-/* "+очки" */
+/* +очки */
 #scoreGain{
+  margin-top:15px;
   color:#ffec8b;
   font:900 32px/1 Arial,Helvetica,sans-serif;
   text-shadow:0 0 16px rgba(0,0,0,.85);
-  width:100%;
   opacity:0;
   transform:translateY(12px);
   transition:opacity .35s ease, transform .35s ease;
@@ -313,14 +310,7 @@
   opacity:1;
   transform:translateY(0);
 }
-/* Кнопка PLAY AGAIN на экране GameOver */
-#gameoverOverlay .panel{
-  position:absolute;
-  left:50%;
-  bottom:8%;          /* регулируешь, чтобы было как тебе нравится */
-  transform:translateX(-50%);
-  padding-top:0;      /* убираем 36vh для этого случая */
-}
+
 </style>
 
     <!-- Phaser -->
@@ -2197,8 +2187,11 @@ menuScoreWrap.classList.add('hidden');
   // GAME — под базой
   placeAt(scoreHud, baseX, baseY + 110);
 
-  // GAMEOVER — обязательно присутствует, ИНАЧЕ СКРИПТ ОБРЫВАЕТСЯ
-  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.36);
+// Центрируем строго через CSS, placeAt не трогаем
+goPanel.style.left = '50%';
+goPanel.style.top = '32%';
+goPanel.style.transform = 'translate(-50%, -50%)';
+
 }
 </script>
 
