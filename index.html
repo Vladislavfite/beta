@@ -476,8 +476,6 @@ scoreHud.classList.add('hidden');
           gameoverVideo.currentTime = 0;
           gameoverVideo.play().catch(() => {});
         } catch (_) {}
-        // на GameOver показываем HUD очков в той же позиции, что и в игре/меню
-        scoreHud.classList.remove('hidden');
       };
 
       const hideGameoverOverlay = () => {
