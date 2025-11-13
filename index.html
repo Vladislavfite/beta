@@ -1516,13 +1516,16 @@ function afterBoot(){ try{ game.scale.on('resize', ()=> syncStageToCanvas()); }c
 if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
 else document.addEventListener('DOMContentLoaded', afterBoot);
 
-/* ========================= ИНИЦИАЛИЗАЦИЯ ВИДЕО-МЕНЮ, GO, SCORE ========================= */
+<!-- === ПРЕДЗАГРУЗКА ВИДЕО МЕНЮ/ГО И ПРОГРЕВ ДЕКОДЕРА === -->
+<script>
+let menuURL, goURL;
+
 window.addEventListener('DOMContentLoaded', async () => {
   const menuVideo = document.getElementById('menuVideo');
   const gameoverVideo = document.getElementById('gameoverVideo');
   const menuOverlay = document.getElementById('menuOverlay');
 
-  // не показываем меню пока идёт загрузка
+  // меню прячем, пока не закончит прелоадер
   menuOverlay.classList.add('hidden');
   menuOverlay.style.display = 'none';
 
@@ -1531,71 +1534,96 @@ window.addEventListener('DOMContentLoaded', async () => {
       fetch('assets/menu.webm').then(r => r.blob()),
       fetch('assets/gameover.webm').then(r => r.blob())
     ]);
-    menuVideo.src = URL.createObjectURL(menuBlob);
-    gameoverVideo.src = URL.createObjectURL(goBlob);
 
+    menuURL = URL.createObjectURL(menuBlob);
+    goURL   = URL.createObjectURL(goBlob);
+
+    menuVideo.src = menuURL;
+    gameoverVideo.src = goURL;
+
+    // просим буферизацию заранее
+    menuVideo.preload = 'auto';
+    gameoverVideo.preload = 'auto';
+
+    // тихо крутим меню-видео под шторкой (для тёплого старта)
     menuVideo.muted = true;
     menuVideo.loop = true;
     menuVideo.setAttribute('playsinline', '');
     menuVideo.currentTime = 0;
-    await menuVideo.play().catch(() => {});
-    menuVideo.style.visibility = 'visible';
-    menuVideo.style.opacity = '1';
+    menuVideo.play().catch(()=>{}); // iOS может отложить до первого тапа — норм
 
-    // При старте игры плавно убираем видео меню
+    // обновляем счёт в меню
+    try {
+      const saved = localStorage.getItem('td_total_score');
+      if (saved !== null) {
+        document.getElementById('menuScore').textContent =
+          'Количество очков: ' + (parseInt(saved, 10) || 0);
+      }
+    } catch(_) {}
+
+    // плавно гасим фон-ролик при старте игры
     window.addEventListener('startGame', () => {
       try {
         menuVideo.style.transition = 'opacity 0.3s ease';
         menuVideo.style.opacity = '0';
-        setTimeout(() => {
-          menuVideo.pause();
-          menuVideo.currentTime = 0;
-        }, 300);
-      } catch (_) {}
+        setTimeout(() => { menuVideo.pause(); menuVideo.currentTime = 0; }, 300);
+      } catch(_) {}
     });
-
-    // Обновить текст "Количество очков" при загрузке
-    try {
-      const savedScore = localStorage.getItem('td_total_score');
-      if (savedScore !== null) {
-        document.getElementById('menuScore').textContent =
-          'Количество очков: ' + (parseInt(savedScore, 10) || 0);
-      }
-    } catch(_) {}
   } catch (e) {
     console.warn('⚠️ Ошибка инициализации видео:', e);
   }
 });
 
-/* ========================= КНОПКИ МЕНЮ / РЕКЛАМА ========================= */
-// использует уже объявленные startImg / restartImg
+// прогрев декодера экрана GameOver (вызывать из пользовательского клика)
+async function primeGameoverVideo() {
+  const v = document.getElementById('gameoverVideo');
+  try {
+    v.muted = true;
+    await v.play();
+    v.pause();
+    v.currentTime = 0;
+  } catch(_) {}
+}
+
+// чистим blob-URL при уходе
+window.addEventListener('beforeunload', () => {
+  try { if (menuURL) URL.revokeObjectURL(menuURL); } catch(_){}
+  try { if (goURL) URL.revokeObjectURL(goURL); } catch(_){}
+});
+</script>
+
+<!-- === КНОПКИ МЕНЮ / РЕКЛАМА (добавлен прогрев GO) === -->
+<script>
+// start
 startImg.addEventListener('click', () => {
   const sc = game.scene.keys['AppScene'];
   if (!sc) return;
-  showYandexAd(sc, () => {
+  showYandexAd(sc, async () => {
+    await primeGameoverVideo();     // прогрели GameOver перед началом
     hideMenuOverlay();
     sc.beginNewGame();
   });
 }, { passive: true });
 
+// restart
 restartImg.addEventListener('click', () => {
   const sc = game.scene.keys['AppScene'];
   if (!sc) return;
-  showYandexAd(sc, () => {
+  showYandexAd(sc, async () => {
+    await primeGameoverVideo();     // и тут тоже (особенно полезно для iOS)
     hideGameoverOverlay();
     sc.beginNewGame();
   });
 }, { passive: true });
 
+// реклама как у тебя
 function showYandexAd(scene, afterClose) {
-  // Если SDK не инициализирован — просто продолжаем игру
   if (!ysdk) { if (typeof afterClose === 'function') afterClose(); return; }
-
   try {
     if (scene && scene._setPaused) scene._setPaused(true);
     ysdk.adv.showFullscreenAdv({
       callbacks: {
-        onOpen: () => console.log('▶️ Реклама началась'),
+        onOpen:  () => console.log('▶️ Реклама началась'),
         onClose: (wasShown) => {
           console.log('⏹️ Реклама завершена', wasShown);
           if (scene && scene._setPaused) scene._setPaused(false);
@@ -1615,6 +1643,7 @@ function showYandexAd(scene, afterClose) {
   }
 }
 </script>
+
 </body>
 </html>
 
