@@ -59,224 +59,229 @@
     </script>
 
     <style>
-      :root{
-        --w:720px;
-        --h:1280px;
-      }
-      html,body{
-        height:100%;
-        margin:0;
-        background:#000;
-        overflow:hidden;
-        -webkit-tap-highlight-color:transparent;
-      }
-      #viewport{
-        position:fixed;
-        inset:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        background:#000;
-        touch-action:none;
-      }
-      #stage{
-        position:relative;
-        width:var(--w);
-        height:var(--h);
-        overflow:hidden;
-        user-select:none;
-        image-rendering:crisp-edges;
-        image-rendering:-webkit-optimize-contrast;
-      }
-      #game{
-        position:absolute;
-        inset:0;
-      }
+  :root{
+    --w:720px;
+    --h:1280px;
+  }
 
-      .overlay{
-        position:absolute;
-        inset:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        z-index:60;
-        pointer-events:auto;
-      }
-      .hidden{
-        display:none;
-      }
-      .panel{
-        position:relative;
-        z-index:2;
-        display:flex;
-        flex-direction:column;
-        gap:18px;
-        align-items:center;
-        justify-content:center;
-        padding-top:36vh;
-      }
-      .title{
-        color:#fff;
-        margin:0;
-        font:700 20px/1.2 Arial,Helvetica,sans-serif;
-        text-shadow:0 0 12px rgba(0,0,0,.6);
-        z-index:2;
-      }
+  html,body{
+    height:100%;
+    margin:0;
+    background:#000;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
 
-      /* Плавное появление видео */
-      .bg-video{
-        position:absolute;
-        inset:0;
-        width:100%;
-        height:100%;
-        object-fit:cover;
-        z-index:1;
-        pointer-events:none;
-        filter:brightness(.9) contrast(1.05);
-        transition: opacity .5s ease;
-      }
+  #viewport{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#000;
+    touch-action:none;
+  }
 
-      .imgbtn{
-        width:44%;
-        max-width:360px;
-        height:auto;
-        cursor:pointer;
-        filter:drop-shadow(0 0 16px rgba(0,0,0,.7));
-        transition:transform .08s;
-        user-select:none;
-        -webkit-user-drag:none;
-      }
-      .imgbtn:active{
-        transform:scale(.98);
-      }
+  #stage{
+    position:relative;
+    width:var(--w);
+    height:var(--h);
+    overflow:hidden;
+    user-select:none;
+    image-rendering:crisp-edges;
+    image-rendering:-webkit-optimize-contrast;
+    background:#000; /* если где-то промелькнёт — будет чёрное, а не карта */
+  }
 
-      #preloaderOverlay{
-        background:#000;
-      }
-      #bar{
-        width:60%;
-        max-width:520px;
-        height:18px;
-        background:#1a1a1a;
-        border-radius:9px;
-        overflow:hidden;
-        box-shadow: inset 0 0 12px rgba(0,0,0,.6);
-      }
-      #bar > div{
-        height:100%;
-        width:0%;
-        background:#1e90ff;
-        transition:width .12s linear;
-      }
+  #game{
+    position:absolute;
+    inset:0;
+  }
 
-      /* Логотип при загрузке */
-      .logoPulse{
-        width:180px;
-        height:auto;
-        margin-bottom:25px;
-        filter: drop-shadow(0 0 14px rgba(0,0,0,.7));
-        animation: logoPulseAnim 1.6s infinite ease-in-out;
-        transition: opacity .5s ease;
-      }
-      @keyframes logoPulseAnim{
-        0%,100%{ transform:scale(1); opacity:1; }
-        50%    { transform:scale(1.07); opacity:.75; }
-      }
-      #preloaderOverlay.hidden .logoPulse{
-        opacity:0;
-      }
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:60;
+    pointer-events:auto;
+    background:#000; /* перекрываем карту под меню и gameover */
+  }
 
-      /* ===== Общий вид счётчика очков (одна позиция для всех экранов) ===== */
-      #menuScoreWrap{
-        position:absolute;
-        z-index:95;
-        pointer-events:none;
-      }
-      #menuScore{
-        display:inline-block;
-        padding:8px 14px;
-        border-radius:10px;
-        background:rgba(0,0,0,.35);
-        color:#ffec8b;
-        font:700 22px/1 Arial,Helvetica,sans-serif;
-        text-shadow:0 0 10px rgba(0,0,0,.8);
-        backdrop-filter:blur(2px);
-      }
+  .hidden{
+    display:none;
+  }
 
-      /* HUD-окно очков (в игре / геймовере) — та же позиция, тот же стиль */
-      #scoreHud{
-        position:absolute;
-        z-index:95;
-        pointer-events:none;
-        transition:opacity 0.4s ease;
-      }
-      #scoreHud.hidden{
-        opacity:0;
-      }
+  .panel{
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    align-items:center;
+    justify-content:center;
+    padding-top:36vh;
+  }
 
-      /* ===== GameOver: звёзды и +очки ===== */
-/* SCORE IN MENU */
-#menuScoreWrap {
-  position:absolute;
-  z-index:50;
-}
+  .title{
+    color:#fff;
+    margin:0;
+    font:700 20px/1.2 Arial,Helvetica,sans-serif;
+    text-shadow:0 0 12px rgba(0,0,0,.6);
+    z-index:2;
+  }
 
-/* SCORE HUD IN GAME */
-#scoreHud {
-  position:absolute;
-  z-index:50;
-}
+  /* Плавное появление видео фонового */
+  .bg-video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    z-index:1;
+    pointer-events:none;
+    filter:brightness(.9) contrast(1.05);
+    transition: opacity .5s ease;
+  }
 
-/* GAMEOVER PANEL */
-#goPanel{
-  position:absolute;
-  z-index:99;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  pointer-events:none;
-}
+  .imgbtn{
+    width:44%;
+    max-width:360px;
+    height:auto;
+    cursor:pointer;
+    filter:drop-shadow(0 0 16px rgba(0,0,0,.7));
+    transition:transform .08s;
+    user-select:none;
+    -webkit-user-drag:none;
+  }
+  .imgbtn:active{
+    transform:scale(.98);
+  }
 
-      #starRow{
-        display:flex;
-        gap:18px;
-      }
-      .star{
-        font:900 80px/1 Arial,Helvetica,sans-serif;
-        color:#ffd700;
-        text-shadow:0 0 10px rgba(0,0,0,.8),
-                    0 0 18px rgba(255,215,0,.35);
-        transform:scale(0);
-        opacity:0;
-        transition:transform .45s ease, opacity .45s ease;
-        filter:drop-shadow(0 0 10px rgba(255,215,0,.45));
-      }
-      .star.appear{
-        transform:scale(1);
-        opacity:1;
-      }
-      .star.pulse{
-        animation:starPulse 1.6s ease-in-out infinite;
-      }
-      @keyframes starPulse{
-        0%,100%{ transform:scale(1); }
-        50%    { transform:scale(1.06); }
-      }
-      #scoreGain{
-        color:#ffec8b;
-        font:800 24px/1 Arial,Helvetica,sans-serif;
-        text-shadow:0 0 10px rgba(0,0,0,.8);
-        opacity:0;
-        transform:translateY(8px);
-        transition:opacity .4s ease, transform .4s ease;
-      }
-      #scoreGain.show{
-        opacity:1;
-        transform:translateY(0);
-      }
-    </style>
+  #preloaderOverlay{
+    background:#000;
+  }
+
+  #bar{
+    width:60%;
+    max-width:520px;
+    height:18px;
+    background:#1a1a1a;
+    border-radius:9px;
+    overflow:hidden;
+    box-shadow: inset 0 0 12px rgba(0,0,0,.6);
+  }
+  #bar > div{
+    height:100%;
+    width:0%;
+    background:#1e90ff;
+    transition:width .12s linear;
+  }
+
+  /* Логотип при загрузке */
+  .logoPulse{
+    width:180px;
+    height:auto;
+    margin-bottom:25px;
+    filter: drop-shadow(0 0 14px rgba(0,0,0,.7));
+    animation: logoPulseAnim 1.6s infinite ease-in-out;
+    transition: opacity .5s ease;
+  }
+  @keyframes logoPulseAnim{
+    0%,100%{ transform:scale(1); opacity:1; }
+    50%    { transform:scale(1.07); opacity:.75; }
+  }
+  #preloaderOverlay.hidden .logoPulse{
+    opacity:0;
+  }
+
+  /* ==== Общий стиль "пилюли" очков ==== */
+  .score-pill{
+    display:inline-block;
+    min-width:160px;
+    padding:8px 16px;
+    border-radius:12px;
+    background:rgba(0,0,0,.55);
+    color:#ffec8b;
+    font:700 22px/1.1 Arial,Helvetica,sans-serif;
+    text-align:center;
+    text-shadow:0 0 8px rgba(0,0,0,.8);
+    box-shadow:0 0 12px rgba(0,0,0,.7);
+    backdrop-filter:blur(3px);
+  }
+
+  /* Очки в меню (над видео) */
+  #menuScoreWrap{
+    position:absolute;
+    z-index:95;
+    pointer-events:none;
+  }
+
+  /* Очки в игре (под базой) */
+  #scoreHud{
+    position:absolute;
+    z-index:95;
+    pointer-events:none;
+    transition:opacity .4s ease;
+  }
+  #scoreHud.hidden{
+    opacity:0;
+  }
+
+  /* ===== GameOver: панель звёзд и +очки ===== */
+  #goPanel{
+    position:absolute;
+    z-index:99;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    pointer-events:none;
+  }
+
+  #starRow{
+    display:flex;
+    gap:18px;
+  }
+
+  .star{
+    font:900 80px/1 Arial,Helvetica,sans-serif;
+    color:#ffd700;
+    text-shadow:
+      0 0 10px rgba(0,0,0,.8),
+      0 0 18px rgba(255,215,0,.35);
+    transform:scale(0);
+    opacity:0;
+    transition:transform .45s ease, opacity .45s ease;
+    filter:drop-shadow(0 0 10px rgba(255,215,0,.45));
+  }
+  .star.appear{
+    transform:scale(1);
+    opacity:1;
+  }
+  .star.pulse{
+    animation:starPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes starPulse{
+    0%,100%{ transform:scale(1); }
+    50%    { transform:scale(1.06); }
+  }
+
+  #scoreGain{
+    color:#ffec8b;
+    font:800 24px/1 Arial,Helvetica,sans-serif;
+    text-shadow:0 0 10px rgba(0,0,0,.8);
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  #scoreGain.show{
+    opacity:1;
+    transform:translateY(0);
+  }
+</style>
 
     <!-- Phaser -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
@@ -311,16 +316,17 @@
           </div>
         </div>
 
-        <!-- Общий счёт (главное меню) -->
-  <!-- SCORE IN MENU -->
-<div id="menuScoreWrap" class="hidden">
-  <div id="menuScore">Количество очков: 0</div>
-</div>
+                <!-- Общий счёт (главное меню) -->
+        <div id="menuScoreWrap" class="hidden">
+          <div id="menuScore" class="score-pill">
+            Количество очков: 0
+          </div>
+        </div>
 
-<!-- SCORE HUD IN GAME -->
-<div id="scoreHud" class="hidden">
-  <div id="scoreHudVal">0</div>
-</div>
+        <!-- Очки в игре (под базой) -->
+        <div id="scoreHud" class="hidden">
+          <div id="scoreHudVal" class="score-pill">0</div>
+        </div>
 
 
         <!-- Меню -->
@@ -2108,39 +2114,47 @@ menuScoreWrap.classList.add('hidden');
   const LOGICAL_W = CONST.WIDTH;   // 720
   const LOGICAL_H = CONST.HEIGHT;  // 1280
 
-  function placeAt(el, x, y, opts={ anchorX:0.5, anchorY:0.5 }) {
+  function placeAt(el, x, y, opts = { anchorX:0.5, anchorY:0.5 }) {
     if (!el) return;
     const w = stageBox.clientWidth;
     const h = stageBox.clientHeight;
+    if (!w || !h) return;
+
     const sx = w / LOGICAL_W;
     const sy = h / LOGICAL_H;
     const scale = Math.min(sx, sy);
+
     const cssX = Math.round(x * scale);
     const cssY = Math.round(y * scale);
+
     const bw = el.offsetWidth  || 0;
     const bh = el.offsetHeight || 0;
-    const left = cssX - Math.round(bw * (opts.anchorX ?? 0.5));
-    const top  = cssY - Math.round(bh * (opts.anchorY ?? 0.5));
+
+    const anchorX = opts.anchorX ?? 0.5;
+    const anchorY = opts.anchorY ?? 0.5;
+
+    const left = cssX - Math.round(bw * anchorX);
+    const top  = cssY - Math.round(bh * anchorY);
+
     el.style.position = 'absolute';
     el.style.left = left + 'px';
     el.style.top  = top  + 'px';
-    el.style.transform = 'none';
+    el.style.transform = 'translateZ(0)';
   }
 
-function updateHudLayout() {
-  const baseX = CONST.BASE_POS.x;
-  const baseY = CONST.BASE_POS.y;
+  function updateHudLayout() {
+    const baseX = CONST.BASE_POS.x;
+    const baseY = CONST.BASE_POS.y;
 
-  // MENU — чуть выше середины
- placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.33);
+    // MENU — ближе к верху экрана, по центру
+    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.16);
 
-  // GAME — строго под базой
-  placeAt(scoreHud, baseX, baseY + 120);
+    // GAME — ровно под базой
+    placeAt(scoreHud, baseX, baseY + 110);
 
-  // GAMEOVER — чуть выше центра
-  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.28);
-}
-
+    // GAMEOVER — чуть выше геометрического центра экрана
+    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.45);
+  }
 </script>
 
     <script>
