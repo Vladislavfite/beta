@@ -236,18 +236,14 @@
 
       /* ===== GameOver: звёзды и +очки ===== */
 #goPanel{
-    position:absolute;
-    left:50%;
-    top:50%;
-    transform:translate(-50%, -50%) !important;
-    width:auto;
-    z-index:99;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:12px;
-    pointer-events:none;
+  position:absolute;
+  z-index:99;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  pointer-events:none;
 }
       #starRow{
         display:flex;
@@ -322,9 +318,9 @@
         </div>
 
         <!-- Общий счёт (главное меню) -->
-        <div id="menuScoreWrap">
-          <div id="menuScore">Количество очков: 0</div>
-        </div>
+        <div id="menuScoreWrap" class="hidden">
+  <div id="menuScore">Количество очков: 0</div>
+</div>
 
         <!-- HUD очков (игра/геймовер) -->
         <div id="scoreHud" class="hidden">
@@ -425,6 +421,7 @@
 
       const scoreHud   = $('scoreHud');
       const scoreHudVal= $('scoreHudVal');
+      const menuScoreWrap = $('menuScoreWrap');
       const menuScore  = $('menuScore');
       const starEls    = [ $('star1'), $('star2'), $('star3') ];
       const scoreGain  = $('scoreGain');
@@ -469,14 +466,18 @@ scoreHud.classList.add('hidden');
       };
 
       // 👉 Экран Game Over
-      const showGameoverOverlay = () => {
-        menuOverlay.classList.add('hidden');
-        gameoverOverlay.classList.remove('hidden');
-        try {
-          gameoverVideo.currentTime = 0;
-          gameoverVideo.play().catch(() => {});
-        } catch (_) {}
-      };
+const showGameoverOverlay = () => {
+  menuOverlay.classList.add('hidden');
+  gameoverOverlay.classList.remove('hidden');
+  try {
+    gameoverVideo.currentTime = 0;
+    gameoverVideo.play().catch(() => {});
+  } catch (_) {}
+
+  // правильное скрытие полей очков
+  document.getElementById('scoreHud').classList.add('hidden');
+  document.getElementById('menuScoreWrap').classList.add('hidden');
+};
 
       const hideGameoverOverlay = () => {
         gameoverOverlay.classList.add('hidden');
@@ -2073,9 +2074,6 @@ menuScoreWrap.classList.add('hidden');
         syncStageToCanvas();
       },{passive:true});
 
-      // задержка перед первым перерасчётом HUD
-      setTimeout(() => requestAnimationFrame(updateHudLayout), 400);
-
       window.addEventListener('resize', ()=>{
         cancelAnimationFrame(syncStageToCanvas.__raf||0);
         syncStageToCanvas.__raf=requestAnimationFrame(()=>{
@@ -2138,23 +2136,16 @@ menuScoreWrap.classList.add('hidden');
     const goPanel       = document.getElementById('goPanel');
 
     // --- 1. MENU SCORE
-    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.14);
+    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.38);
 
     // --- 2. GAME HUD — под базой
     const baseX = CONST.BASE_POS.x;
     const baseY = CONST.BASE_POS.y;
-    placeAt(scoreHud, baseX, baseY - 200);
+    placeAt(scoreHud, baseX, baseY - 120);
 
     // --- 3. GAMEOVER — центр
-    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.40);
+    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.33);
   }
-
-  // Хук: пересчёт после resize
-  const _oldSync = window.syncStageToCanvas;
-  window.syncStageToCanvas = function() {
-    _oldSync && _oldSync();
-    requestAnimationFrame(updateHudLayout);
-  };
 </script>
 
     <script>
