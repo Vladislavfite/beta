@@ -94,23 +94,27 @@
       #preloaderOverlay.hidden .logoPulse { opacity: 0; }
 
       /* ===== Меню: вывод общего количества очков ===== */
-      #menuScoreWrap{
-        position:absolute; top:36%; width:100%; text-align:center; z-index:3; pointer-events:none;
-      }
-      #menuScore{
-        display:inline-block; padding:8px 14px; border-radius:10px; background:rgba(0,0,0,.35);
-        color:#ffec8b; font:700 22px/1 Arial,Helvetica,sans-serif; text-shadow:0 0 10px rgba(0,0,0,.8);
-        backdrop-filter: blur(2px);
-      }
+#menuScoreWrap{
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  z-index: 3;
+  pointer-events: none;
+}
+#menuScore{
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.35);
+  color: #ffec8b;
+  font: 700 22px/1 Arial, Helvetica, sans-serif;
+  text-shadow: 0 0 10px rgba(0,0,0,.8);
+  backdrop-filter: blur(2px);
+}
 
-    
-
-/* ===== Маленькое окошко очков (теперь под базой) ===== */
+/* ===== Маленькое окошко очков (позиционируется JS) ===== */
 #scoreHud {
   position: absolute;
-  left: 20%;
-  bottom: 110px;              /* чуть ниже базы, можно подрегулировать */
-  transform: translateX(-20%);
   z-index: 95;
   pointer-events: none;
   transition: opacity 0.4s ease;
@@ -139,10 +143,9 @@
   text-align: center;
 }
 
-/* ===== GameOver: звёзды и +очки ===== */
+/* ===== GameOver: звёзды и +очки (позиционируется JS) ===== */
 #goPanel {
   position: absolute;
-  top: 25%;        /* было 44%, теперь выше */
   width: 100%;
   z-index: 3;
   display: flex;
@@ -158,27 +161,23 @@
 .star {
   font: 900 80px/1 Arial, Helvetica, sans-serif;
   color: #ffd700;
-  text-shadow: 0 0 10px rgba(0, 0, 0, .8), 0 0 18px rgba(255, 215, 0, .35);
+  text-shadow: 0 0 10px rgba(0,0,0,.8), 0 0 18px rgba(255,215,0,.35);
   transform: scale(0);
   opacity: 0;
   transition: transform .45s ease, opacity .45s ease;
-  filter: drop-shadow(0 0 10px rgba(255, 215, 0, .45));
+  filter: drop-shadow(0 0 10px rgba(255,215,0,.45));
 }
-.star.appear {
-  transform: scale(1);
-  opacity: 1;
-}
-.star.pulse {
-  animation: starPulse 1.6s ease-in-out infinite;
-}
+.star.appear { transform: scale(1); opacity: 1; }
+.star.pulse { animation: starPulse 1.6s ease-in-out infinite; }
+
 @keyframes starPulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  50%      { transform: scale(1.06); }
 }
 #scoreGain {
   color: #ffec8b;
   font: 800 24px/1 Arial, Helvetica, sans-serif;
-  text-shadow: 0 0 10px rgba(0, 0, 0, .8);
+  text-shadow: 0 0 10px rgba(0,0,0,.8);
   opacity: 0;
   transform: translateY(8px);
   transition: opacity .4s ease, transform .4s ease;
@@ -187,7 +186,6 @@
   opacity: 1;
   transform: translateY(0);
 }
-
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
     <!-- Yandex Games SDK -->
@@ -512,92 +510,98 @@ function animateStars(scene){
           this.load.audio('star','assets/sound/star.mp3'); // ★ звук звезды
         }
 
-        create(){
+create(){
 
-          /* Группы/пулы */
-          this.enemies = this.add.group(); this.bullets = this.add.group();
-          this.towers = []; this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
-          this.enemyPool = []; this.bulletPool = [];
+  /* Группы/пулы */
+  this.enemies = this.add.group(); this.bullets = this.add.group();
+  this.towers = []; this.buildSprites = new Array(CONST.BUILD_SPOTS.length).fill(null);
+  this.enemyPool = []; this.bulletPool = [];
 
-          for(let i=0;i<CONST.PREWARM_ENEMIES;i++){
-            const e = this.add.sprite(-9999, -9999, 'e_walk_0')
-              .setScale(0.35)
-              .setVisible(false)
-              .setActive(false)
-              .setDepth(Z.ENEMY);
-            e.hpBar = this.add.graphics().setDepth(Z.ENEMY_HP).setVisible(false); e.hpBar.__owner = e;
-            this.enemies.add(e); this.enemyPool.push(e);
-          }
-          for(let i=0;i<CONST.PREWARM_BULLETS;i++){
-            const b = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false).setDepth(Z.BULLET);
-            this.bullets.add(b); this.bulletPool.push(b);
-          }
-
-          /* Скорость/звук */
-          this.speedScale = 1; this.time.timeScale = 1;
-          this.sndLobby   = this.sound.add('lobby',{loop:true, volume:.6});
-          this.sndBattle  = this.sound.add('battle',{loop:true, volume:.6});
-          this.sndArrowLp = this.sound.add('arrow_s',{loop:true, volume:.35});
-          this.sndOver    = this.sound.add('gameover_s',{volume:.9});
-          this.sndUp      = this.sound.add('towerup',{volume:.9});
-          this.sndRush    = this.sound.add('towerrush',{volume:.9});
-          this.sndMoney   = this.sound.add('money',{volume:.9});
-          this.sndKill    = this.sound.add('kill',{volume:.8});
-          this.sndBoss    = this.sound.add('boss',{volume:.675});
-          this.sndUplevel = this.sound.add('uplevel',{volume:.9});
-          this.sndBaseHit = this.sound.add('uronbase',{volume:.9});
-
-          try{
-            const savedMute = localStorage.getItem('td_mute');
-            if(savedMute!==null) State.soundEnabled = (savedMute!=='1');
-            const savedScore = localStorage.getItem('td_total_score');
-            if(savedScore!==null) State.totalScore = Math.max(0, parseInt(savedScore,10)||0);
-          }catch(_){}
-          this.sound.mute = !State.soundEnabled;
-
-          this.stopAllLoops = ()=>{ try{ this.sndArrowLp.stop(); }catch(_){} try{ this.sndBattle.stop(); }catch(_){} try{ this.sndLobby.stop(); }catch(_){} };
-          this.playLobby = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying && this.sndLobby.play(); }catch(_){} };
-          this.playBattle = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
-          this.playGameOver = ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
-
-          // меню при старте
-          hidePreloader();
-          showMenuOverlay();
-          this.playLobby();
-          try {
-  if (ysdk && ysdk.features && ysdk.features.LoadingAPI) {
-    ysdk.features.LoadingAPI.ready();
-    console.log('🎮 Игра готова (LoadingAPI.ready)');
+  for(let i=0;i<CONST.PREWARM_ENEMIES;i++){
+    const e = this.add.sprite(-9999, -9999, 'e_walk_0')
+      .setScale(0.35)
+      .setVisible(false)
+      .setActive(false)
+      .setDepth(Z.ENEMY);
+    e.hpBar = this.add.graphics().setDepth(Z.ENEMY_HP).setVisible(false); e.hpBar.__owner = e;
+    this.enemies.add(e); this.enemyPool.push(e);
   }
-} catch(e) { console.warn('Ошибка LoadingAPI:', e); }
+  for(let i=0;i<CONST.PREWARM_BULLETS;i++){
+    const b = this.add.image(-9999,-9999,'arrow').setVisible(false).setActive(false).setDepth(Z.BULLET);
+    this.bullets.add(b); this.bulletPool.push(b);
+  }
 
+  /* Скорость/звук */
+  this.speedScale = 1; this.time.timeScale = 1;
+  this.sndLobby   = this.sound.add('lobby',{loop:true, volume:.6});
+  this.sndBattle  = this.sound.add('battle',{loop:true, volume:.6});
+  this.sndArrowLp = this.sound.add('arrow_s',{loop:true, volume:.35});
+  this.sndOver    = this.sound.add('gameover_s',{volume:.9});
+  this.sndUp      = this.sound.add('towerup',{volume:.9});
+  this.sndRush    = this.sound.add('towerrush',{volume:.9});
+  this.sndMoney   = this.sound.add('money',{volume:.9});
+  this.sndKill    = this.sound.add('kill',{volume:.8});
+  this.sndBoss    = this.sound.add('boss',{volume:.675});
+  this.sndUplevel = this.sound.add('uplevel',{volume:.9});
+  this.sndBaseHit = this.sound.add('uronbase',{volume:.9});
 
-          // карта (отложенно)
-          this.time.delayedCall(50, () => {
-            this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
-              .setDisplaySize(CONST.WIDTH, CONST.HEIGHT)
-              .setDepth(Z.MAP);
-          });
+  try{
+    const savedMute = localStorage.getItem('td_mute');
+    if(savedMute!==null) State.soundEnabled = (savedMute!=='1');
+    const savedScore = localStorage.getItem('td_total_score');
+    if(savedScore!==null) State.totalScore = Math.max(0, parseInt(savedScore,10)||0);
+  }catch(_){}
+  this.sound.mute = !State.soundEnabled;
 
-          /* Споты строительства */
-          CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
+  this.stopAllLoops = ()=>{ try{ this.sndArrowLp.stop(); }catch(_){} try{ this.sndBattle.stop(); }catch(_){} try{ this.sndLobby.stop(); }catch(_){} };
+  this.playLobby = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndLobby.isPlaying && this.sndLobby.play(); }catch(_){} };
+  this.playBattle = ()=>{ if(State.paused) return; this.stopAllLoops(); try{ !this.sndBattle.isPlaying && this.sndBattle.play(); }catch(_){} };
+  this.playGameOver = ()=>{ this.stopAllLoops(); try{ this.sndOver.play(); }catch(_){} };
 
-          /* Анимации */
-          this._createAnims();
+  // меню при старте
+  hidePreloader();
+  showMenuOverlay();
+  this.playLobby();
+  try {
+    if (ysdk && ysdk.features && ysdk.features.LoadingAPI) {
+      ysdk.features.LoadingAPI.ready();
+      console.log('🎮 Игра готова (LoadingAPI.ready)');
+    }
+  } catch(e) { console.warn('Ошибка LoadingAPI:', e); }
 
-          /* HUD / боковые кнопки */
-          this._buildHUD();
-          this._buildSideButtons();
+  // карта (отложенно)
+  this.time.delayedCall(50, () => {
+    this.add.image(CONST.WIDTH/2, CONST.HEIGHT/2, 'map')
+      .setDisplaySize(CONST.WIDTH, CONST.HEIGHT)
+      .setDepth(Z.MAP);
+  });
 
-          /* База + полоска HP */
-          this._createBase();
+  /* Споты строительства */
+  CONST.BUILD_SPOTS.forEach((p,i)=> this._createHammer(p,i));
 
-          /* Панель героев */
-          this._createHeroPanel();
+  /* Анимации */
+  this._createAnims();
 
-          /* Стрельба башен */
-          this.shootTicker = this.time.addEvent({ delay:120, loop:true, callback:()=> this._towersTick() });
-        }
+  /* HUD / боковые кнопки */
+  this._buildHUD();
+  this._buildSideButtons();
+
+  /* База + полоска HP */
+  this._createBase();
+
+  /* Панель героев */
+  this._createHeroPanel();
+
+  /* Стрельба башен */
+  this.shootTicker = this.time.addEvent({
+    delay:120,
+    loop:true,
+    callback:()=> this._towersTick()
+  });
+
+  /* ВАЖНО: после построения сцены — пересчитать позиции DOM-HUD */
+  this.time.delayedCall(0, ()=> requestAnimationFrame(updateHudLayout));
+} 
 
     update(){
   if(!State.started || State.paused){
@@ -1515,8 +1519,58 @@ window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ try{ game.sc
 function afterBoot(){ try{ game.scale.on('resize', ()=> syncStageToCanvas()); }catch(_){ } syncStageToCanvas(); }
 if(document.readyState==='complete' || document.readyState==='interactive') setTimeout(afterBoot,0);
 else document.addEventListener('DOMContentLoaded', afterBoot);
+    </script>
+  <script>
+// === Привязка DOM-HUD к логическим координатам игры (720×1280) ===
+const LOGICAL_W = CONST.WIDTH;   // 720
+const LOGICAL_H = CONST.HEIGHT;  // 1280
 
-<!-- === ПРЕДЗАГРУЗКА ВИДЕО МЕНЮ/ГО И ПРОГРЕВ ДЕКОДЕРА === -->
+function placeAt(el, x, y, opts={ anchorX:0.5, anchorY:0.5 }) {
+  if (!el) return;
+  const w = stageBox.clientWidth;
+  const h = stageBox.clientHeight;
+  const sx = w / LOGICAL_W;
+  const sy = h / LOGICAL_H;
+  const cssX = Math.round(x * sx);
+  const cssY = Math.round(y * sy);
+  const bw = el.offsetWidth  || 0;
+  const bh = el.offsetHeight || 0;
+  const left = cssX - Math.round(bw * (opts.anchorX ?? 0.5));
+  const top  = cssY - Math.round(bh * (opts.anchorY ?? 0.5));
+  el.style.position = 'absolute';
+  el.style.left = left + 'px';
+  el.style.top  = top  + 'px';
+  el.style.transform = 'none';
+}
+
+function updateHudLayout() {
+  const menuScoreWrap = document.getElementById('menuScoreWrap');
+  const scoreHud      = document.getElementById('scoreHud');
+  const goPanel       = document.getElementById('goPanel');
+
+  // Меню: центр по X, Y = 36% высоты
+  if (menuScoreWrap) {
+    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.36, { anchorX: 0.5, anchorY: 0.5 });
+  }
+
+  // HUD очков: привязываем к базе, +110 ниже базы
+  if (scoreHud) {
+    placeAt(scoreHud, CONST.BASE_POS.x, CONST.BASE_POS.y + 110, { anchorX: 0.5, anchorY: 0.5 });
+  }
+
+  // GameOver: центр по X, Y = 28% высоты
+  if (goPanel) {
+    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.28, { anchorX: 0.5, anchorY: 0.5 });
+  }
+}
+
+// Хук: после любого пересчёта размера канваса — обновляем DOM-позиции
+const _oldSync = window.syncStageToCanvas;
+window.syncStageToCanvas = function() {
+  _oldSync && _oldSync();
+  requestAnimationFrame(updateHudLayout);
+};
+</script>    
 <script>
 let menuURL, goURL;
 
@@ -1591,6 +1645,30 @@ window.addEventListener('beforeunload', () => {
   try { if (goURL) URL.revokeObjectURL(goURL); } catch(_){}
 });
 </script>
+    <script>
+// мягко «перехватываем» и дополняем существующие функции
+if (typeof window.showMenuOverlay === 'function') {
+  const _smo = window.showMenuOverlay;
+  window.showMenuOverlay = function(){ _smo(); requestAnimationFrame(updateHudLayout); };
+}
+if (typeof window.hideMenuOverlay === 'function') {
+  const _hmo = window.hideMenuOverlay;
+  window.hideMenuOverlay = function(){ _hmo(); requestAnimationFrame(updateHudLayout); };
+}
+if (typeof window.showGameoverOverlay === 'function') {
+  const _sgo = window.showGameoverOverlay;
+  window.showGameoverOverlay = function(){ _sgo(); requestAnimationFrame(updateHudLayout); };
+}
+if (typeof window.hideGameoverOverlay === 'function') {
+  const _hgo = window.hideGameoverOverlay;
+  window.hideGameoverOverlay = function(){ _hgo(); requestAnimationFrame(updateHudLayout); };
+}
+
+// когда показываешь HUD очков внутри beginNewGame — тоже обнови раскладку
+window.addEventListener('startGame', ()=> {
+  requestAnimationFrame(updateHudLayout);
+});
+</script>
 
 <!-- === КНОПКИ МЕНЮ / РЕКЛАМА (добавлен прогрев GO) === -->
 <script>
@@ -1615,10 +1693,21 @@ restartImg.addEventListener('click', () => {
     sc.beginNewGame();
   });
 }, { passive: true });
+function isYandexContainer() {
+  // Проверяем: игра действительно внутри Яндекс-контейнера (iframe + SDK)
+  const inFrame = (function(){ try{ return window.top !== window; }catch(_){ return true; } })();
+  return !!(inFrame && window.YaGames && window.ysdk && ysdk.adv && typeof ysdk.adv.showFullscreenAdv === 'function');
+}
 
-// реклама как у тебя
 function showYandexAd(scene, afterClose) {
-  if (!ysdk) { if (typeof afterClose === 'function') afterClose(); return; }
+  // Если игра не запущена в Яндекс Играх — просто продолжаем без рекламы
+  if (!isYandexContainer()) {
+    console.log('🚫 Не в контейнере Яндекс — реклама пропущена');
+    if (scene && scene._setPaused) scene._setPaused(false);
+    if (typeof afterClose === 'function') afterClose();
+    return;
+  }
+
   try {
     if (scene && scene._setPaused) scene._setPaused(true);
     ysdk.adv.showFullscreenAdv({
