@@ -240,12 +240,21 @@
 
 /* ======================== GAMEOVER PANEL ======================== */
 
-#goPanel{
+#goPanel {
   position:absolute;
-  width:720px;            /* фикс ширины игры */
-  height:260px;           /* фикс высоты панели */
-  left:0;
-  top:0;
+
+  /* прижимаем к центру ИГРОВОЙ ОБЛАСТИ, а не overlay */
+  left:50%;
+  top:32%;
+  transform:translate(-50%, -50%);
+
+  /* фиксируем ширину ПРИНУДИТЕЛЬНО */
+  width:720px !important;
+  max-width:720px !important;
+  min-width:720px !important;
+
+  /* фиксируем высоту */
+  height:260px !important;
 
   display:flex;
   flex-direction:column;
@@ -255,8 +264,8 @@
   pointer-events:none;
   text-align:center;
 
-  /* отключаем влияние transform от placeAt */
-  transform:none !important;
+  /* чтобы overlay не сжимал */
+  box-sizing:border-box;
 }
 
 /* Центрирование звёзд */
