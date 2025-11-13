@@ -242,21 +242,26 @@
 
 #goPanel {
   position:absolute;
+
+  /* центр относительно логического экрана 720×1280 */
   left:50%;
-  top:30%;  /* ← оптимальное положение над гоблином */
+  top:32%;                    /* регулируй 30–36% */
+
   transform:translate(-50%, -50%);
-  width:100%;
+  width:720px;                /* ← фикс ширины под игру */
+  max-width:720px;            /* ← не растягивается */
   z-index:200;
-  
+
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:22px;
+  gap:20px;
 
   pointer-events:none;
   text-align:center;
 }
+
 
 /* Контейнер со звёздами */
 #starRow{
