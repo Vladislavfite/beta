@@ -2176,18 +2176,19 @@ menuScoreWrap.classList.add('hidden');
     el.style.transform = 'translateZ(0)';
   }
 
-  function updateHudLayout() {
-    const baseX = CONST.BASE_POS.x;
-    const baseY = CONST.BASE_POS.y;
+ function updateHudLayout() {
+  const baseX = CONST.BASE_POS.x;
+  const baseY = CONST.BASE_POS.y;
 
-    // MENU — чуть выше середины
-    placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.18);
+  // MENU — чуть выше середины
+  placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.18);
 
-    // GAME — под базой
-    placeAt(scoreHud, baseX, baseY + 110);
+  // GAME — под базой
+  placeAt(scoreHud, baseX, baseY + 110);
 
-
-  }
+  // GAMEOVER — обязательно присутствует, ИНАЧЕ СКРИПТ ОБРЫВАЕТСЯ
+  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.36);
+}
 </script>
 
 
