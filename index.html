@@ -240,20 +240,22 @@
 
 /* ======================== GAMEOVER: звёзды + +очки ======================== */
 
-/* Ставим весь блок строго по центру экрана */
 #goPanel {
   position:absolute;
   left:50%;
-  top:33%;                       /* поднимай/опускай тут */
+  top:28%;               /* ← ПОДНЁС ВЫШЕ / можно менять 26–32% */
   transform:translate(-50%, -50%);
-  z-index:99;
+  z-index:150;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:12px;
+  gap:16px;
+  width:100%;
   pointer-events:none;
+  text-align:center;
 }
+
 
 /* Контейнер со звёздами */
 #starRow {
@@ -535,10 +537,10 @@ const showGameoverOverlay = () => {
       }
 
 
-          function updateScoreHud(){
-        // Показываем очки только текущей игры
-        scoreHudVal.textContent = String(State.sessionScore | 0);
-      }
+         function updateScoreHud(){
+    scoreHudVal.textContent = 'ОЧКИ: ' + (State.sessionScore | 0);
+}
+
 
       function resetStarsDom(){
         scoreGain.classList.remove('show');
