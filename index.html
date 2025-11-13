@@ -213,26 +213,6 @@
       #scoreHud.hidden{
         opacity:0;
       }
-      #scoreHud .box{
-        display:inline-block;
-        padding:6px 14px;
-        border-radius:12px;
-        background:rgba(0,0,0,.45);
-        box-shadow:inset 0 0 10px rgba(0,0,0,.3);
-        backdrop-filter:blur(2px);
-      }
-      #scoreHud .label{
-        color:#cde6ff;
-        font:700 14px/1 Arial,Helvetica,sans-serif;
-        text-shadow:0 0 8px rgba(0,0,0,.8);
-        text-align:center;
-      }
-      #scoreHud .val{
-        color:#fff;
-        font:800 20px/1.2 Arial,Helvetica,sans-serif;
-        text-shadow:0 0 10px rgba(0,0,0,.8);
-        text-align:center;
-      }
 
       /* ===== GameOver: звёзды и +очки ===== */
 /* SCORE IN MENU */
@@ -441,10 +421,6 @@ const goPanel       = $('goPanel');
 const starEls       = [ $('star1'), $('star2'), $('star3') ];
 const scoreGain     = $('scoreGain');
 
-
-      const starEls    = [ $('star1'), $('star2'), $('star3') ];
-      const scoreGain  = $('scoreGain');
-
       const State = {
         started:false, paused:false, soundEnabled:true,
         gold: CONST.START_GOLD, heroCoins: 0, wave: 0,
@@ -484,31 +460,25 @@ scoreHud.classList.add('hidden');
         try { menuVideo.pause(); } catch (_) {}
       };
 
-// 👉 Экран Game Over
 const showGameoverOverlay = () => {
   // прячем меню
   menuOverlay.classList.add('hidden');
   menuOverlay.style.display = 'none';
 
-  // показываем оверлей GameOver
+  // показываем GameOver
   gameoverOverlay.classList.remove('hidden');
 
-  // прячем оба счётчика очков (HUD в игре и текст в меню)
+  // скрываем оба счётчика
   menuScoreWrap.classList.add('hidden');
   scoreHud.classList.add('hidden');
 
-  // запускаем ролик GameOver
+  // видео
   try {
     gameoverVideo.currentTime = 0;
-    gameoverVideo.play().catch(() => {});
+    gameoverVideo.play().catch(()=>{});
   } catch (_) {}
 };
 
-
-  // правильное скрытие полей очков
-  document.getElementById('scoreHud').classList.add('hidden');
-  document.getElementById('menuScoreWrap').classList.add('hidden');
-};
 
       const hideGameoverOverlay = () => {
         gameoverOverlay.classList.add('hidden');
@@ -778,9 +748,6 @@ const showGameoverOverlay = () => {
             loop:true,
             callback:()=> this._towersTick()
           });
-
-          /* после построения сцены — пересчитать позиции DOM-HUD */
-          this.time.delayedCall(150, ()=> requestAnimationFrame(updateHudLayout));
         }
 
         update(){
@@ -2165,7 +2132,7 @@ function updateHudLayout() {
   const baseY = CONST.BASE_POS.y;
 
   // MENU — чуть выше середины
-  placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.38);
+ placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.33);
 
   // GAME — строго под базой
   placeAt(scoreHud, baseX, baseY + 120);
