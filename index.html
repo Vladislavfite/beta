@@ -2281,20 +2281,27 @@ placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.32, { anchorX:0.5, anchorY:0.5 }
           requestAnimationFrame(updateHudLayout);
         };
       }
-      if (typeof window.showGameoverOverlay === 'function') {
-        const _sgo = window.showGameoverOverlay;
-        window.showGameoverOverlay = function(){
-          _sgo();
-          requestAnimationFrame(updateHudLayout);
-        };
-      }
-      if (typeof window.hideGameoverOverlay === 'function') {
-        const _hgo = window.hideGameoverOverlay;
-        window.hideGameoverOverlay = function(){
-          _hgo();
-          requestAnimationFrame(updateHudLayout);
-        };
-      }
+   if (typeof window.showGameoverOverlay === 'function') {
+  const _sgo = window.showGameoverOverlay;
+  window.showGameoverOverlay = function(){
+    _sgo();
+
+    // фикс вылета звёзд и +очков — ждём 2 кадра, чтобы DOM получил размеры
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateHudLayout();
+      });
+    });
+  };
+}
+
+if (typeof window.hideGameoverOverlay === 'function') {
+  const _hgo = window.hideGameoverOverlay;
+  window.hideGameoverOverlay = function(){
+    _hgo();
+    requestAnimationFrame(updateHudLayout);
+  };
+}
 
       // когда показываешь HUD очков внутри beginNewGame — тоже обнови раскладку
       window.addEventListener('startGame', ()=> {
