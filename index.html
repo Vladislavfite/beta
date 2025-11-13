@@ -242,30 +242,14 @@
 
 #goPanel {
   position:absolute;
-
-  /* прижимаем к центру ИГРОВОЙ ОБЛАСТИ, а не overlay */
-  left:50%;
-  top:32%;
-  transform:translate(-50%, -50%);
-
-  /* фиксируем ширину ПРИНУДИТЕЛЬНО */
-  width:720px !important;
-  max-width:720px !important;
-  min-width:720px !important;
-
-  /* фиксируем высоту */
-  height:260px !important;
-
+  width:100%;
+  max-width:720px;
+  pointer-events:none;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:flex-start;
-
-  pointer-events:none;
   text-align:center;
-
-  /* чтобы overlay не сжимал */
-  box-sizing:border-box;
 }
 
 /* Центрирование звёзд */
@@ -2196,13 +2180,9 @@ function updateHudLayout() {
   // GAME — под базой
   placeAt(scoreHud, baseX, baseY + 110);
 
-  // GAMEOVER — центрируем строго через CSS, placeAt не трогаем
-  if (goPanel) {
-    goPanel.style.position = 'absolute';
-    goPanel.style.left = '50%';
-    goPanel.style.top = '32%';              // можешь поиграть 30–36
-    goPanel.style.transform = 'translate(-50%, -50%)';
-  }
+// GAMEOVER — масштабируем как все DOM-элементы
+placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.32, { anchorX:0.5, anchorY:0.5 });
+
 }
 </script>
 
