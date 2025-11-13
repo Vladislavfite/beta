@@ -235,19 +235,20 @@
       }
 
       /* ===== GameOver: звёзды и +очки ===== */
-      #goPanel{
-        position:absolute;
-        left:50%;
-        top:28%;
-        transform:translate(-50%,-50%);
-        width:100%;
-        z-index:3;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        gap:12px;
-        pointer-events:none;
-      }
+#goPanel{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%, -50%) !important;
+    width:auto;
+    z-index:99;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    pointer-events:none;
+}
       #starRow{
         display:flex;
         gap:18px;
@@ -454,10 +455,11 @@
           menuVideo.currentTime = 0;
           menuVideo.play().catch(() => {});
         } catch (_) {}
-        // обновить текст очков в меню
-        updateMenuScore();
-        // в главном меню скрываем HUD-окно, оставляем только menuScore
-        scoreHud.classList.add('hidden');
+updateMenuScore();
+
+// MENU: показываем только menuScore
+menuScoreWrap.classList.remove('hidden');
+scoreHud.classList.add('hidden');
       };
 
       const hideMenuOverlay = () => {
@@ -1812,9 +1814,11 @@
           this._applyBaseTexture();
           this._syncHUD();
 
-          // показать HUD очков в игре
-          scoreHud.classList.remove('hidden');
-          updateScoreHud();
+        // GAME: показываем только HUD под базой
+menuScoreWrap.classList.add('hidden');
+scoreHud.classList.remove('hidden');
+updateScoreHud();
+
 
           // бой и волны
           this.playBattle();
@@ -1873,6 +1877,9 @@
             gv.currentTime = 0;
             gv.play().catch(()=>{});
           } catch(_) {}
+// GAMEOVER: скрыть панели меню и игры
+menuScoreWrap.classList.add('hidden');
+scoreHud.classList.add('hidden');
 
           // анимация звёзд и "+очки"
           animateStars(this);
@@ -2128,21 +2135,26 @@
         el.style.transform = 'none';
       }
 
-      function updateHudLayout() {
-        const menuScoreWrap = document.getElementById('menuScoreWrap');
-        const scoreHud      = document.getElementById('scoreHud');
-        const goPanel       = document.getElementById('goPanel');
+     function updateHudLayout() {
+  const menuScoreWrap = document.getElementById('menuScoreWrap');
+  const scoreHud      = document.getElementById('scoreHud');
+  const goPanel       = document.getElementById('goPanel');
 
-        // Единая позиция очков для ВСЕХ экранов (меню / игра / геймовер)
-        const scoreX = LOGICAL_W * 0.5;
-        const scoreY = LOGICAL_H * 0.14; // ~14% высоты
+  // --- 1. MENU SCORE (только меню)
+  placeAt(menuScoreWrap, LOGICAL_W * 0.5, LOGICAL_H * 0.14);
 
-        if (menuScoreWrap) {
-          placeAt(menuScoreWrap, scoreX, scoreY, { anchorX: 0.5, anchorY: 0.5 });
-        }
-        if (scoreHud) {
-          placeAt(scoreHud, scoreX, scoreY, { anchorX: 0.5, anchorY: 0.5 });
-        }
+  // --- 2. SCORE HUD (под базой)
+  const baseX = CONST.BASE_POS.x;
+  const baseY = CONST.BASE_POS.y;
+
+  const hudX = baseX;
+  const hudY = baseY - 200;   // под базой
+
+  placeAt(scoreHud, hudX, hudY);
+
+  // --- 3. GAMEOVER PANEL (центр экрана)
+  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.40);
+}
 
         // GameOver: панель звёзд чуть ниже
         if (goPanel) {
