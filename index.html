@@ -342,14 +342,6 @@
   <div id="scoreHudVal">0</div>
 </div>
 
-<!-- GAMEOVER PANEL -->
-<div id="goPanel" class="hidden">
-  <div id="star1" class="star"></div>
-  <div id="star2" class="star"></div>
-  <div id="star3" class="star"></div>
-  <div id="scoreGain">+0</div>
-</div>
-
 
         <!-- Меню -->
         <div id="menuOverlay" class="overlay hidden">
@@ -440,17 +432,15 @@
       const barFill = $('barFill');
       const pct = $('pct');
 
-      const scoreHud   = $('scoreHud');
-      const scoreHudVal= $('scoreHudVal');
-     const menuScoreWrap = $('menuScoreWrap');
+      const menuScoreWrap = $('menuScoreWrap');
 const menuScore     = $('menuScore');
-
 const scoreHud      = $('scoreHud');
 const scoreHudVal   = $('scoreHudVal');
 
 const goPanel       = $('goPanel');
 const starEls       = [ $('star1'), $('star2'), $('star3') ];
 const scoreGain     = $('scoreGain');
+
 
       const starEls    = [ $('star1'), $('star2'), $('star3') ];
       const scoreGain  = $('scoreGain');
@@ -494,14 +484,26 @@ scoreHud.classList.add('hidden');
         try { menuVideo.pause(); } catch (_) {}
       };
 
-      // 👉 Экран Game Over
+// 👉 Экран Game Over
 const showGameoverOverlay = () => {
+  // прячем меню
   menuOverlay.classList.add('hidden');
+  menuOverlay.style.display = 'none';
+
+  // показываем оверлей GameOver
   gameoverOverlay.classList.remove('hidden');
+
+  // прячем оба счётчика очков (HUD в игре и текст в меню)
+  menuScoreWrap.classList.add('hidden');
+  scoreHud.classList.add('hidden');
+
+  // запускаем ролик GameOver
   try {
     gameoverVideo.currentTime = 0;
     gameoverVideo.play().catch(() => {});
   } catch (_) {}
+};
+
 
   // правильное скрытие полей очков
   document.getElementById('scoreHud').classList.add('hidden');
@@ -2097,11 +2099,10 @@ menuScoreWrap.classList.add('hidden');
         stageBox.style.height= Math.floor(cssH)+'px';
       }
 
-      window.addEventListener('load', ()=>{
-        showPreloader();
-        try{ game.scale.refresh(); }catch(_){}
-        syncStageToCanvas();
-      },{passive:true});
+   window.addEventListener('load', () => {
+  showPreloader();
+}, { passive:true });
+
 
       window.addEventListener('resize', ()=>{
         cancelAnimationFrame(syncStageToCanvas.__raf||0);
