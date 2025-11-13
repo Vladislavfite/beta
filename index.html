@@ -243,68 +243,68 @@
 #goPanel {
   position:absolute;
   left:50%;
-  top:28%;               /* ← ПОДНЁС ВЫШЕ / можно менять 26–32% */
+  top:30%;  /* ← оптимальное положение над гоблином */
   transform:translate(-50%, -50%);
-  z-index:150;
+  width:100%;
+  z-index:200;
+  
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:16px;
-  width:100%;
+  gap:22px;
+
   pointer-events:none;
   text-align:center;
 }
 
-
 /* Контейнер со звёздами */
-#starRow {
+#starRow{
   display:flex;
-  gap:18px;
+  align-items:center;
+  justify-content:center;
+  gap:22px;
+  width:100%;
 }
 
 /* Звезда */
-.star {
-  font:900 80px/1 Arial,Helvetica,sans-serif;
+.star{
+  font:900 82px/1 Arial,Helvetica,sans-serif;
   color:#ffd700;
   text-shadow:
-    0 0 10px rgba(0,0,0,.8),
-    0 0 18px rgba(255,215,0,.35);
-  transform:scale(0);
+    0 0 14px rgba(0,0,0,0.9),
+    0 0 22px rgba(255,215,0,0.4);
   opacity:0;
-  transition:transform .45s ease, opacity .45s ease;
-  filter:drop-shadow(0 0 10px rgba(255,215,0,.45));
+  transform:scale(0.2);
+  transition:transform .35s ease, opacity .35s ease;
 }
 
-/* Появление звезды */
-.star.appear {
-  transform:scale(1);
+.star.appear{
   opacity:1;
+  transform:scale(1);
 }
 
-/* Пульсация */
-.star.pulse {
-  animation:starPulse 1.6s ease-in-out infinite;
+.star.pulse{
+  animation:starPulse 1.8s ease-in-out infinite;
 }
 
-@keyframes starPulse {
-  0%,100% { transform:scale(1); }
-  50%     { transform:scale(1.06); }
+@keyframes starPulse{
+  0%,100%{ transform:scale(1); }
+  50%{ transform:scale(1.08); }
 }
 
-/* +очки */
-#scoreGain {
-  text-align:center;
-  width:100%;
+/* "+очки" */
+#scoreGain{
   color:#ffec8b;
-  font:800 24px/1 Arial,Helvetica,sans-serif;
-  text-shadow:0 0 10px rgba(0,0,0,.8);
+  font:900 32px/1 Arial,Helvetica,sans-serif;
+  text-shadow:0 0 16px rgba(0,0,0,.85);
+  width:100%;
   opacity:0;
-  transform:translateY(8px);
-  transition:opacity .4s ease, transform .4s ease;
+  transform:translateY(12px);
+  transition:opacity .35s ease, transform .35s ease;
 }
 
-#scoreGain.show {
+#scoreGain.show{
   opacity:1;
   transform:translateY(0);
 }
