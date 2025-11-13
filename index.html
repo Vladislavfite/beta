@@ -98,16 +98,14 @@
     inset:0;
   }
 
-  .overlay{
+.overlay{
     position:absolute;
     inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+    display:block;   /* ← ЭТО МЕНЯЕМ */
     z-index:60;
     pointer-events:auto;
-    background:#000; /* перекрываем карту под меню и gameover */
-  }
+    background:#000; /* ← ОСТАВЛЯЕМ, ЭТО ВЕРНО */
+}
 
   .hidden{
     display:none;
