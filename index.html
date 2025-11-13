@@ -227,58 +227,82 @@
     opacity:0;
   }
 
-  /* ===== GameOver: панель звёзд и +очки ===== */
-  #goPanel{
-    position:absolute;
-    z-index:99;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:12px;
-    pointer-events:none;
-  }
+/* ======================== GAMEOVER: звёзды + +очки ======================== */
 
-  #starRow{
-    display:flex;
-    gap:18px;
-  }
+/* Ставим весь блок строго по центру экрана */
+#goPanel {
+  position:absolute;
+  left:50%;
+  top:33%;                       /* поднимай/опускай тут */
+  transform:translate(-50%, -50%);
+  z-index:99;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  pointer-events:none;
+}
 
-  .star{
-    font:900 80px/1 Arial,Helvetica,sans-serif;
-    color:#ffd700;
-    text-shadow:
-      0 0 10px rgba(0,0,0,.8),
-      0 0 18px rgba(255,215,0,.35);
-    transform:scale(0);
-    opacity:0;
-    transition:transform .45s ease, opacity .45s ease;
-    filter:drop-shadow(0 0 10px rgba(255,215,0,.45));
-  }
-  .star.appear{
-    transform:scale(1);
-    opacity:1;
-  }
-  .star.pulse{
-    animation:starPulse 1.6s ease-in-out infinite;
-  }
-  @keyframes starPulse{
-    0%,100%{ transform:scale(1); }
-    50%    { transform:scale(1.06); }
-  }
+/* Контейнер со звёздами */
+#starRow {
+  display:flex;
+  gap:18px;
+}
 
-  #scoreGain{
-    color:#ffec8b;
-    font:800 24px/1 Arial,Helvetica,sans-serif;
-    text-shadow:0 0 10px rgba(0,0,0,.8);
-    opacity:0;
-    transform:translateY(8px);
-    transition:opacity .4s ease, transform .4s ease;
-  }
-  #scoreGain.show{
-    opacity:1;
-    transform:translateY(0);
-  }
+/* Звезда */
+.star {
+  font:900 80px/1 Arial,Helvetica,sans-serif;
+  color:#ffd700;
+  text-shadow:
+    0 0 10px rgba(0,0,0,.8),
+    0 0 18px rgba(255,215,0,.35);
+  transform:scale(0);
+  opacity:0;
+  transition:transform .45s ease, opacity .45s ease;
+  filter:drop-shadow(0 0 10px rgba(255,215,0,.45));
+}
+
+/* Появление звезды */
+.star.appear {
+  transform:scale(1);
+  opacity:1;
+}
+
+/* Пульсация */
+.star.pulse {
+  animation:starPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes starPulse {
+  0%,100% { transform:scale(1); }
+  50%     { transform:scale(1.06); }
+}
+
+/* +очки */
+#scoreGain {
+  text-align:center;
+  width:100%;
+  color:#ffec8b;
+  font:800 24px/1 Arial,Helvetica,sans-serif;
+  text-shadow:0 0 10px rgba(0,0,0,.8);
+  opacity:0;
+  transform:translateY(8px);
+  transition:opacity .4s ease, transform .4s ease;
+}
+
+#scoreGain.show {
+  opacity:1;
+  transform:translateY(0);
+}
+/* Кнопка PLAY AGAIN на экране GameOver */
+#gameoverOverlay .panel{
+  position:absolute;
+  left:50%;
+  bottom:8%;          /* регулируешь, чтобы было как тебе нравится */
+  transform:translateX(-50%);
+  padding-top:0;      /* убираем 36vh для этого случая */
+}
 </style>
 
     <!-- Phaser -->
@@ -2157,8 +2181,7 @@ menuScoreWrap.classList.add('hidden');
     // GAME — под базой
     placeAt(scoreHud, baseX, baseY + 110);
 
-    // GAMEOVER — центрируем и поднимаем
-    placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.36);
+
   }
 </script>
 
