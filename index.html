@@ -2177,7 +2177,7 @@ menuScoreWrap.classList.add('hidden');
     el.style.transform = 'translateZ(0)';
   }
 
- function updateHudLayout() {
+function updateHudLayout() {
   const baseX = CONST.BASE_POS.x;
   const baseY = CONST.BASE_POS.y;
 
@@ -2187,11 +2187,13 @@ menuScoreWrap.classList.add('hidden');
   // GAME — под базой
   placeAt(scoreHud, baseX, baseY + 110);
 
-// Центрируем строго через CSS, placeAt не трогаем
-goPanel.style.left = '50%';
-goPanel.style.top = '32%';
-goPanel.style.transform = 'translate(-50%, -50%)';
-
+  // GAMEOVER — центрируем строго через CSS, placeAt не трогаем
+  if (goPanel) {
+    goPanel.style.position = 'absolute';
+    goPanel.style.left = '50%';
+    goPanel.style.top = '32%';              // можешь поиграть 30–36
+    goPanel.style.transform = 'translate(-50%, -50%)';
+  }
 }
 </script>
 
