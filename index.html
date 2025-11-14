@@ -2199,6 +2199,9 @@ function updateHudLayout() {
 
 // GAMEOVER — масштабируем как все DOM-элементы
 placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.32, { anchorX:0.5, anchorY:0.5 });
+  // Центровка панели звёзд
+placeAt(goPanel, CONST.WIDTH / 2, CONST.HEIGHT * 0.32);
+
 
 }
 </script>
