@@ -251,6 +251,7 @@
   align-items:center;
   justify-content:flex-start;
   text-align:center;
+  z-index: 200 !important;
 }
 
 /* Центрирование звёзд */
@@ -260,6 +261,7 @@
   justify-content:center;
   align-items:center;
   margin-top:20px;
+  z-index: 201 !important;
 }
 
 /* Сами звёзды */
@@ -298,6 +300,7 @@
   opacity:0;
   transform:translateY(12px);
   transition:opacity .35s ease, transform .35s ease;
+  z-index: 201 !important;
 }
 
 #scoreGain.show{
@@ -2197,9 +2200,13 @@ function updateHudLayout() {
   // GAME — под базой
   placeAt(scoreHud, baseX, baseY + 110);
 
-placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.32);
+  // 📌 ФИКС ВЫСОТЫ ПЕРЕД РАССТАНОВКОЙ GО-PANEL
+  // Если у элемента нет высоты — placeAt ставит его в (0,0)
+  goPanel.style.height = 'auto';
+  goPanel.style.zIndex = 200;
 
-
+  // Теперь ставим панель GameOver
+  placeAt(goPanel, LOGICAL_W * 0.5, LOGICAL_H * 0.32);
 }
 </script>
 
