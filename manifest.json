@@ -2,22 +2,22 @@
   "name": "ADDAGEDON",
   "short_name": "ADDAGEDON",
   "description": "Строй башни, улучшай их за золото и призывай героев. Бесконечные волны врагов.",
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "scope": "./",
   "icons": [
     {
-      "src": "/assets/icons/logo.png",
+      "src": "assets/icons/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/assets/icons/logo.png",
+      "src": "assets/icons/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
   ]
 }
-
