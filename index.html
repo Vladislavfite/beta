@@ -104,12 +104,12 @@
     display:block;   /* ← ЭТО МЕНЯЕМ */
     z-index:60;
     pointer-events:auto;
-    background:#000; /* ← ОСТАВЛЯЕМ, ЭТО ВЕРНО */
 }
 
-  .hidden{
-    display:none;
-  }
+  .hidden {
+  visibility:hidden;
+  opacity:0;
+}
 
   .panel{
     position:relative;
@@ -496,23 +496,28 @@ const scoreGain     = $('scoreGain');
       };
 
 const showGameoverOverlay = () => {
-  // прячем меню
   menuOverlay.classList.add('hidden');
   menuOverlay.style.display = 'none';
 
-  // показываем GameOver
+  // показываем GameOver без display:none
   gameoverOverlay.classList.remove('hidden');
+  gameoverOverlay.style.display = 'block';
 
-  // скрываем оба счётчика
   menuScoreWrap.classList.add('hidden');
   scoreHud.classList.add('hidden');
 
-  // видео
+  // запускаем видео
   try {
     gameoverVideo.currentTime = 0;
     gameoverVideo.play().catch(()=>{});
   } catch (_) {}
+
+  // ждём, пока браузер реально отрисует DOM (+ видео)
+  setTimeout(() => {
+    updateHudLayout();
+  }, 60);
 };
+
 
 
       const hideGameoverOverlay = () => {
