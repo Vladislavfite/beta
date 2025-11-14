@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>ADDAGEDON</title>
+
     <!-- фавиконки -->
     <link rel="icon" type="image/x-icon" href="favicon.ico?v=3">
     <link rel="apple-touch-icon" href="assets/icons/logo.png" sizes="180x180">
@@ -89,7 +90,7 @@
     user-select:none;
     image-rendering:crisp-edges;
     image-rendering:-webkit-optimize-contrast;
-    background:#000; /* если где-то промелькнёт — будет чёрное, а не карта */
+    background:#000;
   }
 
   #game{
@@ -103,7 +104,7 @@
   display:block;
   z-index:60;
   pointer-events:auto;
-  background:#000;   /* ← ОБЯЗАТЕЛЬНО! */
+  background:#000;  
 }
 
   .hidden {
@@ -121,11 +122,11 @@
     justify-content:center;
     padding-top:36vh;
   }
-/* Панель в главном меню – привязана к низу экрана, а не к 36vh */
+
 #menuOverlay .panel{
   position:absolute;
   left:50%;
-  bottom:120px;          /* высота кнопки PLAY от низа */
+  bottom:120px;          
   transform:translateX(-50%);
   padding-top:0;
 }
@@ -312,18 +313,16 @@
     <!-- Phaser -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 
-    <script src="https://yandex.ru/games/sdk/v2"></script>
+    <!-- Yandex Games SDK -->
+<script src="/sdk.js"></script>
 <script>
   let ysdk;
 
-  if (typeof YaGames !== 'undefined') {
-    YaGames.init().then(sdk => {
-      ysdk = sdk;
-      console.log('✅ Yandex SDK инициализирован');
-    }).catch(e => console.warn('Ошибка SDK:', e));
-  } else {
-    console.warn('YaGames SDK недоступен (не контейнер Яндекс или не загрузился)');
-  }
+  YaGames.init().then(sdk => {
+    ysdk = sdk;
+    window.ysdk = sdk; // полезно, если что-то захочешь дебажить
+    console.log('✅ Yandex SDK инициализирован');
+  }).catch(e => console.warn('Ошибка SDK:', e));
 </script>
 
     <meta http-equiv="Cache-Control" content="max-age=31536000, immutable">
